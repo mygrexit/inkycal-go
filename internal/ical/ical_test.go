@@ -143,3 +143,65 @@ func TestLoadFailsWithoutCache(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestParseMultiDayEventStartedTheDayBefore(t *testing.T) {
+	loc := berlin(t)
+	ics := `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:test
+BEGIN:VEVENT
+UID:holiday
+DTSTAMP:20261001T000000Z
+DTSTART;VALUE=DATE:20261012
+DTEND;VALUE=DATE:20261015
+SUMMARY:Urlaub
+END:VEVENT
+END:VCALENDAR
+`
+	from := time.Date(2026, 10, 13, 0, 0, 0, 0, loc)
+	ev, err := Parse(strings.NewReader(ics), from, from.AddDate(0, 0, 7), loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ev) != 1 || ev[0].Title != "Urlaub" {
+		t.Fatalf("day 2 of a 3-day event missing: %+v", ev)
+	}
+}
+
+func TestParseQuotedAndCustomTZIDUseLocalTime(t *testing.T) {
+	loc := berlin(t)
+	old := time.Local
+	time.Local = loc // Outlook's custom zones are assumed to be the device's zone
+	defer func() { time.Local = old }()
+	ics := `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:test
+BEGIN:VEVENT
+UID:quoted
+DTSTAMP:20261001T000000Z
+DTSTART;TZID="W. Europe Standard Time":20261013T080000
+DTEND;TZID="W. Europe Standard Time":20261013T083000
+SUMMARY:Quoted
+END:VEVENT
+BEGIN:VEVENT
+UID:custom
+DTSTAMP:20261001T000000Z
+DTSTART;TZID=Customized Time Zone:20261013T090000
+DTEND;TZID=Customized Time Zone:20261013T093000
+SUMMARY:Custom
+END:VEVENT
+END:VCALENDAR
+`
+	from := time.Date(2026, 10, 13, 0, 0, 0, 0, loc)
+	ev, err := Parse(strings.NewReader(ics), from, from.AddDate(0, 0, 1), loc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int{}
+	for _, e := range ev {
+		got[e.Title] = e.Start.Hour()
+	}
+	if got["Quoted"] != 8 || got["Custom"] != 9 {
+		t.Errorf("local hours: %v (want Quoted 8, Custom 9)", got)
+	}
+}

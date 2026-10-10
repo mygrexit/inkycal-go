@@ -92,10 +92,6 @@ func runMode(mode, settingsPath, out, stateDir, pisugarAddr string) error {
 	} else if display, err = epd.Open(s.Model); err != nil {
 		return err
 	}
-	if mode == "clear" {
-		return display.Clear(int(s.CalibrationCycles))
-	}
-
 	o := &app.Options{
 		Settings: s,
 		StateDir: stateDir,
@@ -105,6 +101,9 @@ func runMode(mode, settingsPath, out, stateDir, pisugarAddr string) error {
 		Loc:      time.Local,
 		Now:      time.Now,
 		Registry: app.Registry,
+	}
+	if mode == "clear" {
+		return app.Calibrate(o)
 	}
 	if mode == "run" && s.UsePiSugar {
 		o.PiSugar = pisugar.New(pisugarAddr) // assign only when enabled: a typed nil would not be == nil

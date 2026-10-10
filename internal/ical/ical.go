@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/apognu/gocal"
+	"github.com/apognu/gocal/parser"
 
 	"inkycal/internal/fetch"
 )
@@ -39,14 +40,21 @@ var windowsZones = map[string]string{
 	"UTC":                            "UTC",
 }
 
-func init() {
-	gocal.SetTZMapper(func(s string) (*time.Location, error) {
-		if name, ok := windowsZones[s]; ok {
-			return time.LoadLocation(name)
-		}
-		return nil, fmt.Errorf("no windows mapping for %q", s)
-	})
+// mapTZID resolves a TZID: quotes are stripped (RFC 5545 allows quoted values), Windows names are
+// mapped, IANA names are loaded, and anything else (e.g. Outlook's "Customized Time Zone") is taken
+// as the device's local zone instead of gocal's silent UTC fallback.
+func mapTZID(s string) (*time.Location, error) {
+	s = strings.TrimSpace(strings.Trim(strings.TrimSpace(s), `"`))
+	if name, ok := windowsZones[s]; ok {
+		return time.LoadLocation(name)
+	}
+	if loc, err := parser.LoadTimezone(s); err == nil {
+		return loc, nil
+	}
+	return time.Local, nil
 }
+
+func init() { gocal.SetTZMapper(mapTZID) }
 
 func midnight(t time.Time) time.Time {
 	y, m, d := t.Date()
@@ -55,10 +63,13 @@ func midnight(t time.Time) time.Time {
 
 // Parse returns events overlapping [from, to), sorted by start.
 func Parse(r io.Reader, from, to time.Time, loc *time.Location) ([]Event, error) {
-	// gocal's own range check excludes events starting exactly at Start, so widen and filter ourselves.
-	start, end := from.Add(-24*time.Hour), to.Add(24*time.Hour)
+	// gocal's range check excludes events that start exactly at its bounds, so single events are
+	// not bounded at all (SkipBounds) and we filter ourselves. Recurring events are still expanded
+	// only within Start/End, widened by an odd margin that real event boundaries never hit.
+	start, end := from.Add(-24*time.Hour-time.Second), to.Add(24*time.Hour+time.Second)
 	p := gocal.NewParser(r)
 	p.Start, p.End = &start, &end
+	p.SkipBounds = true
 	p.AllDayEventsTZ = loc
 	p.Strict.Mode = gocal.StrictModeFailEvent // one broken event must not hide the whole calendar
 	if err := p.Parse(); err != nil {

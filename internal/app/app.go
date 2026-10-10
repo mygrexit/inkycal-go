@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -78,12 +79,16 @@ func runModules(ctx context.Context, o *Options, now time.Time) []moduleOutcome 
 	var wg sync.WaitGroup
 	for i, entry := range o.Settings.Modules {
 		common, err := config.ParseCommon(entry.Config)
+		w, h := common.InnerSize()
+		// A failed module keeps its section blank, so it needs a canvas even with a broken size.
+		out[i].part = render.Part{
+			Img:      render.NewCanvas(max(w, 1), max(h, 1), render.FontDefault, 14),
+			SectionW: common.Size[0], SectionH: common.Size[1],
+		}
 		if err != nil {
 			out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
 			continue
 		}
-		w, h := common.InnerSize()
-		out[i].part = render.Part{Img: render.NewCanvas(w, h, render.FontDefault, 14), SectionW: common.Size[0], SectionH: common.Size[1]}
 		factory, ok := o.Registry[entry.Name]
 		if !ok {
 			out[i].err = fmt.Errorf("unknown module %q", entry.Name)
@@ -131,6 +136,9 @@ func infoText(now time.Time, imageHash bool, outcomes []moduleOutcome, battery f
 		}
 	}
 	if hasBattery {
+		if imageHash {
+			battery = math.Floor(battery/10) * 10 // every 1 % would change the hash and force a refresh
+		}
 		if battery < 20 {
 			fmt.Fprintf(&b, "Low battery! (%.0f%%) ", battery)
 		} else {
@@ -231,6 +239,16 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 
 	displayErr := <-displayDone
 	res.Timings.Display = time.Since(start) - res.Timings.Modules - res.Timings.Render
+
+	// Modules, calibration or a cold panel can take longer than minSleep: never power off
+	// with an alarm that has passed (repeat=127 would only wake us the next day).
+	if alarmOK && res.Wake.Sub(o.Now()) < minSleep {
+		res.Wake = schedule.NextWake(o.Now().In(o.Loc), int(s.UpdateInterval), minSleep)
+		if err := o.PiSugar.SetAlarm(res.Wake, alarmEveryDay); err != nil {
+			slog.Error("re-setting wake-up alarm failed, staying on", "err", err)
+			alarmOK = false
+		}
+	}
 	if displayErr == nil && res.Refreshed {
 		st.LastHash = frame.Hash()
 		if calibrate {
@@ -278,4 +296,19 @@ func Loop(ctx context.Context, o *Options) error {
 		case <-time.After(wait):
 		}
 	}
+}
+
+// Calibrate runs the panel's clean cycles and forgets the last frame hash, so the next cycle
+// redraws the (now white) panel even if the content did not change.
+func Calibrate(o *Options) error {
+	if err := o.Display.Clear(int(o.Settings.CalibrationCycles)); err != nil {
+		return err
+	}
+	st, err := state.Load(o.StateDir)
+	if err != nil {
+		st = state.State{}
+	}
+	st.LastHash = ""
+	st.LastCalibration = o.Now()
+	return state.Save(o.StateDir, st)
 }
