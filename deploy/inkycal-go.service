@@ -1,0 +1,14 @@
+[Unit]
+Description=Inkycal e-paper dashboard (Go)
+Wants=network-online.target
+After=network-online.target pisugar-server.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/inkycal --mode run
+StateDirectory=inkycal
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
