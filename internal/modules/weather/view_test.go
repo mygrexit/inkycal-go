@@ -162,11 +162,26 @@ func TestComputeGrid(t *testing.T) {
 	if g.ColW != 65 || g.RowH != 26 || g.IconSmall != 21 || g.LineGap != 0 {
 		t.Errorf("grid = %+v", g)
 	}
-	if g.Cols[0] != 2 || g.Cols[6] != 392 || g.Rows != [3]int{0, 26, 52} {
+	if g.Cols[0] != 2 || g.Cols[6] != 392 || g.Rows != [3]int{1, 27, 53} {
 		t.Errorf("cols/rows = %v / %v", g.Cols, g.Rows)
 	}
 	g2 := computeGrid(460, 200) // ratio 2.3 < 4
-	if g2.RowH != 37 || g2.LineGap != 21 || g2.Rows != [3]int{21, 79, 137} {
+	if g2.RowH != 37 || g2.LineGap != 21 || g2.Rows != [3]int{23, 81, 139} {
 		t.Errorf("grid2 = %+v", g2)
+	}
+}
+
+// The content block sits in the middle of its border: same gap above and below.
+func TestComputeGridCentersContentInBorder(t *testing.T) {
+	for _, sz := range [][2]int{{984, 260}, {460, 200}, {640, 160}, {460, 80}} {
+		g := computeGrid(sz[0], sz[1])
+		top := g.Rows[0] - g.BoxY
+		bottom := g.BoxY + g.BoxH - (g.Rows[2] + g.RowH)
+		if top < 0 || bottom < 0 || top-bottom > 1 || bottom-top > 1 {
+			t.Errorf("%v: gap above %d, below %d (grid %+v)", sz, top, bottom, g)
+		}
+		if g.BoxY < 0 || g.BoxY+g.BoxH > sz[1] {
+			t.Errorf("%v: border %d+%d outside module", sz, g.BoxY, g.BoxH)
+		}
 	}
 }
