@@ -63,21 +63,42 @@ func (b *linuxBus) Open() error {
 		return err
 	}
 	time.Sleep(10 * time.Millisecond) // let the HAT's supply settle
+	f, err := openSPI(spiSpeed)
+	if err != nil {
+		return err
+	}
+	b.spi = f
+	return nil
+}
+
+// openSPI opens spidev0.0 in mode 0, 8 bit.
+func openSPI(speed uint32) (*os.File, error) {
 	f, err := os.OpenFile(spiDev, os.O_RDWR, 0)
 	if err != nil {
-		return fmt.Errorf("open %s (is SPI enabled?): %w", spiDev, err)
+		return nil, fmt.Errorf("open %s (is SPI enabled?): %w", spiDev, err)
 	}
-	mode, bits, speed := uint8(0), uint8(8), uint32(spiSpeed)
+	mode, bits := uint8(0), uint8(8)
 	for _, s := range []struct {
 		req uintptr
 		val unsafe.Pointer
 	}{{spiIocWrMode, unsafe.Pointer(&mode)}, {spiIocWrBitsPerWord, unsafe.Pointer(&bits)}, {spiIocWrMaxSpeedHz, unsafe.Pointer(&speed)}} {
 		if err := ioctl(f.Fd(), s.req, s.val); err != nil {
 			f.Close()
-			return fmt.Errorf("spi ioctl %#x: %w", s.req, err)
+			return nil, fmt.Errorf("spi ioctl %#x: %w", s.req, err)
 		}
 	}
-	b.spi = f
+	return f, nil
+}
+
+// writeSPI writes p in spidev-sized chunks.
+func writeSPI(f *os.File, p []byte) error {
+	for len(p) > 0 {
+		n := min(len(p), spiChunk)
+		if _, err := f.Write(p[:n]); err != nil {
+			return err
+		}
+		p = p[n:]
+	}
 	return nil
 }
 
@@ -103,14 +124,7 @@ func (b *linuxBus) write(dc int, p []byte) error {
 	if err := b.dc.SetValue(dc); err != nil {
 		return err
 	}
-	for len(p) > 0 {
-		n := min(len(p), spiChunk)
-		if _, err := b.spi.Write(p[:n]); err != nil {
-			return err
-		}
-		p = p[n:]
-	}
-	return nil
+	return writeSPI(b.spi, p)
 }
 
 func (b *linuxBus) Command(c byte) error { return b.write(0, []byte{c}) }
@@ -121,12 +135,19 @@ func (b *linuxBus) BusyLevel() (int, error) { return b.busy.Value() }
 
 // Open returns the hardware display for a model name from settings.json.
 func Open(model string) (Display, error) {
-	if model != "epd_7_in_5_v2_colour" {
-		return nil, fmt.Errorf("display model %q not supported (supported: epd_7_in_5_v2_colour)", model)
+	switch model {
+	case "epd_7_in_5_v2_colour":
+		bus, err := newLinuxBus()
+		if err != nil {
+			return nil, err
+		}
+		return NewEPD7in5bV2(bus, time.Sleep), nil
+	case "epd_12_in_48_colour_V2":
+		bus, err := newLinuxBus12()
+		if err != nil {
+			return nil, err
+		}
+		return NewEPD12in48bV2(bus, time.Sleep), nil
 	}
-	bus, err := newLinuxBus()
-	if err != nil {
-		return nil, err
-	}
-	return NewEPD7in5bV2(bus, time.Sleep), nil
+	return nil, fmt.Errorf("display model %q not supported", model)
 }

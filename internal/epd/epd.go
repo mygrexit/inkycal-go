@@ -19,7 +19,8 @@ type Display interface {
 
 // Models lists supported panels and their native size.
 var Models = map[string][2]int{
-	"epd_7_in_5_v2_colour": {800, 480},
+	"epd_7_in_5_v2_colour":   {800, 480},
+	"epd_12_in_48_colour_V2": {1304, 984},
 }
 
 // Bus is the hardware interface a driver needs (SPI + 4 GPIOs).

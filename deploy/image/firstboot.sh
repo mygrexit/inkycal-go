@@ -71,9 +71,21 @@ else
 	echo "WARNING: no $B/settings.json, inkycal will fail until it is copied there"
 fi
 
+# The 12.48" panel drives its chip selects as plain GPIOs (7, 8): the SPI driver must not claim them.
+reboot=""
+if grep -q '"epd_12_in_48' "$B/settings.json" 2>/dev/null && ! grep -q '^dtoverlay=spi0-0cs' "$B/config.txt"; then
+	sed -i 's/^dtparam=spi=on$/&\ndtoverlay=spi0-0cs/' "$B/config.txt"
+	reboot=1
+fi
+
 systemctl daemon-reload
 systemctl enable inkycal-go.service
 touch /etc/cloud/cloud-init.disabled
 rm -f "$I/pisugar-server.deb"
-systemctl start --no-block inkycal-go.service
 echo "== done $(date -Is)"
+if [ -n "$reboot" ]; then
+	echo "rebooting for dtoverlay=spi0-0cs"
+	systemctl reboot
+else
+	systemctl start --no-block inkycal-go.service
+fi
