@@ -22,6 +22,7 @@ type Event struct {
 	Title      string
 	Start, End time.Time // in the requested location; End is exclusive
 	AllDay     bool
+	Source     int // index of the calendar it came from: URLs first, then files
 }
 
 // windowsZones maps Outlook/Exchange TZIDs to IANA names (gocal would silently fall back to UTC).
@@ -132,6 +133,9 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 				results[i].err = fmt.Errorf("calendar %d: %w", i+1, err)
 				return
 			}
+			for j := range ev {
+				ev[j].Source = i
+			}
 			results[i] = result{events: ev, stale: res.Stale}
 		}(i, u)
 	}
@@ -146,7 +150,7 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 		all = append(all, r.events...)
 		stale = stale || r.stale
 	}
-	for _, path := range files {
+	for fi, path := range files {
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, false, err
@@ -155,6 +159,9 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 		f.Close()
 		if err != nil {
 			return nil, false, fmt.Errorf("%s: %w", path, err)
+		}
+		for j := range ev {
+			ev[j].Source = len(urls) + fi
 		}
 		all = append(all, ev...)
 	}

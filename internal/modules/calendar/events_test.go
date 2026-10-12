@@ -1,7 +1,9 @@
 package calendar
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,7 +44,7 @@ func TestBuildEventRows(t *testing.T) {
 		{Title: "Fern", Start: at(11, 20, 10), End: at(11, 20, 11)},
 	}
 
-	rows := buildEventRows(events, now, 10, "D MMM", "HH:mm", "en")
+	rows := buildEventRows(mergeSources(events, nil, false, "en"), now, 10, "D MMM", "HH:mm", "en")
 	if len(rows) != 3 {
 		t.Fatalf("rows = %+v, want 3 rows", rows)
 	}
@@ -57,10 +59,56 @@ func TestBuildEventRows(t *testing.T) {
 		t.Errorf("Urlaub row = %+v, want title %q", rows[2], wantTitle)
 	}
 
-	if limited := buildEventRows(events, now, 2, "D MMM", "HH:mm", "en"); len(limited) != 2 {
+	if limited := buildEventRows(mergeSources(events, nil, false, "en"), now, 2, "D MMM", "HH:mm", "en"); len(limited) != 2 {
 		t.Errorf("limit 2 gave %d rows", len(limited))
 	}
-	if none := buildEventRows(events, now, -1, "D MMM", "HH:mm", "en"); len(none) != 0 {
+	if none := buildEventRows(mergeSources(events, nil, false, "en"), now, -1, "D MMM", "HH:mm", "en"); len(none) != 0 {
 		t.Errorf("negative limit gave %d rows", len(none))
+	}
+}
+
+func TestMergeSourcesLabelsAndDedupes(t *testing.T) {
+	loc := time.UTC
+	at := func(h int) time.Time { return time.Date(2026, 10, 13, h, 0, 0, 0, loc) }
+	events := []ical.Event{
+		{Title: "Kinderarzt", Start: at(11), End: at(12), Source: 0},
+		{Title: "Kinderarzt ", Start: at(11), End: at(12), Source: 1}, // same event, other calendar
+		{Title: "Barber", Start: at(10), End: at(11), Source: 0},
+		{Title: "Babyschwimmen", Start: at(16), End: at(17), Source: 1},
+		{Title: "Kinderarzt", Start: at(15), End: at(16), Source: 1}, // same title, other time
+	}
+	got := mergeSources(events, []string{"Niko", "Sofia"}, true, "de")
+	want := map[string]string{"Kinderarzt@11": "beide", "Barber@10": "Niko", "Babyschwimmen@16": "Sofia", "Kinderarzt@15": "Sofia"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d events: %+v", len(got), got)
+	}
+	for _, e := range got {
+		k := fmt.Sprintf("%s@%d", strings.TrimSpace(e.Title), e.Start.Hour())
+		if want[k] != e.Label {
+			t.Errorf("%s: label %q, want %q", k, e.Label, want[k])
+		}
+	}
+}
+
+func TestMergeSourcesWithoutDedupeOrLabels(t *testing.T) {
+	at := time.Date(2026, 10, 13, 11, 0, 0, 0, time.UTC)
+	events := []ical.Event{{Title: "A", Start: at, End: at, Source: 0}, {Title: "A", Start: at, End: at, Source: 1}}
+	if got := mergeSources(events, []string{"Niko", "Sofia"}, false, "de"); len(got) != 2 || got[0].Label != "Niko" || got[1].Label != "Sofia" {
+		t.Errorf("no dedupe: %+v", got)
+	}
+	if got := mergeSources(events, nil, true, "de"); len(got) != 1 || got[0].Label != "" {
+		t.Errorf("dedupe without labels: %+v", got)
+	}
+	if got := mergeSources(events, []string{"Niko", "Sofia"}, true, "en"); got[0].Label != "both" {
+		t.Errorf("english: %+v", got)
+	}
+}
+
+func TestBuildEventRowsCarriesLabel(t *testing.T) {
+	now := time.Date(2026, 10, 13, 8, 0, 0, 0, time.UTC)
+	ev := []labeledEvent{{Event: ical.Event{Title: "Barber", Start: now.Add(time.Hour), End: now.Add(2 * time.Hour)}, Label: "Niko"}}
+	rows := buildEventRows(ev, now, 5, "D MMM", "HH:mm", "de")
+	if len(rows) != 1 || rows[0].Label != "Niko" || rows[0].Title != "Barber" {
+		t.Fatalf("rows: %+v", rows)
 	}
 }

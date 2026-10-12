@@ -24,6 +24,8 @@ type Module struct {
 	files      []string
 	dateFormat string
 	timeFormat string
+	dedupe     bool
+	labels     []string
 }
 
 type rawConfig struct {
@@ -33,6 +35,8 @@ type rawConfig struct {
 	ICalFiles    config.StringList `json:"ical_files"`
 	DateFormat   string            `json:"date_format"`
 	TimeFormat   string            `json:"time_format"`
+	Dedupe       config.FlexBool   `json:"dedupe_events"`
+	Labels       config.StringList `json:"calendar_labels"`
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
@@ -51,6 +55,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		files:      []string(rc.ICalFiles),
 		dateFormat: "D MMM",
 		timeFormat: "HH:mm",
+		dedupe:     bool(rc.Dedupe),
+		labels:     []string(rc.Labels),
 	}
 	if strings.EqualFold(rc.WeekStartsOn, "Sunday") {
 		m.weekStart = time.Sunday
@@ -147,7 +153,8 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 	lineY := func(i int) int { return offset + int(float64(l.EventsH)/float64(maxLines)*float64(i)) }
 	left := render.TextOpts{Align: render.AlignLeft}
 
-	rows := buildEventRows(events, now, maxLines, m.dateFormat, m.timeFormat, m.common.Language)
+	merged := mergeSources(events, m.labels, m.dedupe, m.common.Language)
+	rows := buildEventRows(merged, now, maxLines, m.dateFormat, m.timeFormat, m.common.Language)
 	if len(rows) == 0 {
 		dash := "- "
 		n := c.W / max(1, c.TextWidth(dash))
@@ -164,10 +171,43 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 		y := lineY(i)
 		c.Write(0, y, dateW, lh, r.Date, left)
 		if r.AllDay {
-			c.Write(dateW, y, c.W-dateW, lh, r.Title, left)
+			drawTitle(c, dateW, y, c.W-dateW, lh, r.Title, r.Label)
 			continue
 		}
 		c.Write(dateW, y, timeW, lh, r.Time, left)
-		c.Write(dateW+timeW, y, c.W-dateW-timeW, lh, r.Title, left)
+		drawTitle(c, dateW+timeW, y, c.W-dateW-timeW, lh, r.Title, r.Label)
 	}
+}
+
+// drawTitle writes the title and, if set, "(label)" in colour right after it.
+// A long title is shortened so the label always stays visible.
+func drawTitle(c *render.Canvas, x, y, w, h int, title, label string) {
+	left := render.TextOpts{Align: render.AlignLeft}
+	if label == "" {
+		c.Write(x, y, w, h, title, left)
+		return
+	}
+	tag := "(" + label + ")"
+	gap := c.TextWidth(" ")
+	title = fitText(c, title, w-gap-c.TextWidth(tag))
+	tw := 0
+	if title != "" {
+		tw = c.TextWidth(title) + gap
+		c.Write(x, y, tw, h, title, left)
+	}
+	c.Write(x+tw, y, w-tw, h, tag, render.TextOpts{Align: render.AlignLeft, Ink: render.InkColour})
+}
+
+// fitText shortens s with "…" until it is at most maxW pixels wide ("" if nothing fits).
+func fitText(c *render.Canvas, s string, maxW int) string {
+	if c.TextWidth(s) <= maxW {
+		return s
+	}
+	r := []rune(s)
+	for n := len(r) - 1; n > 0; n-- {
+		if t := strings.TrimSpace(string(r[:n])) + "…"; c.TextWidth(t) <= maxW {
+			return t
+		}
+	}
+	return ""
 }

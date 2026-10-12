@@ -127,6 +127,9 @@ func TestLoadURLsAndFiles(t *testing.T) {
 	titles := map[string]bool{}
 	for _, e := range ev {
 		titles[e.Title] = true
+		if (e.Title == "Zahnarzt" && e.Source != 0) || (e.Title == "Lokal" && e.Source != 1) {
+			t.Errorf("%s: source %d", e.Title, e.Source)
+		}
 	}
 	if !titles["Zahnarzt"] || !titles["Lokal"] || !titles["Training"] {
 		t.Errorf("titles: %v", titles)

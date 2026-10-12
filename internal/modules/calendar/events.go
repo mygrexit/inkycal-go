@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"inkycal/internal/ical"
@@ -12,7 +13,75 @@ type eventRow struct {
 	Date   string
 	Time   string
 	Title  string
+	Label  string // calendar name(s), drawn in colour after the title
 	AllDay bool
+}
+
+// labeledEvent is an event with the name of the calendar(s) it came from.
+type labeledEvent struct {
+	ical.Event
+	Label string
+}
+
+// mergeSources names each event's calendar (labels[i] for calendar i). With dedupe,
+// identical events from several calendars (same title, start and end) appear once,
+// labelled "beide"/"both" for two calendars or with all names joined by "+".
+func mergeSources(events []ical.Event, labels []string, dedupe bool, lang string) []labeledEvent {
+	name := func(src int) string {
+		if src >= 0 && src < len(labels) {
+			return labels[src]
+		}
+		return ""
+	}
+	type key struct {
+		title      string
+		start, end int64
+		allDay     bool
+	}
+	out := make([]labeledEvent, 0, len(events))
+	sources := map[key][]int{}
+	index := map[key]int{}
+	for _, e := range events {
+		k := key{strings.ToLower(strings.TrimSpace(e.Title)), e.Start.UnixNano(), e.End.UnixNano(), e.AllDay}
+		if i, ok := index[k]; ok && dedupe {
+			if len(labels) > 0 && !containsInt(sources[k], e.Source) {
+				sources[k] = append(sources[k], e.Source)
+				out[i].Label = joinSources(sources[k], labels, lang)
+			}
+			continue
+		}
+		index[k] = len(out)
+		sources[k] = []int{e.Source}
+		out = append(out, labeledEvent{Event: e, Label: name(e.Source)})
+	}
+	return out
+}
+
+func containsInt(s []int, v int) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+func joinSources(srcs []int, labels []string, lang string) string {
+	if len(srcs) == 2 && len(labels) == 2 {
+		if lang == "de" {
+			return "beide"
+		}
+		return "both"
+	}
+	sorted := append([]int(nil), srcs...)
+	sort.Ints(sorted)
+	var names []string
+	for _, s := range sorted {
+		if s < len(labels) {
+			names = append(names, labels[s])
+		}
+	}
+	return strings.Join(names, "+")
 }
 
 func dateOnly(t time.Time) time.Time {
@@ -47,9 +116,9 @@ func eventDays(events []ical.Event, year int, month time.Month, loc *time.Locati
 
 // buildEventRows lists events that have not ended and start within four weeks,
 // sorted by start, at most limit rows.
-func buildEventRows(events []ical.Event, now time.Time, limit int, dateFmt, timeFmt, lang string) []eventRow {
+func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, timeFmt, lang string) []eventRow {
 	horizon := now.AddDate(0, 0, 28)
-	var upcoming []ical.Event
+	var upcoming []labeledEvent
 	for _, e := range events {
 		if e.End.After(now) && e.Start.Before(horizon) {
 			upcoming = append(upcoming, e)
@@ -71,6 +140,7 @@ func buildEventRows(events []ical.Event, now time.Time, limit int, dateFmt, time
 			Date:   timefmt.Format(start, dateFmt, lang),
 			Time:   timefmt.Format(start, timeFmt, lang),
 			Title:  title,
+			Label:  e.Label,
 			AllDay: e.AllDay,
 		})
 	}
