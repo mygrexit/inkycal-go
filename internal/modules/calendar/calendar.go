@@ -17,26 +17,28 @@ import (
 )
 
 type Module struct {
-	common     config.Common
-	weekStart  time.Weekday
-	showEvents bool
-	urls       []string
-	files      []string
-	dateFormat string
-	timeFormat string
-	dedupe     bool
-	labels     []string
+	common        config.Common
+	weekStart     time.Weekday
+	showEvents    bool
+	urls          []string
+	files         []string
+	dateFormat    string
+	timeFormat    string
+	dedupe        bool
+	labels        []string
+	weekdayPrefix bool
 }
 
 type rawConfig struct {
-	WeekStartsOn string            `json:"week_starts_on"`
-	ShowEvents   *config.FlexBool  `json:"show_events"`
-	ICalURLs     config.StringList `json:"ical_urls"`
-	ICalFiles    config.StringList `json:"ical_files"`
-	DateFormat   string            `json:"date_format"`
-	TimeFormat   string            `json:"time_format"`
-	Dedupe       config.FlexBool   `json:"dedupe_events"`
-	Labels       config.StringList `json:"calendar_labels"`
+	WeekStartsOn  string            `json:"week_starts_on"`
+	ShowEvents    *config.FlexBool  `json:"show_events"`
+	ICalURLs      config.StringList `json:"ical_urls"`
+	ICalFiles     config.StringList `json:"ical_files"`
+	DateFormat    string            `json:"date_format"`
+	TimeFormat    string            `json:"time_format"`
+	Dedupe        config.FlexBool   `json:"dedupe_events"`
+	Labels        config.StringList `json:"calendar_labels"`
+	WeekdayPrefix config.FlexBool   `json:"weekday_prefix"`
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
@@ -48,15 +50,16 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("calendar: inner size %dx%d too small (min 70x100)", w, h)
 	}
 	m := &Module{
-		common:     c,
-		weekStart:  time.Monday,
-		showEvents: true,
-		urls:       []string(rc.ICalURLs),
-		files:      []string(rc.ICalFiles),
-		dateFormat: "D MMM",
-		timeFormat: "HH:mm",
-		dedupe:     bool(rc.Dedupe),
-		labels:     []string(rc.Labels),
+		common:        c,
+		weekStart:     time.Monday,
+		showEvents:    true,
+		urls:          []string(rc.ICalURLs),
+		files:         []string(rc.ICalFiles),
+		dateFormat:    "D MMM",
+		timeFormat:    "HH:mm",
+		dedupe:        bool(rc.Dedupe),
+		labels:        []string(rc.Labels),
+		weekdayPrefix: bool(rc.WeekdayPrefix),
 	}
 	if strings.EqualFold(rc.WeekStartsOn, "Sunday") {
 		m.weekStart = time.Sunday
@@ -144,17 +147,20 @@ func (m *Module) drawGrid(c *render.Canvas, l layout, weeks [][7]int, now time.T
 
 func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []ical.Event) {
 	const lineSpacing = 2
+	const inset = 6 // room for today's frame, so text never touches it
+	const gapAbove = 8 // keeps today's frame clear of the month grid
 	lh := c.LineHeight() + lineSpacing
-	maxLines := l.EventsH / (lh + lineSpacing)
+	listH := l.EventsH - gapAbove
+	maxLines := listH / (lh + lineSpacing)
 	if maxLines <= 0 {
 		return
 	}
-	offset := c.H - l.EventsH
-	lineY := func(i int) int { return offset + int(float64(l.EventsH)/float64(maxLines)*float64(i)) }
+	offset := c.H - listH
+	lineY := func(i int) int { return offset + int(float64(listH)/float64(maxLines)*float64(i)) }
 	left := render.TextOpts{Align: render.AlignLeft}
 
 	merged := mergeSources(events, m.labels, m.dedupe, m.common.Language)
-	rows := buildEventRows(merged, now, maxLines, m.dateFormat, m.timeFormat, m.common.Language)
+	rows := buildEventRows(merged, now, maxLines, dateFormat(m.dateFormat, m.weekdayPrefix), m.timeFormat, m.common.Language)
 	if len(rows) == 0 {
 		dash := "- "
 		n := c.W / max(1, c.TextWidth(dash))
@@ -167,15 +173,33 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 		dateW = max(dateW, int(float64(c.TextWidth(r.Date))*1.1))
 		timeW = max(timeW, int(float64(c.TextWidth(r.Time))*1.1))
 	}
+	x0, w := inset, c.W-2*inset
+	firstToday, lastToday := -1, -1
 	for i, r := range rows {
 		y := lineY(i)
-		c.Write(0, y, dateW, lh, r.Date, left)
-		if r.AllDay {
-			drawTitle(c, dateW, y, c.W-dateW, lh, r.Title, r.Label)
-			continue
+		// The date only opens each day's group; following rows of the same day leave it out.
+		if i == 0 || r.Date != rows[i-1].Date {
+			c.Write(x0, y, dateW, lh, r.Date, render.TextOpts{Align: render.AlignLeft, Ink: render.InkColour})
 		}
-		c.Write(dateW, y, timeW, lh, r.Time, left)
-		drawTitle(c, dateW+timeW, y, c.W-dateW-timeW, lh, r.Title, r.Label)
+		if r.AllDay {
+			drawTitle(c, x0+dateW, y, w-dateW, lh, r.Title, r.Label)
+		} else {
+			c.Write(x0+dateW, y, timeW, lh, r.Time, left)
+			drawTitle(c, x0+dateW+timeW, y, w-dateW-timeW, lh, r.Title, r.Label)
+		}
+		if r.Today {
+			if firstToday < 0 {
+				firstToday = i
+			}
+			lastToday = i
+		}
+	}
+	if firstToday >= 0 {
+		top := lineY(firstToday) - lineSpacing - 1
+		bottom := lineY(lastToday) + lh + lineSpacing
+		for t := 0; t < 2; t++ { // 2 px
+			c.RoundedRect(t, top+t, c.W-2*t, bottom-top-2*t, 8-t, render.InkColour)
+		}
 	}
 }
 

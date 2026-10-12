@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"inkycal/internal/ical"
-	"inkycal/internal/timefmt"
 )
 
 func TestEventDays(t *testing.T) {
@@ -48,15 +47,18 @@ func TestBuildEventRows(t *testing.T) {
 	if len(rows) != 3 {
 		t.Fatalf("rows = %+v, want 3 rows", rows)
 	}
-	if rows[0].Title != "Läuft" || rows[1].Title != "Zahnarzt" {
+	// Läuft spans two calendar days (counted inclusively for timed events).
+	if rows[0].Title != "Läuft (2 days)" || rows[1].Title != "Zahnarzt" {
 		t.Errorf("order = %q, %q", rows[0].Title, rows[1].Title)
 	}
-	if rows[1].Date != "10 Oct" || rows[1].Time != "10:00" || rows[1].AllDay {
+	if rows[1].Date != "10 Oct" || rows[1].Time != "10:00 - 11:00" || rows[1].AllDay {
 		t.Errorf("Zahnarzt row = %+v", rows[1])
 	}
-	wantTitle := "Urlaub (" + timefmt.HumanizeDays(3, "en") + ")"
-	if rows[2].Title != wantTitle || !rows[2].AllDay {
-		t.Errorf("Urlaub row = %+v, want title %q", rows[2], wantTitle)
+	if rows[2].Title != "Urlaub (3 days)" || !rows[2].AllDay {
+		t.Errorf("Urlaub row = %+v", rows[2])
+	}
+	if !rows[0].Today || !rows[1].Today || rows[2].Today {
+		t.Errorf("today flags: %v %v %v", rows[0].Today, rows[1].Today, rows[2].Today)
 	}
 
 	if limited := buildEventRows(mergeSources(events, nil, false, "en"), now, 2, "D MMM", "HH:mm", "en"); len(limited) != 2 {
@@ -110,5 +112,18 @@ func TestBuildEventRowsCarriesLabel(t *testing.T) {
 	rows := buildEventRows(ev, now, 5, "D MMM", "HH:mm", "de")
 	if len(rows) != 1 || rows[0].Label != "Niko" || rows[0].Title != "Barber" {
 		t.Fatalf("rows: %+v", rows)
+	}
+}
+
+func TestBuildEventRowsGermanDayCountAndWeekdayPrefix(t *testing.T) {
+	loc := berlin(t)
+	now := time.Date(2026, 10, 13, 8, 0, 0, 0, loc)
+	ev := []labeledEvent{{Event: ical.Event{Title: "Urlaub", Start: time.Date(2026, 10, 24, 0, 0, 0, 0, loc), End: time.Date(2026, 10, 27, 0, 0, 0, 0, loc), AllDay: true}}}
+	rows := buildEventRows(ev, now, 5, dateFormat("DD. MMM", true), "HH:mm", "de")
+	if rows[0].Title != "Urlaub (3 Tage)" || rows[0].Date != "Sa, 24. Okt" {
+		t.Fatalf("row: %+v", rows[0])
+	}
+	if dateFormat("D MMM", false) != "D MMM" {
+		t.Error("prefix added although disabled")
 	}
 }

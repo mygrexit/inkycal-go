@@ -1,6 +1,8 @@
 package calendar
 
 import (
+	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ type eventRow struct {
 	Title  string
 	Label  string // calendar name(s), drawn in colour after the title
 	AllDay bool
+	Today  bool // runs on today's date: framed together with the other ones
 }
 
 // labeledEvent is an event with the name of the calendar(s) it came from.
@@ -114,10 +117,39 @@ func eventDays(events []ical.Event, year int, month time.Month, loc *time.Locati
 	return days
 }
 
+// dateFormat prepends the weekday ("Sa, 24. Okt") when weekday_prefix is on.
+func dateFormat(base string, weekdayPrefix bool) string {
+	if weekdayPrefix {
+		return "ddd, " + base
+	}
+	return base
+}
+
+// spanDays counts the calendar days an event covers: all-day ends are exclusive,
+// timed events count both the first and the last day.
+func spanDays(e ical.Event, loc *time.Location) int {
+	first, last := dateOnly(e.Start.In(loc)), dateOnly(e.End.In(loc))
+	days := int(math.Round(last.Sub(first).Hours() / 24))
+	if !e.AllDay {
+		days++
+	}
+	return days
+}
+
+func dayCount(days int, lang string) string {
+	if lang == "de" {
+		return fmt.Sprintf("(%d Tage)", days)
+	}
+	return fmt.Sprintf("(%d days)", days)
+}
+
 // buildEventRows lists events that have not ended and start within four weeks,
-// sorted by start, at most limit rows.
+// sorted by start, at most limit rows. Today marks events running on today's date.
 func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, timeFmt, lang string) []eventRow {
+	loc := now.Location()
 	horizon := now.AddDate(0, 0, 28)
+	todayStart := dateOnly(now)
+	tomorrow := todayStart.AddDate(0, 0, 1)
 	var upcoming []labeledEvent
 	for _, e := range events {
 		if e.End.After(now) && e.Start.Before(horizon) {
@@ -131,17 +163,18 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 	}
 	rows := make([]eventRow, 0, len(upcoming))
 	for _, e := range upcoming {
-		start := e.Start.In(now.Location())
+		start := e.Start.In(loc)
 		title := e.Title
-		if days := int(e.End.Sub(e.Start).Hours() / 24); days > 1 {
-			title += " (" + timefmt.HumanizeDays(days, lang) + ")"
+		if days := spanDays(e.Event, loc); days > 1 {
+			title += " " + dayCount(days, lang)
 		}
 		rows = append(rows, eventRow{
 			Date:   timefmt.Format(start, dateFmt, lang),
-			Time:   timefmt.Format(start, timeFmt, lang),
+			Time:   timefmt.Format(start, timeFmt, lang) + " - " + timefmt.Format(e.End.In(loc), timeFmt, lang),
 			Title:  title,
 			Label:  e.Label,
 			AllDay: e.AllDay,
+			Today:  e.Start.Before(tomorrow) && e.End.After(todayStart),
 		})
 	}
 	return rows
