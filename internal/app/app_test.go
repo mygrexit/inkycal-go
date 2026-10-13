@@ -189,6 +189,16 @@ func TestCalibration(t *testing.T) {
 	}
 }
 
+func TestDisableCalibration(t *testing.T) {
+	o, d, _, _ := testOptions(t, "Dot")
+	o.Settings.CalibrationHours = []int{10}
+	o.Settings.DisableCalibration = true
+	RunCycle(context.Background(), o)
+	if d.clears != 0 {
+		t.Errorf("disable_calibration must skip calibration, ran %d", d.clears)
+	}
+}
+
 func TestInfoText(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 5, 0, 0, time.UTC)
 	oc := []moduleOutcome{{}, {err: errors.New("x")}, {stale: true}}

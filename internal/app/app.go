@@ -220,7 +220,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	}
 	res.Timings.Render = time.Since(start) - res.Timings.Modules
 
-	calibrate := schedule.CalibrationDue(now, s.CalibrationHours, st.LastCalibration)
+	calibrate := !bool(s.DisableCalibration) && schedule.CalibrationDue(now, s.CalibrationHours, st.LastCalibration)
 	res.Refreshed = calibrate || !bool(s.ImageHash) || frame.Hash() != st.LastHash
 	displayDone := make(chan error, 1)
 	if res.Refreshed {

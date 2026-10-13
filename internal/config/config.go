@@ -22,6 +22,7 @@ type Settings struct {
 	InfoSectionHeight   FlexInt       `json:"info_section_height"`
 	CalibrationHours    []int         `json:"calibration_hours"`
 	CalibrationCycles   FlexInt       `json:"calibration_cycles"`
+	DisableCalibration  FlexBool      `json:"disable_calibration"` // upstream only logs it; here it really skips
 	BorderAroundModules FlexBool      `json:"border_around_modules"`
 	Dividers            FlexBool      `json:"dividers"`
 	ImageHash           FlexBool      `json:"image_hash"`

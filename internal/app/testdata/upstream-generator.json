@@ -5,6 +5,7 @@
     "info_section": true,
     "info_section_height": 70,
     "calibration_hours": [0, 12, 18],
+    "disable_calibration": false,
     "border_around_modules": false,
     "language": "en",
     "modules": [
