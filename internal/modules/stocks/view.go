@@ -1,11 +1,11 @@
 package stocks
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
 
+	"inkycal/internal/i18n"
 	"inkycal/internal/render"
 )
 
@@ -22,11 +22,7 @@ type row struct {
 // makeRow formats a fetched ticker; a failed one keeps its symbol and says so.
 func makeRow(ticker string, r result, lang string) row {
 	if r.Err != nil {
-		name := "no data"
-		if lang == "de" {
-			name = "keine Daten"
-		}
-		return row{Symbol: ticker, Name: name}
+		return row{Symbol: ticker, Name: i18n.T(lang, "no_data")}
 	}
 	q := r.Quote
 	pct := q.ChangePct()
@@ -46,7 +42,7 @@ func formatNum(v float64, prec int, lang string) string {
 	s := strconv.FormatFloat(math.Abs(v), 'f', prec, 64)
 	intPart, frac, _ := strings.Cut(s, ".")
 	group, dec := ",", "."
-	if lang == "de" {
+	if i18n.German(lang) {
 		group, dec = ".", ","
 	}
 	var b strings.Builder
@@ -76,7 +72,7 @@ func priceLabel(q quote, lang string) string {
 	}
 	sign, ok := currencySigns[strings.ToUpper(q.Currency)]
 	switch {
-	case ok && lang != "de":
+	case ok && !i18n.German(lang):
 		return sign + n
 	case ok:
 		return n + " " + sign
@@ -90,7 +86,7 @@ func changeLabel(pct float64, lang string) string {
 	if !strings.HasPrefix(s, "–") {
 		s = "+" + s
 	}
-	if lang == "de" {
+	if i18n.German(lang) {
 		return s + " %"
 	}
 	return s + "%"
@@ -171,10 +167,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 	}
 	if rest := len(rows) - len(shown); rest > 0 && len(shown) < capacity {
 		baseline := len(shown)*rowH + (rowH+capH)/2
-		more := fmt.Sprintf("+ %d weitere", rest)
-		if lang != "de" {
-			more = fmt.Sprintf("+ %d more", rest)
-		}
+		more := i18n.T(lang, "more", rest)
 		c.Text(l.nameX, baseline, more, small, render.InkBlack)
 	}
 }

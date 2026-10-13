@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"inkycal/internal/config"
+	"inkycal/internal/i18n"
 	"inkycal/internal/ical"
 	"inkycal/internal/modules"
 	"inkycal/internal/render"
@@ -153,20 +154,14 @@ func (m *Module) drawGrid(c *render.Canvas, l layout, weeks [][7]int, now time.T
 	}
 }
 
-// dayName is "Heute", "Morgen" or the formatted date of an event group.
+// dayName is "Today", "Tomorrow" or the formatted date of an event group.
 func dayName(day, now time.Time, formatted, lang string) string {
 	today := dateOnly(now)
 	switch dateOnly(day) {
 	case today:
-		if lang == "de" {
-			return "Heute"
-		}
-		return "Today"
+		return i18n.T(lang, "today")
 	case today.AddDate(0, 0, 1):
-		if lang == "de" {
-			return "Morgen"
-		}
-		return "Tomorrow"
+		return i18n.T(lang, "tomorrow")
 	}
 	return formatted
 }
@@ -189,10 +184,7 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 	merged := mergeSources(events, m.labels, m.dedupe, lang)
 	rows := buildEventRows(merged, now, 200, dateFormat(m.dateFormat, m.weekdayPrefix), m.timeFormat, lang)
 	if len(rows) == 0 {
-		msg := "Keine Termine in den nächsten vier Wochen"
-		if lang != "de" {
-			msg = "No events in the next four weeks"
-		}
+		msg := i18n.T(lang, "no_events")
 		c.Text(inset, l.EventsY+rowH-(rowH-capH)/2, msg, body, render.InkBlack)
 		return
 	}
@@ -261,10 +253,7 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 		}
 	}
 	if rest := len(rows) - len(out); rest > 0 {
-		more := fmt.Sprintf("+ %d weitere", rest)
-		if lang != "de" {
-			more = fmt.Sprintf("+ %d more", rest)
-		}
+		more := i18n.T(lang, "more", rest)
 		c.Text(xTime, y+(rowH+capH)/2, more, small, render.InkBlack)
 	}
 }

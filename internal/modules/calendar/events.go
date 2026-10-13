@@ -1,12 +1,12 @@
 package calendar
 
 import (
-	"fmt"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
+	"inkycal/internal/i18n"
 	"inkycal/internal/ical"
 	"inkycal/internal/timefmt"
 )
@@ -72,10 +72,7 @@ func containsInt(s []int, v int) bool {
 
 func joinSources(srcs []int, labels []string, lang string) string {
 	if len(srcs) == 2 && len(labels) == 2 {
-		if lang == "de" {
-			return "beide"
-		}
-		return "both"
+		return i18n.T(lang, "both")
 	}
 	sorted := append([]int(nil), srcs...)
 	sort.Ints(sorted)
@@ -141,13 +138,6 @@ func spanDays(e ical.Event, loc *time.Location) int {
 	return days
 }
 
-func dayCount(days int, lang string) string {
-	if lang == "de" {
-		return fmt.Sprintf("(%d Tage)", days)
-	}
-	return fmt.Sprintf("(%d days)", days)
-}
-
 // buildEventRows lists events that have not ended and start within four weeks,
 // sorted by start, at most limit rows. Today marks events running on today's date.
 func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, timeFmt, lang string) []eventRow {
@@ -171,7 +161,7 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 		start := e.Start.In(loc)
 		title := e.Title
 		if days := spanDays(e.Event, loc); days > 1 {
-			title += " " + dayCount(days, lang)
+			title += " " + i18n.T(lang, "span_days", days)
 		}
 		// An event that started on an earlier day and is still running belongs to today.
 		shown := start

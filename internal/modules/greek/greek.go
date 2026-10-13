@@ -1,5 +1,6 @@
 // Package greek shows a Greek word of the day for children: the word with its
-// article, a transliteration, the German translation and, where one exists, a pictogram.
+// article, a transliteration, the translation (German, else English) and, where one
+// exists, a pictogram.
 package greek
 
 import (
@@ -12,6 +13,7 @@ import (
 	"unicode"
 
 	"inkycal/internal/config"
+	"inkycal/internal/i18n"
 	"inkycal/internal/modules"
 	"inkycal/internal/render"
 )
@@ -23,6 +25,7 @@ type word struct {
 	El  string `json:"el"`  // Greek with article
 	Tr  string `json:"tr"`  // transliteration
 	De  string `json:"de"`  // German with article
+	En  string `json:"en"`  // English
 	Cat string `json:"cat"` // category
 	Pic string `json:"pic"` // emoji, digits or ""
 }
@@ -85,16 +88,16 @@ var swatches = map[string]render.Ink{"rot": render.InkColour, "schwarz": render.
 func (m *Module) Generate(_ context.Context, env *modules.Env) (*render.Canvas, error) {
 	w, h := m.common.InnerSize()
 	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
-	draw(c, pick(m.words, env.Now))
+	draw(c, pick(m.words, env.Now), m.common.Language)
 	return c, nil
 }
 
 // draw sets the pictogram on the left, the Greek word (article in red, as gender
-// colour coding) with its transliteration, and the German translation on the right.
+// colour coding) with its transliteration, and the translation on the right.
 //
 //	[🐢]  η χελώνα                     die Schildkröte
 //	      i chelóna
-func draw(c *render.Canvas, wd word) {
+func draw(c *render.Canvas, wd word, lang string) {
 	w, h := c.W, c.H
 	x0 := 0
 	pic := h
@@ -118,8 +121,12 @@ func draw(c *render.Canvas, wd word) {
 	capGreek := h / 3
 	capTr := h / 8
 	gap := h / 5
-	de := render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, h/6)}
-	deW := c.Advance(wd.De, de)
+	meaning := wd.En
+	if i18n.German(lang) || meaning == "" {
+		meaning = wd.De
+	}
+	trans := render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, h/6)}
+	transW := c.Advance(meaning, trans)
 	article, rest := splitArticle(wd.El)
 
 	// Shrink the Greek word until it fits next to the translation.
@@ -132,7 +139,7 @@ func draw(c *render.Canvas, wd word) {
 		if article != "" {
 			width += c.Advance(article, greek) + space
 		}
-		if x0+width+h/3 <= w-deW {
+		if x0+width+h/3 <= w-transW {
 			break
 		}
 	}
@@ -147,5 +154,5 @@ func draw(c *render.Canvas, wd word) {
 	}
 	c.Text(x, baseline, rest, greek, render.InkBlack)
 	c.Text(x0, baseline+gap+c.CapHeight(tr), wd.Tr, tr, render.InkBlack)
-	c.TextRight(w, baseline, wd.De, de, render.InkBlack)
+	c.TextRight(w, baseline, meaning, trans, render.InkBlack)
 }

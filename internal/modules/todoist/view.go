@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"inkycal/internal/i18n"
 	"inkycal/internal/render"
 	"inkycal/internal/timefmt"
 )
@@ -40,20 +41,13 @@ func dueLabel(due, now time.Time, lang string) string {
 	if midnight(due).Before(midnight(now)) {
 		days = -1
 	}
-	de := lang == "de"
 	switch {
-	case days < 0 && de:
-		return "überfällig"
 	case days < 0:
-		return "overdue"
-	case days == 0 && de:
-		return "heute"
+		return i18n.T(lang, "due.overdue")
 	case days == 0:
-		return "today"
-	case days == 1 && de:
-		return "morgen"
+		return i18n.T(lang, "due.today")
 	case days == 1:
-		return "tomorrow"
+		return i18n.T(lang, "due.tomorrow")
 	case days < 7:
 		return timefmt.Format(due, "ddd", lang)
 	}
@@ -127,10 +121,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 	box := capH + capH/4
 
 	if len(rows) == 0 {
-		msg := "Alles erledigt"
-		if lang != "de" {
-			msg = "All done"
-		}
+		msg := i18n.T(lang, "all_done")
 		c.Text(0, (rowH+capH)/2, msg, name, render.InkBlack)
 		return
 	}
@@ -166,10 +157,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 		i := len(shown)
 		x := (i / perCol) * (colW + colGap)
 		baseline := (i%perCol)*rowH + (rowH+capH)/2
-		more := fmt.Sprintf("+ %d weitere", rest)
-		if lang != "de" {
-			more = fmt.Sprintf("+ %d more", rest)
-		}
+		more := i18n.T(lang, "more", rest)
 		c.Text(x+box+body/2, baseline, more, small, render.InkBlack)
 	}
 }

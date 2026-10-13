@@ -8,6 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"inkycal/internal/i18n"
 	"inkycal/internal/modules/weather"
 	"inkycal/internal/timefmt"
 )
@@ -76,7 +77,7 @@ func (s settings) deg(celsius float64) string {
 	return strconv.Itoa(int(math.Round(s.temp(celsius)))) + "°"
 }
 
-func (s settings) german() bool { return strings.HasPrefix(s.Lang, "de") }
+func (s settings) german() bool { return i18n.German(s.Lang) }
 
 // chartHours is how far the chart looks ahead (upstream: 22 three-hour slots).
 const chartHours = 66
@@ -93,7 +94,7 @@ type sample struct {
 
 // dayCol is one column of the multi-day forecast.
 type dayCol struct {
-	Label  string // "Heute" or the short weekday
+	Label  string // "Today" or the short weekday
 	Date   string
 	Today  bool
 	Icon   string // OWM icon code
@@ -107,7 +108,7 @@ type view struct {
 	Lang        string
 	Icon        string
 	Temp        string
-	FeelsLike   string // "gefühlt 6°"
+	FeelsLike   string // "feels like 6°"
 	Description string
 	Wind        string
 	WindStrong  bool
@@ -130,7 +131,7 @@ type view struct {
 // decimal formats v with one decimal and the language's separator.
 func decimal(v float64, lang string) string {
 	s := strconv.FormatFloat(v, 'f', 1, 64)
-	if strings.HasPrefix(lang, "de") {
+	if i18n.German(lang) {
 		s = strings.Replace(s, ".", ",", 1)
 	}
 	return s
@@ -180,11 +181,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 		MinMax:      s.MinMax,
 		Hour12:      s.Hour12,
 	}
-	if de {
-		v.FeelsLike = "gefühlt " + s.deg(cur.FeelsLike)
-	} else {
-		v.FeelsLike = "feels like " + s.deg(cur.FeelsLike)
-	}
+	v.FeelsLike = i18n.T(s.Lang, "feels_like", s.deg(cur.FeelsLike))
 	clock := "H:mm"
 	if s.Hour12 {
 		clock = "h:mm a"
@@ -236,7 +233,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 		if i == 0 {
 			hi, lo = cur.Temp, cur.Temp
 			col.Icon = weather.DayIcon(points, cur.Icon, now)
-			col.Label = map[bool]string{true: "Heute", false: "Today"}[de]
+			col.Label = i18n.T(s.Lang, "today")
 		} else {
 			col.Icon = weather.DayIcon(points, day[0].Icon, start)
 			col.Label = timefmt.Format(start, "ddd", s.Lang)

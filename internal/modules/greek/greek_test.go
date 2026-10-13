@@ -42,7 +42,7 @@ func TestWordList(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, w := range ws {
-		if w.El == "" || w.Tr == "" || w.De == "" || seen[w.El] {
+		if w.El == "" || w.Tr == "" || w.De == "" || w.En == "" || seen[w.El] {
 			t.Errorf("bad or duplicate entry %+v", w)
 		}
 		seen[w.El] = true

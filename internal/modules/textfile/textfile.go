@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"inkycal/internal/config"
+	"inkycal/internal/i18n"
 	"inkycal/internal/modules"
 	"inkycal/internal/render"
 )
@@ -255,15 +256,9 @@ func draw(c *render.Canvas, ps []para, size int, lang string) {
 	if rest == 0 {
 		return
 	}
-	more := fmt.Sprintf("+ %d more lines", rest)
+	more := i18n.T(lang, "more_lines", rest)
 	if rest == 1 {
-		more = "+ 1 more line"
-	}
-	if lang == "de" {
-		more = fmt.Sprintf("+ %d weitere Zeilen", rest)
-		if rest == 1 {
-			more = "+ 1 weitere Zeile"
-		}
+		more = i18n.T(lang, "more_line")
 	}
 	y := m.capH
 	x := 0

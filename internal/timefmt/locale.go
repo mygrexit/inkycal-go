@@ -1,6 +1,6 @@
 package timefmt
 
-import "strings"
+import "inkycal/internal/i18n"
 
 type locale struct {
 	months, monthsShort [12]string
@@ -28,11 +28,7 @@ var locales = map[string]locale{
 
 // lookup normalises "de_DE"/"de-de"/"DE" to "de" and falls back to English.
 func lookup(lang string) locale {
-	lang = strings.ToLower(lang)
-	if i := strings.IndexAny(lang, "-_"); i >= 0 {
-		lang = lang[:i]
-	}
-	if l, ok := locales[lang]; ok {
+	if l, ok := locales[i18n.Lang(lang)]; ok {
 		return l
 	}
 	return locales["en"]

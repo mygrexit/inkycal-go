@@ -1,8 +1,7 @@
 package feeds
 
 import (
-	"fmt"
-
+	"inkycal/internal/i18n"
 	"inkycal/internal/render"
 )
 
@@ -94,11 +93,7 @@ func layout(c *render.Canvas, items []item, m metrics, limit int) (out []block, 
 func draw(c *render.Canvas, items []item, body int, lang string) {
 	m := newMetrics(c, body)
 	if len(items) == 0 {
-		msg := "No news"
-		if lang == "de" {
-			msg = "Keine Meldungen"
-		}
-		c.Text(0, m.capH, msg, m.sum, render.InkBlack)
+		c.Text(0, m.capH, i18n.T(lang, "no_news"), m.sum, render.InkBlack)
 		return
 	}
 	blocks, used := layout(c, items, m, c.H)
@@ -123,10 +118,7 @@ func draw(c *render.Canvas, items []item, body int, lang string) {
 	if rest <= 0 {
 		return
 	}
-	more := fmt.Sprintf("+ %d more", rest)
-	if lang == "de" {
-		more = fmt.Sprintf("+ %d weitere", rest)
-	}
+	more := i18n.T(lang, "more", rest)
 	y := m.capH
 	if n := len(blocks); n > 0 {
 		last := blocks[n-1]
