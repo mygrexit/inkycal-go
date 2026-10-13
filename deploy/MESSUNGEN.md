@@ -49,3 +49,16 @@ Aus dem Journal und `Inkycal/logs` der alten Karte, Zyklus 12.10.2026 12:00.
 
 Ohne `pisugar-poweroff` (fehlte im ersten Image) hätte der Pi angehalten weiter Strom gezogen
 und der Wecker hätte ihn nicht neu starten können.
+
+## Endstand (13.10.2026, Produktivbetrieb mit Dienst)
+
+| Abschnitt | Zeit |
+|---|---|
+| Kernel + Userspace bis multi-user | 10,6 s |
+| Dienst gestartet | 10,3 s |
+| Zyklus fertig, Bild unverändert (kein Refresh) | 12,9 s nach Einschalten |
+| Zyklus mit Display-Refresh | ≈ 13 s + 51 s Panel |
+| Herunterfahren bis Strom aus | ≈ 5 s |
+| **Wachzeit pro Aufwachen** | **≈ 18 s ohne / ≈ 70 s mit Refresh** |
+
+Vergleich altes Python-Inkycal: ≈ 178 s pro Aufwachen, immer mit Refresh.
