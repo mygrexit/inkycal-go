@@ -81,9 +81,12 @@ What I learned along the way:
 - **Todoist** is a two-column checklist sorted by urgency (overdue, today, upcoming).
 - **All other modules follow the same type scale, grid and colour rules:** Feeds, Jokes, TextToDisplay,
   Stocks (with sparklines), Xkcd, Fullweather (chart and 5-day forecast) and the picture modules.
-- **New module `Greek`:** a Greek word of the day for kids, with German translation and a pictogram
-  (366 words). It's a nice example of how small a module is.
+- **New module `Greek`:** a Greek word of the day for kids, with a German or English translation and a
+  pictogram (366 words). It's a nice example of how small a module is.
 - **Red is used for meaning only:** today, urgent things, losses, calendar labels.
+- **Languages:** the modules' fixed words are English or German, following each module's `language`
+  (`de`, `de_DE` …). Other languages fall back to English; adding one is a block in
+  [`internal/i18n/i18n.go`](internal/i18n/i18n.go).
 
 **My calendar changes** (from my old Python fork, now part of this rewrite)
 
@@ -91,7 +94,8 @@ What I learned along the way:
 - **`calendar_labels`:** each event gets a red source label, e.g. `Alex`, `Sam` or `both` (`beide`) when it's
   in both calendars.
 - **`weekday_prefix`:** abbreviated weekday before the date (`Sa, 25. Okt`).
-- **Time ranges** (`16:00–17:30`) instead of start times only.
+- **Time ranges** (`16:00–17:30`) instead of start times only. Timed events over several days name the
+  other day (`Mo 09:00–Do 18:00`), all-day ones their length (`Urlaub (3 Tage)`).
 
 Some of my changes went upstream earlier: [improved multi-day events (#282)](https://github.com/aceinnolab/Inkycal/pull/282),
 [optional calibration (#296)](https://github.com/aceinnolab/Inkycal/pull/296) and
