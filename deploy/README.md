@@ -62,7 +62,7 @@ Die bestehende `/boot/firmware/settings.json` (oder `/boot/settings.json`) bleib
 - `dividers`: dünne Linie zwischen den Modulen.
 - Modul `Greek` (griechisches Wort des Tages, keine weiteren Optionen):
   `{"position": 4, "name": "Greek", "config": {"size": [984, 174], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de"}}`
-- Kalender: `dedupe_events`, `calendar_labels` (z. B. `"Niko,Sofia"`, Reihenfolge wie `ical_urls`) und `weekday_prefix` wie in der eigenen Python-Version.
+- Kalender: `dedupe_events`, `calendar_labels` (z. B. `"Alex,Sam"`, Reihenfolge wie `ical_urls`) und `weekday_prefix` wie in der eigenen Python-Version.
 
 Das Layout im Hochformat (984 × 1304) auf dem 12,48″: Weather 984×290, Calendar 984×660, Todoist 984×180, Greek 984×174, überall `padding_x` 40.
 

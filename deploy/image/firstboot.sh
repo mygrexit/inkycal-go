@@ -77,7 +77,8 @@ import json, sys
 p = sys.argv[1]
 with open(p, encoding="utf-8-sig") as f:
     d = json.load(f)
-d.update(use_pi_sugar=True, shutdown_after_run=sys.argv[2] == "1", image_hash=True)
+d.setdefault("image_hash", True)
+d.update(use_pi_sugar=True, shutdown_after_run=sys.argv[2] == "1")
 with open(p, "w", encoding="utf-8") as f:
     json.dump(d, f, indent=4, ensure_ascii=False)
     f.write("\n")
