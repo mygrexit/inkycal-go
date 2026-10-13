@@ -1,0 +1,12 @@
+# WLAN für den ersten Start. Name und Passwort zwischen den Anführungszeichen
+# ersetzen (nur Leerzeichen, keine Tabs). Wird nur beim ersten Start gelesen.
+network:
+  version: 2
+  wifis:
+    wlan0:
+      dhcp4: true
+      optional: true
+      regulatory-domain: DE
+      access-points:
+        "DEIN-WLAN-NAME":
+          password: "DEIN-WLAN-PASSWORT"

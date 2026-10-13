@@ -1,0 +1,18 @@
+open
+rst 01
+rst 00
+rst 01
+cmd 06
+data 171717
+cmd 04
+cmd 00
+data 0f
+cmd 10
+data 15000 sha256:810437bbc82ac710
+cmd 13
+data 15000 sha256:b862d802908d6890
+cmd 12
+cmd 02
+cmd 07
+data a5
+close

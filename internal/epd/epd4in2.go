@@ -1,0 +1,111 @@
+package epd
+
+import "time"
+
+func init() {
+	Models["epd_4_in_2"] = [2]int{400, 300}
+	Models["epd_4_in_2_colour"] = [2]int{400, 300}
+}
+
+// 4.2" LUTs from upstream epd_4_in_2.py (lut_vcom0 is 44 bytes, the others 42).
+var (
+	lut4in2Vcom0 = []byte{
+		0x00, 0x17, 0x00, 0x00, 0x00, 0x02,
+		0x00, 0x17, 0x17, 0x00, 0x00, 0x02,
+		0x00, 0x0A, 0x01, 0x00, 0x00, 0x01,
+		0x00, 0x0E, 0x0E, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	lut4in2WW = []byte{ // also lut_bw: upstream's tables are identical
+		0x40, 0x17, 0x00, 0x00, 0x00, 0x02,
+		0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
+		0x40, 0x0A, 0x01, 0x00, 0x00, 0x01,
+		0xA0, 0x0E, 0x0E, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	lut4in2BB = []byte{ // also lut_wb: upstream's tables are identical
+		0x80, 0x17, 0x00, 0x00, 0x00, 0x02,
+		0x90, 0x17, 0x17, 0x00, 0x00, 0x02,
+		0x80, 0x0A, 0x01, 0x00, 0x00, 0x01,
+		0x50, 0x0E, 0x0E, 0x00, 0x00, 0x02,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+)
+
+// NewEPD4in2 drives the Waveshare 4.2" black/white panel (Python: epd_4_in_2).
+func NewEPD4in2(bus Bus, sleep func(time.Duration)) Display {
+	e := newPanel(bus, sleep, 400, 300)
+	e.poll71, e.pollStep, e.resetLow = true, 100*time.Millisecond, 10*time.Millisecond
+	e.initSeq = func() error {
+		if err := e.cmds(
+			op{0x01, []byte{0x03, 0x00, 0x2b, 0x2b}}, // power setting
+			op{0x06, []byte{0x17, 0x17, 0x17}},       // booster soft start
+			op{0x04, nil},                            // power on
+		); err != nil {
+			return err
+		}
+		if err := e.waitBusy(); err != nil {
+			return err
+		}
+		return e.cmds(
+			op{0x00, []byte{0xbf, 0x0d}}, // panel setting
+			op{0x30, []byte{0x3c}},       // PLL
+			op{0x61, e.resolution()},     // resolution 400x300
+			op{0x82, []byte{0x28}},       // VCOM DC
+			op{0x50, []byte{0x97}},       // VCOM and data interval
+			// set_lut(): upstream writes lut_bb to 0x23 and lut_wb to 0x24 (swapped
+			// against its comments); both tables are identical, so it does not matter.
+			op{0x20, lut4in2Vcom0},
+			op{0x21, lut4in2WW},
+			op{0x22, lut4in2WW},
+			op{0x23, lut4in2BB},
+			op{0x24, lut4in2BB},
+		)
+	}
+	e.refresh = func(black, _ []byte) error {
+		if err := e.cmds(
+			op{0x10, filled(len(black), 0xFF)}, // old data: white
+			op{0x13, black},
+			op{0x12, nil},
+		); err != nil {
+			return err
+		}
+		return e.waitBusy()
+	}
+	return e
+}
+
+// NewEPD4in2Colour drives the Waveshare 4.2" black/white/red panel (Python: epd_4_in_2_colour).
+func NewEPD4in2Colour(bus Bus, sleep func(time.Duration)) Display {
+	e := newPanel(bus, sleep, 400, 300)
+	e.colour, e.pollStep, e.resetLow = true, 100*time.Millisecond, 5*time.Millisecond
+	e.initSeq = func() error {
+		if err := e.cmds(
+			op{0x06, []byte{0x17, 0x17, 0x17}}, // booster soft start
+			op{0x04, nil},                      // power on
+		); err != nil {
+			return err
+		}
+		if err := e.waitBusy(); err != nil {
+			return err
+		}
+		return e.cmd(0x00, 0x0F) // panel setting: LUT from OTP
+	}
+	e.refresh = func(black, red []byte) error {
+		if err := e.cmds(
+			op{0x10, black},
+			op{0x13, inverted(red)}, // 0 = red
+			op{0x12, nil},
+		); err != nil {
+			return err
+		}
+		return e.waitBusy()
+	}
+	return e
+}

@@ -1,0 +1,2464 @@
+[
+  {
+    "el": "ο σκύλος",
+    "tr": "o skílos",
+    "de": "der Hund",
+    "cat": "Tiere",
+    "pic": "🐶"
+  },
+  {
+    "el": "καλημέρα",
+    "tr": "kaliméra",
+    "de": "guten Morgen",
+    "cat": "Wörter",
+    "pic": "🌅"
+  },
+  {
+    "el": "κόκκινος",
+    "tr": "kókkinos",
+    "de": "rot",
+    "cat": "Farben"
+  },
+  {
+    "el": "ο ήλιος",
+    "tr": "o ílios",
+    "de": "die Sonne",
+    "cat": "Natur",
+    "pic": "☀"
+  },
+  {
+    "el": "η γάτα",
+    "tr": "i gáta",
+    "de": "die Katze",
+    "cat": "Tiere",
+    "pic": "🐱"
+  },
+  {
+    "el": "το παπούτσι",
+    "tr": "to papoútsi",
+    "de": "der Schuh",
+    "cat": "Kleidung",
+    "pic": "👟"
+  },
+  {
+    "el": "η μαμά",
+    "tr": "i mamá",
+    "de": "die Mama",
+    "cat": "Familie",
+    "pic": "👩"
+  },
+  {
+    "el": "το άλογο",
+    "tr": "to álogo",
+    "de": "das Pferd",
+    "cat": "Tiere",
+    "pic": "🐴"
+  },
+  {
+    "el": "μηδέν",
+    "tr": "midén",
+    "de": "null",
+    "cat": "Zahlen",
+    "pic": "0"
+  },
+  {
+    "el": "το σπίτι",
+    "tr": "to spíti",
+    "de": "das Haus",
+    "cat": "Zuhause",
+    "pic": "🏠"
+  },
+  {
+    "el": "η αγελάδα",
+    "tr": "i ageláda",
+    "de": "die Kuh",
+    "cat": "Tiere",
+    "pic": "🐮"
+  },
+  {
+    "el": "το αυτοκίνητο",
+    "tr": "to aftokínito",
+    "de": "das Auto",
+    "cat": "Fahrzeuge",
+    "pic": "🚗"
+  },
+  {
+    "el": "το κεφάλι",
+    "tr": "to kefáli",
+    "de": "der Kopf",
+    "cat": "Körper",
+    "pic": "🙂"
+  },
+  {
+    "el": "το μήλο",
+    "tr": "to mílo",
+    "de": "der Apfel",
+    "cat": "Essen",
+    "pic": "🍎"
+  },
+  {
+    "el": "το γουρούνι",
+    "tr": "to gouroúni",
+    "de": "das Schwein",
+    "cat": "Tiere",
+    "pic": "🐷"
+  },
+  {
+    "el": "καληνύχτα",
+    "tr": "kaliníchta",
+    "de": "gute Nacht",
+    "cat": "Wörter",
+    "pic": "🌙"
+  },
+  {
+    "el": "η μπάλα",
+    "tr": "i bála",
+    "de": "der Ball",
+    "cat": "Spielen",
+    "pic": "⚽"
+  },
+  {
+    "el": "το πρόβατο",
+    "tr": "to próvato",
+    "de": "das Schaf",
+    "cat": "Tiere",
+    "pic": "🐑"
+  },
+  {
+    "el": "το φεγγάρι",
+    "tr": "to fengári",
+    "de": "der Mond",
+    "cat": "Natur",
+    "pic": "🌙"
+  },
+  {
+    "el": "η κατσίκα",
+    "tr": "i katsíka",
+    "de": "die Ziege",
+    "cat": "Tiere",
+    "pic": "🐐"
+  },
+  {
+    "el": "μπλε",
+    "tr": "ble",
+    "de": "blau",
+    "cat": "Farben"
+  },
+  {
+    "el": "ο μπαμπάς",
+    "tr": "o babás",
+    "de": "der Papa",
+    "cat": "Familie",
+    "pic": "👨"
+  },
+  {
+    "el": "το παντελόνι",
+    "tr": "to pandelóni",
+    "de": "die Hose",
+    "cat": "Kleidung",
+    "pic": "👖"
+  },
+  {
+    "el": "η κότα",
+    "tr": "i kóta",
+    "de": "das Huhn",
+    "cat": "Tiere",
+    "pic": "🐔"
+  },
+  {
+    "el": "ένα",
+    "tr": "éna",
+    "de": "eins",
+    "cat": "Zahlen",
+    "pic": "1"
+  },
+  {
+    "el": "η πόρτα",
+    "tr": "i pórta",
+    "de": "die Tür",
+    "cat": "Zuhause",
+    "pic": "🚪"
+  },
+  {
+    "el": "η πάπια",
+    "tr": "i pápia",
+    "de": "die Ente",
+    "cat": "Tiere",
+    "pic": "🦆"
+  },
+  {
+    "el": "η μπανάνα",
+    "tr": "i banána",
+    "de": "die Banane",
+    "cat": "Essen",
+    "pic": "🍌"
+  },
+  {
+    "el": "το χέρι",
+    "tr": "to chéri",
+    "de": "die Hand",
+    "cat": "Körper",
+    "pic": "✋"
+  },
+  {
+    "el": "γεια σου",
+    "tr": "gia sou",
+    "de": "hallo",
+    "cat": "Wörter",
+    "pic": "👋"
+  },
+  {
+    "el": "το λεωφορείο",
+    "tr": "to leoforío",
+    "de": "der Bus",
+    "cat": "Fahrzeuge",
+    "pic": "🚌"
+  },
+  {
+    "el": "η χήνα",
+    "tr": "i chína",
+    "de": "die Gans",
+    "cat": "Tiere",
+    "pic": "🪿"
+  },
+  {
+    "el": "η κούκλα",
+    "tr": "i koúkla",
+    "de": "die Puppe",
+    "cat": "Spielen",
+    "pic": "🪆"
+  },
+  {
+    "el": "το αστέρι",
+    "tr": "to astéri",
+    "de": "der Stern",
+    "cat": "Natur",
+    "pic": "⭐"
+  },
+  {
+    "el": "ο γάιδαρος",
+    "tr": "o gáidaros",
+    "de": "der Esel",
+    "cat": "Tiere",
+    "pic": "🫏"
+  },
+  {
+    "el": "πράσινος",
+    "tr": "prásinos",
+    "de": "grün",
+    "cat": "Farben"
+  },
+  {
+    "el": "η γιαγιά",
+    "tr": "i giagiá",
+    "de": "die Oma",
+    "cat": "Familie",
+    "pic": "👵"
+  },
+  {
+    "el": "ο λαγός",
+    "tr": "o lagós",
+    "de": "der Hase",
+    "cat": "Tiere",
+    "pic": "🐇"
+  },
+  {
+    "el": "το μπουφάν",
+    "tr": "to boufán",
+    "de": "die Jacke",
+    "cat": "Kleidung",
+    "pic": "🧥"
+  },
+  {
+    "el": "δύο",
+    "tr": "dío",
+    "de": "zwei",
+    "cat": "Zahlen",
+    "pic": "2"
+  },
+  {
+    "el": "το κουνέλι",
+    "tr": "to kounéli",
+    "de": "das Kaninchen",
+    "cat": "Tiere",
+    "pic": "🐰"
+  },
+  {
+    "el": "το παράθυρο",
+    "tr": "to paráthiro",
+    "de": "das Fenster",
+    "cat": "Zuhause",
+    "pic": "🪟"
+  },
+  {
+    "el": "ευχαριστώ",
+    "tr": "efcharistó",
+    "de": "danke",
+    "cat": "Wörter",
+    "pic": "🙏"
+  },
+  {
+    "el": "το ψωμί",
+    "tr": "to psomí",
+    "de": "das Brot",
+    "cat": "Essen",
+    "pic": "🍞"
+  },
+  {
+    "el": "το ποντίκι",
+    "tr": "to pondíki",
+    "de": "die Maus",
+    "cat": "Tiere",
+    "pic": "🐭"
+  },
+  {
+    "el": "το πόδι",
+    "tr": "to pódi",
+    "de": "der Fuß",
+    "cat": "Körper",
+    "pic": "🦶"
+  },
+  {
+    "el": "το τρένο",
+    "tr": "to tréno",
+    "de": "der Zug",
+    "cat": "Fahrzeuge",
+    "pic": "🚆"
+  },
+  {
+    "el": "ο ελέφαντας",
+    "tr": "o eléfandas",
+    "de": "der Elefant",
+    "cat": "Tiere",
+    "pic": "🐘"
+  },
+  {
+    "el": "η παιδική χαρά",
+    "tr": "i pedikí chará",
+    "de": "der Spielplatz",
+    "cat": "Spielen"
+  },
+  {
+    "el": "η βροχή",
+    "tr": "i vrochí",
+    "de": "der Regen",
+    "cat": "Natur",
+    "pic": "🌧"
+  },
+  {
+    "el": "το λιοντάρι",
+    "tr": "to liondári",
+    "de": "der Löwe",
+    "cat": "Tiere",
+    "pic": "🦁"
+  },
+  {
+    "el": "παρακαλώ",
+    "tr": "parakaló",
+    "de": "bitte",
+    "cat": "Wörter"
+  },
+  {
+    "el": "ο παππούς",
+    "tr": "o pappoús",
+    "de": "der Opa",
+    "cat": "Familie",
+    "pic": "👴"
+  },
+  {
+    "el": "η τίγρη",
+    "tr": "i tígri",
+    "de": "der Tiger",
+    "cat": "Tiere",
+    "pic": "🐯"
+  },
+  {
+    "el": "τρία",
+    "tr": "tría",
+    "de": "drei",
+    "cat": "Zahlen",
+    "pic": "3"
+  },
+  {
+    "el": "ο σκούφος",
+    "tr": "o skoúfos",
+    "de": "die Mütze",
+    "cat": "Kleidung",
+    "pic": "🧢"
+  },
+  {
+    "el": "το γάλα",
+    "tr": "to gála",
+    "de": "die Milch",
+    "cat": "Essen",
+    "pic": "🥛"
+  },
+  {
+    "el": "η καμηλοπάρδαλη",
+    "tr": "i kamilopárdali",
+    "de": "die Giraffe",
+    "cat": "Tiere",
+    "pic": "🦒"
+  },
+  {
+    "el": "κίτρινος",
+    "tr": "kítrinos",
+    "de": "gelb",
+    "cat": "Farben"
+  },
+  {
+    "el": "το κρεβάτι",
+    "tr": "to kreváti",
+    "de": "das Bett",
+    "cat": "Zuhause",
+    "pic": "🛏"
+  },
+  {
+    "el": "η μύτη",
+    "tr": "i míti",
+    "de": "die Nase",
+    "cat": "Körper",
+    "pic": "👃"
+  },
+  {
+    "el": "η μαϊμού",
+    "tr": "i maimoú",
+    "de": "der Affe",
+    "cat": "Tiere",
+    "pic": "🐒"
+  },
+  {
+    "el": "το αεροπλάνο",
+    "tr": "to aeropláno",
+    "de": "das Flugzeug",
+    "cat": "Fahrzeuge",
+    "pic": "✈"
+  },
+  {
+    "el": "το χιόνι",
+    "tr": "to chióni",
+    "de": "der Schnee",
+    "cat": "Natur",
+    "pic": "❄"
+  },
+  {
+    "el": "η κούνια",
+    "tr": "i koúnia",
+    "de": "die Schaukel",
+    "cat": "Spielen"
+  },
+  {
+    "el": "η αρκούδα",
+    "tr": "i arkoúda",
+    "de": "der Bär",
+    "cat": "Tiere",
+    "pic": "🐻"
+  },
+  {
+    "el": "τέσσερα",
+    "tr": "téssera",
+    "de": "vier",
+    "cat": "Zahlen",
+    "pic": "4"
+  },
+  {
+    "el": "ναι",
+    "tr": "ne",
+    "de": "ja",
+    "cat": "Wörter"
+  },
+  {
+    "el": "ο αδερφός",
+    "tr": "o aderfós",
+    "de": "der Bruder",
+    "cat": "Familie"
+  },
+  {
+    "el": "ο λύκος",
+    "tr": "o líkos",
+    "de": "der Wolf",
+    "cat": "Tiere",
+    "pic": "🐺"
+  },
+  {
+    "el": "το τυρί",
+    "tr": "to tirí",
+    "de": "der Käse",
+    "cat": "Essen",
+    "pic": "🧀"
+  },
+  {
+    "el": "η αλεπού",
+    "tr": "i alepoú",
+    "de": "der Fuchs",
+    "cat": "Tiere",
+    "pic": "🦊"
+  },
+  {
+    "el": "το μπλουζάκι",
+    "tr": "to blouzáki",
+    "de": "das T-Shirt",
+    "cat": "Kleidung",
+    "pic": "👕"
+  },
+  {
+    "el": "το τραπέζι",
+    "tr": "to trapézi",
+    "de": "der Tisch",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "ο σκαντζόχοιρος",
+    "tr": "o skandzóchiros",
+    "de": "der Igel",
+    "cat": "Tiere",
+    "pic": "🦔"
+  },
+  {
+    "el": "μαύρος",
+    "tr": "mávros",
+    "de": "schwarz",
+    "cat": "Farben"
+  },
+  {
+    "el": "το μάτι",
+    "tr": "to máti",
+    "de": "das Auge",
+    "cat": "Körper",
+    "pic": "👁"
+  },
+  {
+    "el": "το δέντρο",
+    "tr": "to déndro",
+    "de": "der Baum",
+    "cat": "Natur",
+    "pic": "🌳"
+  },
+  {
+    "el": "ο σκίουρος",
+    "tr": "o skíouros",
+    "de": "das Eichhörnchen",
+    "cat": "Tiere",
+    "pic": "🐿"
+  },
+  {
+    "el": "το πλοίο",
+    "tr": "to plío",
+    "de": "das Schiff",
+    "cat": "Fahrzeuge",
+    "pic": "🚢"
+  },
+  {
+    "el": "η τσουλήθρα",
+    "tr": "i tsoulíthra",
+    "de": "die Rutsche",
+    "cat": "Spielen",
+    "pic": "🛝"
+  },
+  {
+    "el": "το δελφίνι",
+    "tr": "to delfíni",
+    "de": "der Delfin",
+    "cat": "Tiere",
+    "pic": "🐬"
+  },
+  {
+    "el": "όχι",
+    "tr": "óchi",
+    "de": "nein",
+    "cat": "Wörter"
+  },
+  {
+    "el": "η φάλαινα",
+    "tr": "i fálena",
+    "de": "der Wal",
+    "cat": "Tiere",
+    "pic": "🐳"
+  },
+  {
+    "el": "η αδερφή",
+    "tr": "i aderfí",
+    "de": "die Schwester",
+    "cat": "Familie"
+  },
+  {
+    "el": "το νερό",
+    "tr": "to neró",
+    "de": "das Wasser",
+    "cat": "Essen",
+    "pic": "💧"
+  },
+  {
+    "el": "ο καρχαρίας",
+    "tr": "o karcharías",
+    "de": "der Hai",
+    "cat": "Tiere",
+    "pic": "🦈"
+  },
+  {
+    "el": "πέντε",
+    "tr": "pénde",
+    "de": "fünf",
+    "cat": "Zahlen",
+    "pic": "5"
+  },
+  {
+    "el": "το πουλόβερ",
+    "tr": "to poulóver",
+    "de": "der Pullover",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "η καρέκλα",
+    "tr": "i karékla",
+    "de": "der Stuhl",
+    "cat": "Zuhause",
+    "pic": "🪑"
+  },
+  {
+    "el": "το χταπόδι",
+    "tr": "to chtapódi",
+    "de": "der Krake",
+    "cat": "Tiere",
+    "pic": "🐙"
+  },
+  {
+    "el": "το λουλούδι",
+    "tr": "to louloúdi",
+    "de": "die Blume",
+    "cat": "Natur",
+    "pic": "🌸"
+  },
+  {
+    "el": "το αυτί",
+    "tr": "to aftí",
+    "de": "das Ohr",
+    "cat": "Körper",
+    "pic": "👂"
+  },
+  {
+    "el": "η χελώνα",
+    "tr": "i chelóna",
+    "de": "die Schildkröte",
+    "cat": "Tiere",
+    "pic": "🐢"
+  },
+  {
+    "el": "άσπρος",
+    "tr": "áspros",
+    "de": "weiß",
+    "cat": "Farben"
+  },
+  {
+    "el": "το ποδήλατο",
+    "tr": "to podílato",
+    "de": "das Fahrrad",
+    "cat": "Fahrzeuge",
+    "pic": "🚲"
+  },
+  {
+    "el": "το βιβλίο",
+    "tr": "to vivlío",
+    "de": "das Buch",
+    "cat": "Spielen",
+    "pic": "📖"
+  },
+  {
+    "el": "αντίο",
+    "tr": "adío",
+    "de": "tschüss",
+    "cat": "Wörter",
+    "pic": "👋"
+  },
+  {
+    "el": "ο βάτραχος",
+    "tr": "o vátrachos",
+    "de": "der Frosch",
+    "cat": "Tiere",
+    "pic": "🐸"
+  },
+  {
+    "el": "το μωρό",
+    "tr": "to moró",
+    "de": "das Baby",
+    "cat": "Familie",
+    "pic": "👶"
+  },
+  {
+    "el": "το παγωτό",
+    "tr": "to pagotó",
+    "de": "das Eis",
+    "cat": "Essen",
+    "pic": "🍦"
+  },
+  {
+    "el": "η πεταλούδα",
+    "tr": "i petaloúda",
+    "de": "der Schmetterling",
+    "cat": "Tiere",
+    "pic": "🦋"
+  },
+  {
+    "el": "έξι",
+    "tr": "éxi",
+    "de": "sechs",
+    "cat": "Zahlen",
+    "pic": "6"
+  },
+  {
+    "el": "η μέλισσα",
+    "tr": "i mélissa",
+    "de": "die Biene",
+    "cat": "Tiere",
+    "pic": "🐝"
+  },
+  {
+    "el": "η λάμπα",
+    "tr": "i lámba",
+    "de": "die Lampe",
+    "cat": "Zuhause",
+    "pic": "💡"
+  },
+  {
+    "el": "η φούστα",
+    "tr": "i foústa",
+    "de": "der Rock",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "η θάλασσα",
+    "tr": "i thálassa",
+    "de": "das Meer",
+    "cat": "Natur",
+    "pic": "🌊"
+  },
+  {
+    "el": "η πασχαλίτσα",
+    "tr": "i paschalítsa",
+    "de": "der Marienkäfer",
+    "cat": "Tiere",
+    "pic": "🐞"
+  },
+  {
+    "el": "το στόμα",
+    "tr": "to stóma",
+    "de": "der Mund",
+    "cat": "Körper",
+    "pic": "👄"
+  },
+  {
+    "el": "συγγνώμη",
+    "tr": "signómi",
+    "de": "Entschuldigung",
+    "cat": "Wörter"
+  },
+  {
+    "el": "το μυρμήγκι",
+    "tr": "to mirmíngi",
+    "de": "die Ameise",
+    "cat": "Tiere",
+    "pic": "🐜"
+  },
+  {
+    "el": "η ξυλομπογιά",
+    "tr": "i xilobogiá",
+    "de": "der Buntstift",
+    "cat": "Spielen",
+    "pic": "🖍"
+  },
+  {
+    "el": "το τρακτέρ",
+    "tr": "to traktér",
+    "de": "der Traktor",
+    "cat": "Fahrzeuge",
+    "pic": "🚜"
+  },
+  {
+    "el": "πορτοκαλί",
+    "tr": "portokalí",
+    "de": "orange",
+    "cat": "Farben"
+  },
+  {
+    "el": "η αράχνη",
+    "tr": "i aráchni",
+    "de": "die Spinne",
+    "cat": "Tiere",
+    "pic": "🕷"
+  },
+  {
+    "el": "το κέικ",
+    "tr": "to kéik",
+    "de": "der Kuchen",
+    "cat": "Essen",
+    "pic": "🍰"
+  },
+  {
+    "el": "η κουκουβάγια",
+    "tr": "i koukouvágia",
+    "de": "die Eule",
+    "cat": "Tiere",
+    "pic": "🦉"
+  },
+  {
+    "el": "ο θείος",
+    "tr": "o thíos",
+    "de": "der Onkel",
+    "cat": "Familie"
+  },
+  {
+    "el": "εφτά",
+    "tr": "eftá",
+    "de": "sieben",
+    "cat": "Zahlen",
+    "pic": "7"
+  },
+  {
+    "el": "ο αετός",
+    "tr": "o aetós",
+    "de": "der Adler",
+    "cat": "Tiere",
+    "pic": "🦅"
+  },
+  {
+    "el": "το βουνό",
+    "tr": "to vounó",
+    "de": "der Berg",
+    "cat": "Natur",
+    "pic": "⛰"
+  },
+  {
+    "el": "η κουζίνα",
+    "tr": "i kouzína",
+    "de": "die Küche",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "το φόρεμα",
+    "tr": "to fórema",
+    "de": "das Kleid",
+    "cat": "Kleidung",
+    "pic": "👗"
+  },
+  {
+    "el": "μεγάλος",
+    "tr": "megálos",
+    "de": "groß",
+    "cat": "Wörter"
+  },
+  {
+    "el": "ο πελαργός",
+    "tr": "o pelargós",
+    "de": "der Storch",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το δόντι",
+    "tr": "to dóndi",
+    "de": "der Zahn",
+    "cat": "Körper",
+    "pic": "🦷"
+  },
+  {
+    "el": "ο πιγκουίνος",
+    "tr": "o pingouínos",
+    "de": "der Pinguin",
+    "cat": "Tiere",
+    "pic": "🐧"
+  },
+  {
+    "el": "το παιχνίδι",
+    "tr": "to pechnídi",
+    "de": "das Spielzeug",
+    "cat": "Spielen",
+    "pic": "🪀"
+  },
+  {
+    "el": "η βάρκα",
+    "tr": "i várka",
+    "de": "das Boot",
+    "cat": "Fahrzeuge",
+    "pic": "⛵"
+  },
+  {
+    "el": "το αυγό",
+    "tr": "to avgó",
+    "de": "das Ei",
+    "cat": "Essen",
+    "pic": "🥚"
+  },
+  {
+    "el": "ο παπαγάλος",
+    "tr": "o papagálos",
+    "de": "der Papagei",
+    "cat": "Tiere",
+    "pic": "🦜"
+  },
+  {
+    "el": "μωβ",
+    "tr": "mov",
+    "de": "lila",
+    "cat": "Farben"
+  },
+  {
+    "el": "ο κροκόδειλος",
+    "tr": "o krokódilos",
+    "de": "das Krokodil",
+    "cat": "Tiere",
+    "pic": "🐊"
+  },
+  {
+    "el": "η θεία",
+    "tr": "i thía",
+    "de": "die Tante",
+    "cat": "Familie"
+  },
+  {
+    "el": "οχτώ",
+    "tr": "ochtó",
+    "de": "acht",
+    "cat": "Zahlen",
+    "pic": "8"
+  },
+  {
+    "el": "ο ουρανός",
+    "tr": "o ouranós",
+    "de": "der Himmel",
+    "cat": "Natur"
+  },
+  {
+    "el": "η ζέβρα",
+    "tr": "i zévra",
+    "de": "das Zebra",
+    "cat": "Tiere",
+    "pic": "🦓"
+  },
+  {
+    "el": "μικρός",
+    "tr": "mikrós",
+    "de": "klein",
+    "cat": "Wörter"
+  },
+  {
+    "el": "το μπάνιο",
+    "tr": "to bánio",
+    "de": "das Badezimmer",
+    "cat": "Zuhause",
+    "pic": "🛁"
+  },
+  {
+    "el": "η κάλτσα",
+    "tr": "i káltsa",
+    "de": "die Socke",
+    "cat": "Kleidung",
+    "pic": "🧦"
+  },
+  {
+    "el": "η κοιλιά",
+    "tr": "i kiliá",
+    "de": "der Bauch",
+    "cat": "Körper"
+  },
+  {
+    "el": "η καμήλα",
+    "tr": "i kamíla",
+    "de": "das Kamel",
+    "cat": "Tiere",
+    "pic": "🐫"
+  },
+  {
+    "el": "το αρκουδάκι",
+    "tr": "to arkoudáki",
+    "de": "der Teddybär",
+    "cat": "Spielen",
+    "pic": "🧸"
+  },
+  {
+    "el": "το καγκουρό",
+    "tr": "to kangouró",
+    "de": "das Känguru",
+    "cat": "Tiere",
+    "pic": "🦘"
+  },
+  {
+    "el": "το πορτοκάλι",
+    "tr": "to portokáli",
+    "de": "die Orange",
+    "cat": "Essen",
+    "pic": "🍊"
+  },
+  {
+    "el": "το ελικόπτερο",
+    "tr": "to elikóptero",
+    "de": "der Hubschrauber",
+    "cat": "Fahrzeuge",
+    "pic": "🚁"
+  },
+  {
+    "el": "το κοάλα",
+    "tr": "to koála",
+    "de": "der Koala",
+    "cat": "Tiere",
+    "pic": "🐨"
+  },
+  {
+    "el": "ροζ",
+    "tr": "roz",
+    "de": "rosa",
+    "cat": "Farben"
+  },
+  {
+    "el": "ο ξάδερφος",
+    "tr": "o xáderfos",
+    "de": "der Cousin",
+    "cat": "Familie"
+  },
+  {
+    "el": "το σύννεφο",
+    "tr": "to sínnefo",
+    "de": "die Wolke",
+    "cat": "Natur",
+    "pic": "☁"
+  },
+  {
+    "el": "το πάντα",
+    "tr": "to pánda",
+    "de": "der Panda",
+    "cat": "Tiere",
+    "pic": "🐼"
+  },
+  {
+    "el": "τρώω",
+    "tr": "tróo",
+    "de": "essen",
+    "cat": "Wörter",
+    "pic": "🍴"
+  },
+  {
+    "el": "εννιά",
+    "tr": "enniá",
+    "de": "neun",
+    "cat": "Zahlen",
+    "pic": "9"
+  },
+  {
+    "el": "το δωμάτιο",
+    "tr": "to domátio",
+    "de": "das Zimmer",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "ο ρινόκερος",
+    "tr": "o rinókeros",
+    "de": "das Nashorn",
+    "cat": "Tiere",
+    "pic": "🦏"
+  },
+  {
+    "el": "η γλώσσα",
+    "tr": "i glóssa",
+    "de": "die Zunge",
+    "cat": "Körper",
+    "pic": "👅"
+  },
+  {
+    "el": "το γάντι",
+    "tr": "to gándi",
+    "de": "der Handschuh",
+    "cat": "Kleidung",
+    "pic": "🧤"
+  },
+  {
+    "el": "ο ιπποπόταμος",
+    "tr": "o ippopótamos",
+    "de": "das Nilpferd",
+    "cat": "Tiere",
+    "pic": "🦛"
+  },
+  {
+    "el": "το τουβλάκι",
+    "tr": "to touvláki",
+    "de": "der Bauklotz",
+    "cat": "Spielen",
+    "pic": "🧱"
+  },
+  {
+    "el": "το αχλάδι",
+    "tr": "to achládi",
+    "de": "die Birne",
+    "cat": "Essen",
+    "pic": "🍐"
+  },
+  {
+    "el": "η φώκια",
+    "tr": "i fókia",
+    "de": "die Robbe",
+    "cat": "Tiere",
+    "pic": "🦭"
+  },
+  {
+    "el": "η μηχανή",
+    "tr": "i michaní",
+    "de": "das Motorrad",
+    "cat": "Fahrzeuge",
+    "pic": "🏍"
+  },
+  {
+    "el": "η μέδουσα",
+    "tr": "i médousa",
+    "de": "die Qualle",
+    "cat": "Tiere",
+    "pic": "🪼"
+  },
+  {
+    "el": "πίνω",
+    "tr": "píno",
+    "de": "trinken",
+    "cat": "Wörter",
+    "pic": "🥤"
+  },
+  {
+    "el": "ο άνεμος",
+    "tr": "o ánemos",
+    "de": "der Wind",
+    "cat": "Natur",
+    "pic": "💨"
+  },
+  {
+    "el": "η ξαδέρφη",
+    "tr": "i xadérfi",
+    "de": "die Cousine",
+    "cat": "Familie"
+  },
+  {
+    "el": "ο αστερίας",
+    "tr": "o asterías",
+    "de": "der Seestern",
+    "cat": "Tiere",
+    "pic": "⭐"
+  },
+  {
+    "el": "καφέ",
+    "tr": "kafé",
+    "de": "braun",
+    "cat": "Farben"
+  },
+  {
+    "el": "δέκα",
+    "tr": "déka",
+    "de": "zehn",
+    "cat": "Zahlen",
+    "pic": "10"
+  },
+  {
+    "el": "ο καναπές",
+    "tr": "o kanapés",
+    "de": "das Sofa",
+    "cat": "Zuhause",
+    "pic": "🛋"
+  },
+  {
+    "el": "ο κάβουρας",
+    "tr": "o kávouras",
+    "de": "der Krebs",
+    "cat": "Tiere",
+    "pic": "🦀"
+  },
+  {
+    "el": "ο λαιμός",
+    "tr": "o lemós",
+    "de": "der Hals",
+    "cat": "Körper"
+  },
+  {
+    "el": "το κασκόλ",
+    "tr": "to kaskól",
+    "de": "der Schal",
+    "cat": "Kleidung",
+    "pic": "🧣"
+  },
+  {
+    "el": "το σαλιγκάρι",
+    "tr": "to salingári",
+    "de": "die Schnecke",
+    "cat": "Tiere",
+    "pic": "🐌"
+  },
+  {
+    "el": "η φράουλα",
+    "tr": "i fráoula",
+    "de": "die Erdbeere",
+    "cat": "Essen",
+    "pic": "🍓"
+  },
+  {
+    "el": "το μπαλόνι",
+    "tr": "to balóni",
+    "de": "der Luftballon",
+    "cat": "Spielen",
+    "pic": "🎈"
+  },
+  {
+    "el": "το σκουλήκι",
+    "tr": "to skoulíki",
+    "de": "der Wurm",
+    "cat": "Tiere",
+    "pic": "🪱"
+  },
+  {
+    "el": "κοιμάμαι",
+    "tr": "kimáme",
+    "de": "schlafen",
+    "cat": "Wörter",
+    "pic": "😴"
+  },
+  {
+    "el": "το φορτηγό",
+    "tr": "to fortigó",
+    "de": "der Lastwagen",
+    "cat": "Fahrzeuge",
+    "pic": "🚚"
+  },
+  {
+    "el": "το ουράνιο τόξο",
+    "tr": "to ouránio tóxo",
+    "de": "der Regenbogen",
+    "cat": "Natur",
+    "pic": "🌈"
+  },
+  {
+    "el": "το ψάρι",
+    "tr": "to psári",
+    "de": "der Fisch",
+    "cat": "Tiere",
+    "pic": "🐟"
+  },
+  {
+    "el": "ο γιος",
+    "tr": "o gios",
+    "de": "der Sohn",
+    "cat": "Familie"
+  },
+  {
+    "el": "έντεκα",
+    "tr": "éndeka",
+    "de": "elf",
+    "cat": "Zahlen",
+    "pic": "11"
+  },
+  {
+    "el": "το πουλί",
+    "tr": "to poulí",
+    "de": "der Vogel",
+    "cat": "Tiere",
+    "pic": "🐦"
+  },
+  {
+    "el": "το μαξιλάρι",
+    "tr": "to maxilári",
+    "de": "das Kissen",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "γκρι",
+    "tr": "gri",
+    "de": "grau",
+    "cat": "Farben"
+  },
+  {
+    "el": "το περιστέρι",
+    "tr": "to peristéri",
+    "de": "die Taube",
+    "cat": "Tiere",
+    "pic": "🕊"
+  },
+  {
+    "el": "ο ώμος",
+    "tr": "o ómos",
+    "de": "die Schulter",
+    "cat": "Körper"
+  },
+  {
+    "el": "το σταφύλι",
+    "tr": "to stafíli",
+    "de": "die Weintraube",
+    "cat": "Essen",
+    "pic": "🍇"
+  },
+  {
+    "el": "η μπότα",
+    "tr": "i bóta",
+    "de": "der Stiefel",
+    "cat": "Kleidung",
+    "pic": "👢"
+  },
+  {
+    "el": "ο γλάρος",
+    "tr": "o gláros",
+    "de": "die Möwe",
+    "cat": "Tiere"
+  },
+  {
+    "el": "ο χαρταετός",
+    "tr": "o chartaetós",
+    "de": "der Papierdrachen",
+    "cat": "Spielen",
+    "pic": "🪁"
+  },
+  {
+    "el": "παίζω",
+    "tr": "pézo",
+    "de": "spielen",
+    "cat": "Wörter"
+  },
+  {
+    "el": "ο κόκορας",
+    "tr": "o kókoras",
+    "de": "der Hahn",
+    "cat": "Tiere",
+    "pic": "🐓"
+  },
+  {
+    "el": "το ποτάμι",
+    "tr": "to potámi",
+    "de": "der Fluss",
+    "cat": "Natur"
+  },
+  {
+    "el": "το ταξί",
+    "tr": "to taxí",
+    "de": "das Taxi",
+    "cat": "Fahrzeuge",
+    "pic": "🚕"
+  },
+  {
+    "el": "το κλωσόπουλο",
+    "tr": "to klosópoulo",
+    "de": "das Küken",
+    "cat": "Tiere",
+    "pic": "🐥"
+  },
+  {
+    "el": "η κόρη",
+    "tr": "i kóri",
+    "de": "die Tochter",
+    "cat": "Familie"
+  },
+  {
+    "el": "δώδεκα",
+    "tr": "dódeka",
+    "de": "zwölf",
+    "cat": "Zahlen",
+    "pic": "12"
+  },
+  {
+    "el": "το αρνάκι",
+    "tr": "to arnáki",
+    "de": "das Lamm",
+    "cat": "Tiere",
+    "pic": "🐑"
+  },
+  {
+    "el": "η κουβέρτα",
+    "tr": "i kouvérta",
+    "de": "die Decke",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "το δάχτυλο",
+    "tr": "to dáchtilo",
+    "de": "der Finger",
+    "cat": "Körper"
+  },
+  {
+    "el": "το καρπούζι",
+    "tr": "to karpoúzi",
+    "de": "die Wassermelone",
+    "cat": "Essen",
+    "pic": "🍉"
+  },
+  {
+    "el": "το μοσχαράκι",
+    "tr": "to moscharáki",
+    "de": "das Kalb",
+    "cat": "Tiere",
+    "pic": "🐄"
+  },
+  {
+    "el": "χρυσός",
+    "tr": "chrisós",
+    "de": "golden",
+    "cat": "Farben"
+  },
+  {
+    "el": "ζεστός",
+    "tr": "zestós",
+    "de": "warm",
+    "cat": "Wörter",
+    "pic": "🥵"
+  },
+  {
+    "el": "το καπέλο",
+    "tr": "to kapélo",
+    "de": "der Hut",
+    "cat": "Kleidung",
+    "pic": "👒"
+  },
+  {
+    "el": "το παζλ",
+    "tr": "to pazl",
+    "de": "das Puzzle",
+    "cat": "Spielen",
+    "pic": "🧩"
+  },
+  {
+    "el": "το πουλάρι",
+    "tr": "to poulári",
+    "de": "das Fohlen",
+    "cat": "Tiere",
+    "pic": "🐎"
+  },
+  {
+    "el": "η λίμνη",
+    "tr": "i límni",
+    "de": "der See",
+    "cat": "Natur"
+  },
+  {
+    "el": "το κουτάβι",
+    "tr": "to koutávi",
+    "de": "der Welpe",
+    "cat": "Tiere",
+    "pic": "🐕"
+  },
+  {
+    "el": "το ασθενοφόρο",
+    "tr": "to asthenofóro",
+    "de": "der Krankenwagen",
+    "cat": "Fahrzeuge",
+    "pic": "🚑"
+  },
+  {
+    "el": "το παιδί",
+    "tr": "to pedí",
+    "de": "das Kind",
+    "cat": "Familie",
+    "pic": "🧒"
+  },
+  {
+    "el": "το γατάκι",
+    "tr": "to gatáki",
+    "de": "das Kätzchen",
+    "cat": "Tiere",
+    "pic": "🐈"
+  },
+  {
+    "el": "δεκατρία",
+    "tr": "dekatría",
+    "de": "dreizehn",
+    "cat": "Zahlen",
+    "pic": "13"
+  },
+  {
+    "el": "το πιάτο",
+    "tr": "to piáto",
+    "de": "der Teller",
+    "cat": "Zuhause",
+    "pic": "🍽"
+  },
+  {
+    "el": "το ελάφι",
+    "tr": "to eláfi",
+    "de": "der Hirsch",
+    "cat": "Tiere",
+    "pic": "🦌"
+  },
+  {
+    "el": "η ντομάτα",
+    "tr": "i domáta",
+    "de": "die Tomate",
+    "cat": "Essen",
+    "pic": "🍅"
+  },
+  {
+    "el": "κρύος",
+    "tr": "kríos",
+    "de": "kalt",
+    "cat": "Wörter",
+    "pic": "🥶"
+  },
+  {
+    "el": "το γόνατο",
+    "tr": "to gónato",
+    "de": "das Knie",
+    "cat": "Körper"
+  },
+  {
+    "el": "το ζαρκάδι",
+    "tr": "to zarkádi",
+    "de": "das Reh",
+    "cat": "Tiere",
+    "pic": "🦌"
+  },
+  {
+    "el": "ασημένιος",
+    "tr": "asiménios",
+    "de": "silbern",
+    "cat": "Farben"
+  },
+  {
+    "el": "η πιτζάμα",
+    "tr": "i pitzáma",
+    "de": "der Schlafanzug",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "ο κουβάς",
+    "tr": "o kouvás",
+    "de": "der Eimer",
+    "cat": "Spielen",
+    "pic": "🪣"
+  },
+  {
+    "el": "το δάσος",
+    "tr": "to dásos",
+    "de": "der Wald",
+    "cat": "Natur",
+    "pic": "🌲"
+  },
+  {
+    "el": "ο ασβός",
+    "tr": "o asvós",
+    "de": "der Dachs",
+    "cat": "Tiere",
+    "pic": "🦡"
+  },
+  {
+    "el": "χαρούμενος",
+    "tr": "charoúmenos",
+    "de": "fröhlich",
+    "cat": "Wörter",
+    "pic": "😊"
+  },
+  {
+    "el": "το πυροσβεστικό",
+    "tr": "to pirosvestikó",
+    "de": "das Feuerwehrauto",
+    "cat": "Fahrzeuge",
+    "pic": "🚒"
+  },
+  {
+    "el": "η οικογένεια",
+    "tr": "i ikogénia",
+    "de": "die Familie",
+    "cat": "Familie",
+    "pic": "👪"
+  },
+  {
+    "el": "η βίδρα",
+    "tr": "i vídra",
+    "de": "der Otter",
+    "cat": "Tiere",
+    "pic": "🦦"
+  },
+  {
+    "el": "δεκατέσσερα",
+    "tr": "dekatéssera",
+    "de": "vierzehn",
+    "cat": "Zahlen",
+    "pic": "14"
+  },
+  {
+    "el": "ο κάστορας",
+    "tr": "o kástoras",
+    "de": "der Biber",
+    "cat": "Tiere",
+    "pic": "🦫"
+  },
+  {
+    "el": "το αγγούρι",
+    "tr": "to angoúri",
+    "de": "die Gurke",
+    "cat": "Essen",
+    "pic": "🥒"
+  },
+  {
+    "el": "το ποτήρι",
+    "tr": "to potíri",
+    "de": "das Glas",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "η νυχτερίδα",
+    "tr": "i nichterída",
+    "de": "die Fledermaus",
+    "cat": "Tiere",
+    "pic": "🦇"
+  },
+  {
+    "el": "η πλάτη",
+    "tr": "i pláti",
+    "de": "der Rücken",
+    "cat": "Körper"
+  },
+  {
+    "el": "ο τυφλοπόντικας",
+    "tr": "o tiflopóndikas",
+    "de": "der Maulwurf",
+    "cat": "Tiere"
+  },
+  {
+    "el": "η άμμος",
+    "tr": "i ámmos",
+    "de": "der Sand",
+    "cat": "Natur"
+  },
+  {
+    "el": "το φτυαράκι",
+    "tr": "to ftiaráki",
+    "de": "die Schaufel",
+    "cat": "Spielen"
+  },
+  {
+    "el": "το σορτσάκι",
+    "tr": "to sortsáki",
+    "de": "die kurze Hose",
+    "cat": "Kleidung",
+    "pic": "🩳"
+  },
+  {
+    "el": "το χάμστερ",
+    "tr": "to chámster",
+    "de": "der Hamster",
+    "cat": "Tiere",
+    "pic": "🐹"
+  },
+  {
+    "el": "γαλάζιος",
+    "tr": "galázios",
+    "de": "hellblau",
+    "cat": "Farben"
+  },
+  {
+    "el": "το ινδικό χοιρίδιο",
+    "tr": "to indikó chirídio",
+    "de": "das Meerschweinchen",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το περιπολικό",
+    "tr": "to peripolikó",
+    "de": "das Polizeiauto",
+    "cat": "Fahrzeuge",
+    "pic": "🚓"
+  },
+  {
+    "el": "ο φίλος",
+    "tr": "o fílos",
+    "de": "der Freund",
+    "cat": "Familie"
+  },
+  {
+    "el": "λυπημένος",
+    "tr": "lipiménos",
+    "de": "traurig",
+    "cat": "Wörter",
+    "pic": "😢"
+  },
+  {
+    "el": "το φλαμίνγκο",
+    "tr": "to flamíngo",
+    "de": "der Flamingo",
+    "cat": "Tiere",
+    "pic": "🦩"
+  },
+  {
+    "el": "δεκαπέντε",
+    "tr": "dekapénde",
+    "de": "fünfzehn",
+    "cat": "Zahlen",
+    "pic": "15"
+  },
+  {
+    "el": "το καρότο",
+    "tr": "to karóto",
+    "de": "die Karotte",
+    "cat": "Essen",
+    "pic": "🥕"
+  },
+  {
+    "el": "το κουτάλι",
+    "tr": "to koutáli",
+    "de": "der Löffel",
+    "cat": "Zuhause",
+    "pic": "🥄"
+  },
+  {
+    "el": "το παγώνι",
+    "tr": "to pagóni",
+    "de": "der Pfau",
+    "cat": "Tiere",
+    "pic": "🦚"
+  },
+  {
+    "el": "το μάγουλο",
+    "tr": "to mágoulo",
+    "de": "die Wange",
+    "cat": "Körper"
+  },
+  {
+    "el": "η πέτρα",
+    "tr": "i pétra",
+    "de": "der Stein",
+    "cat": "Natur",
+    "pic": "🪨"
+  },
+  {
+    "el": "η στρουθοκάμηλος",
+    "tr": "i strouthokámilos",
+    "de": "der Strauß",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το τύμπανο",
+    "tr": "to tímbano",
+    "de": "die Trommel",
+    "cat": "Spielen",
+    "pic": "🥁"
+  },
+  {
+    "el": "το μαγιό",
+    "tr": "to magió",
+    "de": "der Badeanzug",
+    "cat": "Kleidung",
+    "pic": "🩱"
+  },
+  {
+    "el": "ο κύκνος",
+    "tr": "o kíknos",
+    "de": "der Schwan",
+    "cat": "Tiere",
+    "pic": "🦢"
+  },
+  {
+    "el": "σκούρος",
+    "tr": "skoúros",
+    "de": "dunkel",
+    "cat": "Farben"
+  },
+  {
+    "el": "όμορφος",
+    "tr": "ómorfos",
+    "de": "schön",
+    "cat": "Wörter"
+  },
+  {
+    "el": "ο δρυοκολάπτης",
+    "tr": "o driokoláptis",
+    "de": "der Specht",
+    "cat": "Tiere"
+  },
+  {
+    "el": "η φίλη",
+    "tr": "i fíli",
+    "de": "die Freundin",
+    "cat": "Familie"
+  },
+  {
+    "el": "ο εκσκαφέας",
+    "tr": "o ekskaféas",
+    "de": "der Bagger",
+    "cat": "Fahrzeuge"
+  },
+  {
+    "el": "η πατάτα",
+    "tr": "i patáta",
+    "de": "die Kartoffel",
+    "cat": "Essen",
+    "pic": "🥔"
+  },
+  {
+    "el": "δεκαέξι",
+    "tr": "dekaéxi",
+    "de": "sechzehn",
+    "cat": "Zahlen",
+    "pic": "16"
+  },
+  {
+    "el": "το κοράκι",
+    "tr": "to koráki",
+    "de": "der Rabe",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το φλιτζάνι",
+    "tr": "to flitzáni",
+    "de": "die Tasse",
+    "cat": "Zuhause",
+    "pic": "☕"
+  },
+  {
+    "el": "το σπουργίτι",
+    "tr": "to spourgíti",
+    "de": "der Spatz",
+    "cat": "Tiere",
+    "pic": "🐦"
+  },
+  {
+    "el": "το νύχι",
+    "tr": "to níchi",
+    "de": "der Fingernagel",
+    "cat": "Körper"
+  },
+  {
+    "el": "η παραλία",
+    "tr": "i paralía",
+    "de": "der Strand",
+    "cat": "Natur",
+    "pic": "🏖"
+  },
+  {
+    "el": "η κουρούνα",
+    "tr": "i kouroúna",
+    "de": "die Krähe",
+    "cat": "Tiere"
+  },
+  {
+    "el": "η κιθάρα",
+    "tr": "i kithára",
+    "de": "die Gitarre",
+    "cat": "Spielen",
+    "pic": "🎸"
+  },
+  {
+    "el": "η ζώνη",
+    "tr": "i zóni",
+    "de": "der Gürtel",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "γρήγορος",
+    "tr": "grígoros",
+    "de": "schnell",
+    "cat": "Wörter"
+  },
+  {
+    "el": "η λιβελούλα",
+    "tr": "i liveloúla",
+    "de": "die Libelle",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το μέλι",
+    "tr": "to méli",
+    "de": "der Honig",
+    "cat": "Essen",
+    "pic": "🍯"
+  },
+  {
+    "el": "η ακρίδα",
+    "tr": "i akrída",
+    "de": "die Heuschrecke",
+    "cat": "Tiere",
+    "pic": "🦗"
+  },
+  {
+    "el": "το αγόρι",
+    "tr": "to agóri",
+    "de": "der Junge",
+    "cat": "Familie",
+    "pic": "👦"
+  },
+  {
+    "el": "ανοιχτός",
+    "tr": "anichtós",
+    "de": "hell",
+    "cat": "Farben"
+  },
+  {
+    "el": "ο πύραυλος",
+    "tr": "o píravlos",
+    "de": "die Rakete",
+    "cat": "Fahrzeuge",
+    "pic": "🚀"
+  },
+  {
+    "el": "δεκαεφτά",
+    "tr": "dekaeftá",
+    "de": "siebzehn",
+    "cat": "Zahlen",
+    "pic": "17"
+  },
+  {
+    "el": "η πυγολαμπίδα",
+    "tr": "i pigolambída",
+    "de": "das Glühwürmchen",
+    "cat": "Tiere"
+  },
+  {
+    "el": "ο καθρέφτης",
+    "tr": "o kathréftis",
+    "de": "der Spiegel",
+    "cat": "Zuhause",
+    "pic": "🪞"
+  },
+  {
+    "el": "το νησί",
+    "tr": "to nisí",
+    "de": "die Insel",
+    "cat": "Natur",
+    "pic": "🏝"
+  },
+  {
+    "el": "η καρδιά",
+    "tr": "i kardiá",
+    "de": "das Herz",
+    "cat": "Körper",
+    "pic": "❤"
+  },
+  {
+    "el": "το κουνούπι",
+    "tr": "to kounoúpi",
+    "de": "die Mücke",
+    "cat": "Tiere",
+    "pic": "🦟"
+  },
+  {
+    "el": "αργός",
+    "tr": "argós",
+    "de": "langsam",
+    "cat": "Wörter"
+  },
+  {
+    "el": "το τραγούδι",
+    "tr": "to tragoúdi",
+    "de": "das Lied",
+    "cat": "Spielen",
+    "pic": "🎵"
+  },
+  {
+    "el": "η μύγα",
+    "tr": "i míga",
+    "de": "die Fliege",
+    "cat": "Tiere",
+    "pic": "🪰"
+  },
+  {
+    "el": "το κουμπί",
+    "tr": "to koumbí",
+    "de": "der Knopf",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "η σφήκα",
+    "tr": "i sfíka",
+    "de": "die Wespe",
+    "cat": "Tiere"
+  },
+  {
+    "el": "η σοκολάτα",
+    "tr": "i sokoláta",
+    "de": "die Schokolade",
+    "cat": "Essen",
+    "pic": "🍫"
+  },
+  {
+    "el": "το κορίτσι",
+    "tr": "to korítsi",
+    "de": "das Mädchen",
+    "cat": "Familie",
+    "pic": "👧"
+  },
+  {
+    "el": "η κάμπια",
+    "tr": "i kámbia",
+    "de": "die Raupe",
+    "cat": "Tiere",
+    "pic": "🐛"
+  },
+  {
+    "el": "δεκαοχτώ",
+    "tr": "dekaochtó",
+    "de": "achtzehn",
+    "cat": "Zahlen",
+    "pic": "18"
+  },
+  {
+    "el": "το καρότσι",
+    "tr": "to karótsi",
+    "de": "der Kinderwagen",
+    "cat": "Fahrzeuge"
+  },
+  {
+    "el": "τιρκουάζ",
+    "tr": "tirkouáz",
+    "de": "türkis",
+    "cat": "Farben"
+  },
+  {
+    "el": "η σκάλα",
+    "tr": "i skála",
+    "de": "die Treppe",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "η αστραπή",
+    "tr": "i astrapí",
+    "de": "der Blitz",
+    "cat": "Natur",
+    "pic": "⚡"
+  },
+  {
+    "el": "η σαύρα",
+    "tr": "i sávra",
+    "de": "die Eidechse",
+    "cat": "Tiere",
+    "pic": "🦎"
+  },
+  {
+    "el": "το πρόσωπο",
+    "tr": "to prósopo",
+    "de": "das Gesicht",
+    "cat": "Körper"
+  },
+  {
+    "el": "πηδάω",
+    "tr": "pidáo",
+    "de": "springen",
+    "cat": "Wörter"
+  },
+  {
+    "el": "το φίδι",
+    "tr": "to fídi",
+    "de": "die Schlange",
+    "cat": "Tiere",
+    "pic": "🐍"
+  },
+  {
+    "el": "το κρυφτό",
+    "tr": "to kriftó",
+    "de": "das Verstecken",
+    "cat": "Spielen"
+  },
+  {
+    "el": "ο δεινόσαυρος",
+    "tr": "o dinósavros",
+    "de": "der Dinosaurier",
+    "cat": "Tiere",
+    "pic": "🦕"
+  },
+  {
+    "el": "η τσάντα",
+    "tr": "i tsánda",
+    "de": "die Tasche",
+    "cat": "Kleidung",
+    "pic": "👜"
+  },
+  {
+    "el": "το μπισκότο",
+    "tr": "to biskóto",
+    "de": "der Keks",
+    "cat": "Essen",
+    "pic": "🍪"
+  },
+  {
+    "el": "ο μονόκερος",
+    "tr": "o monókeros",
+    "de": "das Einhorn",
+    "cat": "Tiere",
+    "pic": "🦄"
+  },
+  {
+    "el": "ο εγγονός",
+    "tr": "o engonós",
+    "de": "der Enkel",
+    "cat": "Familie"
+  },
+  {
+    "el": "ο δράκος",
+    "tr": "o drákos",
+    "de": "der Drache",
+    "cat": "Tiere",
+    "pic": "🐉"
+  },
+  {
+    "el": "δεκαεννιά",
+    "tr": "dekaenniá",
+    "de": "neunzehn",
+    "cat": "Zahlen",
+    "pic": "19"
+  },
+  {
+    "el": "η άνοιξη",
+    "tr": "i ánixi",
+    "de": "der Frühling",
+    "cat": "Natur",
+    "pic": "🌱"
+  },
+  {
+    "el": "το μετρό",
+    "tr": "to metró",
+    "de": "die U-Bahn",
+    "cat": "Fahrzeuge",
+    "pic": "🚇"
+  },
+  {
+    "el": "το ρολόι",
+    "tr": "to rolói",
+    "de": "die Uhr",
+    "cat": "Zuhause",
+    "pic": "⏰"
+  },
+  {
+    "el": "χορεύω",
+    "tr": "chorévo",
+    "de": "tanzen",
+    "cat": "Wörter",
+    "pic": "💃"
+  },
+  {
+    "el": "ο ιππόκαμπος",
+    "tr": "o ippókambos",
+    "de": "das Seepferdchen",
+    "cat": "Tiere"
+  },
+  {
+    "el": "μπεζ",
+    "tr": "bez",
+    "de": "beige",
+    "cat": "Farben"
+  },
+  {
+    "el": "το σώμα",
+    "tr": "to sóma",
+    "de": "der Körper",
+    "cat": "Körper"
+  },
+  {
+    "el": "το κοχύλι",
+    "tr": "to kochíli",
+    "de": "die Muschel",
+    "cat": "Tiere",
+    "pic": "🐚"
+  },
+  {
+    "el": "η σαπουνόφουσκα",
+    "tr": "i sapounófouska",
+    "de": "die Seifenblase",
+    "cat": "Spielen",
+    "pic": "🫧"
+  },
+  {
+    "el": "το καλαμάρι",
+    "tr": "to kalamári",
+    "de": "der Tintenfisch",
+    "cat": "Tiere",
+    "pic": "🦑"
+  },
+  {
+    "el": "ο χυμός",
+    "tr": "o chimós",
+    "de": "der Saft",
+    "cat": "Essen",
+    "pic": "🧃"
+  },
+  {
+    "el": "η ομπρέλα",
+    "tr": "i ombréla",
+    "de": "der Regenschirm",
+    "cat": "Kleidung",
+    "pic": "☂"
+  },
+  {
+    "el": "η πολική αρκούδα",
+    "tr": "i polikí arkoúda",
+    "de": "der Eisbär",
+    "cat": "Tiere"
+  },
+  {
+    "el": "η εγγονή",
+    "tr": "i engoní",
+    "de": "die Enkelin",
+    "cat": "Familie"
+  },
+  {
+    "el": "το καλοκαίρι",
+    "tr": "to kalokéri",
+    "de": "der Sommer",
+    "cat": "Natur",
+    "pic": "🌻"
+  },
+  {
+    "el": "είκοσι",
+    "tr": "íkosi",
+    "de": "zwanzig",
+    "cat": "Zahlen",
+    "pic": "20"
+  },
+  {
+    "el": "ο θαλάσσιος ίππος",
+    "tr": "o thalássios íppos",
+    "de": "das Walross",
+    "cat": "Tiere"
+  },
+  {
+    "el": "νόστιμος",
+    "tr": "nóstimos",
+    "de": "lecker",
+    "cat": "Wörter",
+    "pic": "😋"
+  },
+  {
+    "el": "η ντουλάπα",
+    "tr": "i doulápa",
+    "de": "der Schrank",
+    "cat": "Zuhause"
+  },
+  {
+    "el": "το τραμ",
+    "tr": "to tram",
+    "de": "die Straßenbahn",
+    "cat": "Fahrzeuge",
+    "pic": "🚊"
+  },
+  {
+    "el": "η λεοπάρδαλη",
+    "tr": "i leopárdali",
+    "de": "der Leopard",
+    "cat": "Tiere",
+    "pic": "🐆"
+  },
+  {
+    "el": "το μπράτσο",
+    "tr": "to brátso",
+    "de": "der Arm",
+    "cat": "Körper",
+    "pic": "💪"
+  },
+  {
+    "el": "πολύχρωμος",
+    "tr": "políchromos",
+    "de": "bunt",
+    "cat": "Farben"
+  },
+  {
+    "el": "το τσιτάχ",
+    "tr": "to tsitách",
+    "de": "der Gepard",
+    "cat": "Tiere",
+    "pic": "🐆"
+  },
+  {
+    "el": "το πατίνι",
+    "tr": "to patíni",
+    "de": "der Roller",
+    "cat": "Spielen",
+    "pic": "🛴"
+  },
+  {
+    "el": "το κεράσι",
+    "tr": "to kerási",
+    "de": "die Kirsche",
+    "cat": "Essen",
+    "pic": "🍒"
+  },
+  {
+    "el": "η ύαινα",
+    "tr": "i íena",
+    "de": "die Hyäne",
+    "cat": "Tiere"
+  },
+  {
+    "el": "το σανδάλι",
+    "tr": "to sandáli",
+    "de": "die Sandale",
+    "cat": "Kleidung",
+    "pic": "👡"
+  },
+  {
+    "el": "ο γορίλας",
+    "tr": "o gorílas",
+    "de": "der Gorilla",
+    "cat": "Tiere",
+    "pic": "🦍"
+  },
+  {
+    "el": "μπράβο",
+    "tr": "brávo",
+    "de": "super",
+    "cat": "Wörter",
+    "pic": "👍"
+  },
+  {
+    "el": "το φθινόπωρο",
+    "tr": "to fthinóporo",
+    "de": "der Herbst",
+    "cat": "Natur",
+    "pic": "🍂"
+  },
+  {
+    "el": "ο γείτονας",
+    "tr": "o gítonas",
+    "de": "der Nachbar",
+    "cat": "Familie"
+  },
+  {
+    "el": "εκατό",
+    "tr": "ekató",
+    "de": "hundert",
+    "cat": "Zahlen",
+    "pic": "100"
+  },
+  {
+    "el": "το λάμα",
+    "tr": "to láma",
+    "de": "das Lama",
+    "cat": "Tiere",
+    "pic": "🦙"
+  },
+  {
+    "el": "η οδοντόβουρτσα",
+    "tr": "i odondóvourtsa",
+    "de": "die Zahnbürste",
+    "cat": "Zuhause",
+    "pic": "🪥"
+  },
+  {
+    "el": "το υποβρύχιο",
+    "tr": "to ipovríchio",
+    "de": "das U-Boot",
+    "cat": "Fahrzeuge"
+  },
+  {
+    "el": "το πηγούνι",
+    "tr": "to pigoúni",
+    "de": "das Kinn",
+    "cat": "Körper"
+  },
+  {
+    "el": "ο βούβαλος",
+    "tr": "o voúvalos",
+    "de": "der Büffel",
+    "cat": "Tiere",
+    "pic": "🐃"
+  },
+  {
+    "el": "το λεμόνι",
+    "tr": "to lemóni",
+    "de": "die Zitrone",
+    "cat": "Essen",
+    "pic": "🍋"
+  },
+  {
+    "el": "η άλκη",
+    "tr": "i álki",
+    "de": "der Elch",
+    "cat": "Tiere",
+    "pic": "🫎"
+  },
+  {
+    "el": "η πισίνα",
+    "tr": "i pisína",
+    "de": "das Schwimmbad",
+    "cat": "Spielen",
+    "pic": "🏊"
+  },
+  {
+    "el": "το χρώμα",
+    "tr": "to chróma",
+    "de": "die Farbe",
+    "cat": "Farben"
+  },
+  {
+    "el": "το χελιδόνι",
+    "tr": "to chelidóni",
+    "de": "die Schwalbe",
+    "cat": "Tiere"
+  },
+  {
+    "el": "κουρασμένος",
+    "tr": "kourasménos",
+    "de": "müde",
+    "cat": "Wörter",
+    "pic": "🥱"
+  },
+  {
+    "el": "ο χειμώνας",
+    "tr": "o chimónas",
+    "de": "der Winter",
+    "cat": "Natur",
+    "pic": "⛄"
+  },
+  {
+    "el": "η πάνα",
+    "tr": "i pána",
+    "de": "die Windel",
+    "cat": "Kleidung"
+  },
+  {
+    "el": "η δασκάλα",
+    "tr": "i daskála",
+    "de": "die Lehrerin",
+    "cat": "Familie"
+  },
+  {
+    "el": "το τζιτζίκι",
+    "tr": "to tzitzíki",
+    "de": "die Zikade",
+    "cat": "Tiere"
+  },
+  {
+    "el": "χίλια",
+    "tr": "chília",
+    "de": "tausend",
+    "cat": "Zahlen",
+    "pic": "1000"
+  },
+  {
+    "el": "ο πελεκάνος",
+    "tr": "o pelekános",
+    "de": "der Pelikan",
+    "cat": "Tiere"
+  },
+  {
+    "el": "ο κήπος",
+    "tr": "o kípos",
+    "de": "der Garten",
+    "cat": "Zuhause",
+    "pic": "🏡"
+  },
+  {
+    "el": "το αερόστατο",
+    "tr": "to aeróstato",
+    "de": "der Heißluftballon",
+    "cat": "Fahrzeuge",
+    "pic": "🎈"
+  },
+  {
+    "el": "το μέτωπο",
+    "tr": "to métopo",
+    "de": "die Stirn",
+    "cat": "Körper"
+  },
+  {
+    "el": "το χρυσόψαρο",
+    "tr": "to chrisópsaro",
+    "de": "der Goldfisch",
+    "cat": "Tiere",
+    "pic": "🐠"
+  },
+  {
+    "el": "η πίτσα",
+    "tr": "i pítsa",
+    "de": "die Pizza",
+    "cat": "Essen",
+    "pic": "🍕"
+  },
+  {
+    "el": "το παραμύθι",
+    "tr": "to paramíthi",
+    "de": "das Märchen",
+    "cat": "Spielen",
+    "pic": "🏰"
+  }
+]
