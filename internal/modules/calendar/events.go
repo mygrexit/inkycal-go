@@ -138,6 +138,33 @@ func spanDays(e ical.Event, loc *time.Location) int {
 	return days
 }
 
+// clockRange is "10:00–11:00"; a timed event reaching beyond the day it is listed
+// under names the other day: "Fri 08:00–12:00" (still running), "10:00–Sun 18:00".
+func clockRange(e ical.Event, shown time.Time, timeFmt, lang string) string {
+	loc := shown.Location()
+	at := func(t time.Time) string {
+		s := timefmt.Format(t, timeFmt, lang)
+		switch days := dateOnly(t).Sub(dateOnly(shown)).Hours() / 24; {
+		case math.Abs(days) < 0.5:
+			return s
+		case math.Abs(days) < 6.5:
+			return timefmt.Format(t, "ddd", lang) + " " + s
+		case i18n.German(lang):
+			return timefmt.Format(t, "D. MMM", lang) + " " + s
+		}
+		return timefmt.Format(t, "D MMM", lang) + " " + s
+	}
+	start := e.Start.In(loc)
+	if !e.End.After(e.Start) {
+		return at(start)
+	}
+	end := e.End.In(loc)
+	if dateOnly(end.Add(-time.Nanosecond)).Equal(dateOnly(shown)) { // ends at midnight after the listed day
+		return at(start) + "–" + timefmt.Format(end, timeFmt, lang)
+	}
+	return at(start) + "–" + at(end)
+}
+
 // buildEventRows lists events that have not ended and start within four weeks,
 // sorted by start, at most limit rows. Today marks events running on today's date.
 func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, timeFmt, lang string) []eventRow {
@@ -160,7 +187,7 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 	for _, e := range upcoming {
 		start := e.Start.In(loc)
 		title := e.Title
-		if days := spanDays(e.Event, loc); days > 1 {
+		if days := spanDays(e.Event, loc); days > 1 && e.AllDay {
 			title += " " + i18n.T(lang, "span_days", days)
 		}
 		// An event that started on an earlier day and is still running belongs to today.
@@ -168,10 +195,7 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 		if start.Before(todayStart) {
 			shown = todayStart
 		}
-		clock := timefmt.Format(start, timeFmt, lang)
-		if e.End.After(e.Start) {
-			clock += "–" + timefmt.Format(e.End.In(loc), timeFmt, lang)
-		}
+		clock := clockRange(e.Event, shown, timeFmt, lang)
 		rows = append(rows, eventRow{
 			Day:    dateOnly(shown),
 			Date:   timefmt.Format(shown, dateFmt, lang),

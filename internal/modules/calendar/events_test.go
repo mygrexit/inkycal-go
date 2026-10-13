@@ -41,14 +41,17 @@ func TestBuildEventRows(t *testing.T) {
 		{Title: "Urlaub", Start: at(10, 12, 0), End: at(10, 15, 0), AllDay: true},
 		{Title: "Läuft", Start: at(10, 9, 8), End: at(10, 10, 12)},
 		{Title: "Fern", Start: at(11, 20, 10), End: at(11, 20, 11)},
+		{Title: "Messe", Start: at(10, 16, 10), End: at(10, 18, 18)},
+		{Title: "Party", Start: at(10, 17, 20), End: at(10, 18, 0)},
 	}
 
 	rows := buildEventRows(mergeSources(events, nil, false, "en"), now, 10, "D MMM", "HH:mm", "en")
-	if len(rows) != 3 {
-		t.Fatalf("rows = %+v, want 3 rows", rows)
+	if len(rows) != 5 {
+		t.Fatalf("rows = %+v, want 5 rows", rows)
 	}
-	// Läuft spans two calendar days (counted inclusively for timed events).
-	if rows[0].Title != "Läuft (2 days)" || rows[1].Title != "Zahnarzt" {
+	// Timed multi-day events name the other day in the time column instead of counting days:
+	// Läuft started yesterday and is listed under today, Messe ends two days after its start.
+	if rows[0].Title != "Läuft" || rows[0].Time != "Fri 08:00–12:00" || rows[1].Title != "Zahnarzt" {
 		t.Errorf("order = %q, %q", rows[0].Title, rows[1].Title)
 	}
 	if rows[1].Date != "10 Oct" || rows[1].Time != "10:00–11:00" || rows[1].AllDay {
@@ -56,6 +59,12 @@ func TestBuildEventRows(t *testing.T) {
 	}
 	if rows[2].Title != "Urlaub (3 days)" || !rows[2].AllDay {
 		t.Errorf("Urlaub row = %+v", rows[2])
+	}
+	if rows[3].Title != "Messe" || rows[3].Time != "10:00–Sun 18:00" || rows[3].Date != "16 Oct" {
+		t.Errorf("Messe row = %+v", rows[3])
+	}
+	if rows[4].Time != "20:00–00:00" {
+		t.Errorf("event ending at midnight: %q", rows[4].Time)
 	}
 	if !rows[0].Today || !rows[1].Today || rows[2].Today {
 		t.Errorf("today flags: %v %v %v", rows[0].Today, rows[1].Today, rows[2].Today)
