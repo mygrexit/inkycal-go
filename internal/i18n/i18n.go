@@ -39,6 +39,8 @@ var words = map[string]map[string]string{
 		"feels_like":   "feels like %s",
 		"hint.denied":  "%s: access denied – check the API key in settings.json",
 		"hint.offline": "%s: no connection",
+		"hint.setup":   "%s: not set up yet – fill it in with the builder",
+		"hint.unknown": "%s: this module no longer exists – remove the tile",
 		"hint.error":   "%s: error – see journalctl -u inkycal-go",
 	},
 	"de": {
@@ -59,6 +61,8 @@ var words = map[string]map[string]string{
 		"feels_like":   "gefühlt %s",
 		"hint.denied":  "%s: Zugang abgelehnt – API-Schlüssel in settings.json prüfen",
 		"hint.offline": "%s: keine Verbindung",
+		"hint.setup":   "%s: noch nicht eingerichtet – im Builder ausfüllen",
+		"hint.unknown": "%s: dieses Modul gibt es nicht mehr – Kachel entfernen",
 		"hint.error":   "%s: Fehler – Details mit journalctl -u inkycal-go",
 		// module names in error hints
 		"Weather":  "Wetter",

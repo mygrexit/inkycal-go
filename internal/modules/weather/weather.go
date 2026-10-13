@@ -2,6 +2,7 @@
 package weather
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,10 +19,15 @@ type Module struct {
 	common   config.Common
 	apiKey   string
 	location string
+	provider string // "open-meteo" or "openweathermap"
+	lat, lon float64
 	set      settings
 }
 
 type rawConfig struct {
+	Provider         string          `json:"provider"` // "" = OpenWeatherMap with an api_key, else Open-Meteo
+	Latitude         *flexFloat      `json:"latitude"`
+	Longitude        *flexFloat      `json:"longitude"`
 	APIKey           string          `json:"api_key"`
 	Location         flexString      `json:"location"`
 	RoundTemperature config.FlexBool `json:"round_temperature"`
@@ -54,11 +60,29 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if err := json.Unmarshal(raw, &rc); err != nil {
 		return nil, fmt.Errorf("weather: config: %w", err)
 	}
-	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, errors.New("weather: api_key is missing")
+	provider := rc.Provider
+	if provider == "" {
+		provider = "open-meteo"
+		if strings.TrimSpace(rc.APIKey) != "" {
+			provider = "openweathermap" // settings from upstream Inkycal
+		}
 	}
-	if strings.TrimSpace(string(rc.Location)) == "" {
-		return nil, errors.New("weather: location is missing")
+	m := &Module{common: c, apiKey: rc.APIKey, location: string(rc.Location), provider: provider}
+	switch provider {
+	case "openweathermap":
+		if strings.TrimSpace(rc.APIKey) == "" {
+			return nil, errors.New("weather: api_key is missing")
+		}
+		if strings.TrimSpace(string(rc.Location)) == "" {
+			return nil, errors.New("weather: location is missing")
+		}
+	case "open-meteo":
+		if rc.Latitude == nil || rc.Longitude == nil {
+			return nil, errors.New("weather: latitude and longitude are missing (search the place)")
+		}
+		m.lat, m.lon = float64(*rc.Latitude), float64(*rc.Longitude)
+	default:
+		return nil, fmt.Errorf("weather: provider %q: want open-meteo or openweathermap", provider)
 	}
 	if err := modules.CheckMinSize(c, Meta); err != nil {
 		return nil, err
@@ -68,7 +92,21 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		Hour12:     int(rc.HourFormat) == 12,
 		Lang:       c.Language,
 	}
-	return &Module{common: c, apiKey: rc.APIKey, location: string(rc.Location), set: s}, nil
+	m.set = s
+	return m, nil
+}
+
+// flexFloat accepts a JSON number or a numeric string.
+type flexFloat float64
+
+func (f *flexFloat) UnmarshalJSON(b []byte) error {
+	var n json.Number
+	if err := json.Unmarshal(bytes.Trim(b, `"`), &n); err != nil {
+		return fmt.Errorf("want a number, got %s", b)
+	}
+	v, err := n.Float64()
+	*f = flexFloat(v)
+	return err
 }
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
@@ -79,15 +117,16 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 		staleC, staleF bool
 		errC, errF     error
 	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+	if m.provider == "open-meteo" {
+		cur, points, staleC, errC = fetchOpenMeteo(ctx, env.Fetch, m.lat, m.lon, m.set.Lang, env.Loc)
+	} else {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			points, staleF, errF = fetchForecast(ctx, env.Fetch, m.apiKey, m.location, m.set.Lang, env.Loc)
+		}()
 		cur, staleC, errC = fetchCurrent(ctx, env.Fetch, m.apiKey, m.location, m.set.Lang, env.Loc)
-	}()
-	go func() {
-		defer wg.Done()
-		points, staleF, errF = fetchForecast(ctx, env.Fetch, m.apiKey, m.location, m.set.Lang, env.Loc)
-	}()
+	}
 	wg.Wait()
 	if err := errors.Join(errC, errF); err != nil {
 		return nil, err

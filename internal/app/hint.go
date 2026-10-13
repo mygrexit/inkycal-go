@@ -12,6 +12,10 @@ func errorHint(module string, err error, lang string) string {
 	msg := err.Error()
 	name := i18n.T(lang, module)
 	switch {
+	case strings.HasPrefix(msg, "unknown module"):
+		return i18n.T(lang, "hint.unknown", name)
+	case strings.Contains(msg, " is missing") || strings.Contains(msg, " are missing"):
+		return i18n.T(lang, "hint.setup", name)
 	case strings.Contains(msg, "HTTP 401") || strings.Contains(msg, "HTTP 403"):
 		return i18n.T(lang, "hint.denied", name)
 	case strings.Contains(msg, "no such host") || strings.Contains(msg, "connection refused") ||

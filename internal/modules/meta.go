@@ -11,14 +11,16 @@ import (
 type FieldKind string
 
 const (
-	KindText     FieldKind = "text"   // one line
-	KindSecret   FieldKind = "secret" // API keys, tokens: masked in the UI, blanked on export
-	KindURL      FieldKind = "url"
-	KindURLList  FieldKind = "url_list"  // config.StringList of URLs
-	KindTextList FieldKind = "text_list" // config.StringList
-	KindNumber   FieldKind = "number"
-	KindBool     FieldKind = "bool"
-	KindSelect   FieldKind = "select" // Options; values keep their JSON type (24 stays a number)
+	KindText      FieldKind = "text"   // one line
+	KindSecret    FieldKind = "secret" // API keys, tokens: masked in the UI, blanked on export
+	KindURL       FieldKind = "url"
+	KindURLList   FieldKind = "url_list"  // config.StringList of URLs
+	KindTextList  FieldKind = "text_list" // config.StringList
+	KindNumber    FieldKind = "number"
+	KindBool      FieldKind = "bool"
+	KindSelect    FieldKind = "select"    // Options; values keep their JSON type (24 stays a number)
+	KindMultiline FieldKind = "multiline" // several lines of text
+	KindPlace     FieldKind = "place"     // place name with a search; also writes latitude and longitude
 )
 
 // Cond shows a field only while another field has one of Values.
@@ -29,14 +31,17 @@ type Cond struct {
 
 // Field is one module setting as the builder edits it.
 type Field struct {
-	Key      string    `json:"key"`
-	Label    string    `json:"label"`
-	Help     string    `json:"help,omitempty"`
-	Kind     FieldKind `json:"kind"`
-	Default  any       `json:"default,omitempty"`
-	Options  []any     `json:"options,omitempty"`
-	Required bool      `json:"required,omitempty"`
-	ShowIf   *Cond     `json:"show_if,omitempty"`
+	Key      string            `json:"key"`
+	Label    string            `json:"label"`
+	Help     string            `json:"help,omitempty"`
+	Kind     FieldKind         `json:"kind"`
+	Default  any               `json:"default,omitempty"`
+	Options  []any             `json:"options,omitempty"`
+	Required bool              `json:"required,omitempty"`
+	ShowIf   *Cond             `json:"show_if,omitempty"`
+	Advanced bool              `json:"advanced,omitempty"` // shown under "More options"
+	Custom   bool              `json:"custom,omitempty"`   // select that also takes a typed value
+	Labels   map[string]string `json:"labels,omitempty"`   // option → label
 }
 
 // Meta describes a module for the builder: its settings and minimum inner size.
@@ -44,6 +49,8 @@ type Meta struct {
 	Name        string  `json:"name"`  // the settings.json module name
 	Title       string  `json:"title"` // shown in the builder
 	Description string  `json:"description"`
+	Group       string  `json:"group"` // palette section: weather, calendar, info, pictures, custom
+	Icon        string  `json:"icon"`  // one emoji for the palette
 	MinW        int     `json:"min_w"` // inner pixels
 	MinH        int     `json:"min_h"`
 	Fields      []Field `json:"fields"`

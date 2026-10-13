@@ -382,6 +382,22 @@ func Parse(r io.Reader, from, to time.Time, loc *time.Location) ([]Event, error)
 	return out, nil
 }
 
+// checkCalendar refuses bodies that are not iCalendar, typically a login page a wrong
+// (non-secret) calendar address leads to; parsing those would just show no events.
+func checkCalendar(body []byte) error {
+	if len(bytes.TrimSpace(body)) == 0 {
+		return nil // some exports answer nothing when there are no events
+	}
+	head := body[:min(len(body), 4096)]
+	if bytes.Contains(body, []byte("BEGIN:VCALENDAR")) || bytes.Contains(bytes.ToUpper(head), []byte("BEGIN:VCALENDAR")) {
+		return nil
+	}
+	if lower := bytes.ToLower(head); bytes.Contains(lower, []byte("<html")) || bytes.Contains(lower, []byte("<!doctype html")) {
+		return errors.New("not an iCalendar file (got HTML)")
+	}
+	return errors.New("not an iCalendar file")
+}
+
 // Load fetches all URLs in parallel (webcal:// is treated as https://), reads all files,
 // and returns the merged, sorted events. stale is true if any URL came from the cache.
 func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to time.Time, loc *time.Location) ([]Event, bool, error) {
@@ -401,6 +417,10 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 			}
 			res, err := fc.Get(ctx, u, nil)
 			if err != nil {
+				results[i].err = fmt.Errorf("calendar %d: %w", i+1, err)
+				return
+			}
+			if err := checkCalendar(res.Body); err != nil {
 				results[i].err = fmt.Errorf("calendar %d: %w", i+1, err)
 				return
 			}

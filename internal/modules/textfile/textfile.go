@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"inkycal/internal/config"
@@ -23,13 +24,18 @@ import (
 const maxFile = 1 << 20
 
 type Module struct {
-	common config.Common
-	path   string
-	remote bool
+	common    config.Common
+	text      string // typed in the builder (source "text")
+	path      string
+	remote    bool
+	onePerDay bool
 }
 
 type rawConfig struct {
-	Filepath string `json:"filepath"`
+	Source    string          `json:"source"` // "text", "url", "file"; "" = text when set, else filepath
+	Text      string          `json:"text"`
+	Filepath  string          `json:"filepath"`
+	OnePerDay config.FlexBool `json:"one_per_day"`
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
@@ -39,23 +45,32 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 			return nil, fmt.Errorf("textfile: config: %w", err)
 		}
 	}
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
+	}
+	m := &Module{common: c, onePerDay: bool(rc.OnePerDay)}
+	if rc.Source == "text" || (rc.Source == "" && rc.Text != "") {
+		if strings.TrimSpace(rc.Text) == "" {
+			return nil, errors.New("textfile: text is missing")
+		}
+		m.text = rc.Text
+		return m, nil
+	}
 	p := strings.TrimSpace(rc.Filepath)
 	if p == "" {
 		return nil, errors.New("textfile: filepath is missing")
 	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
 	lower := strings.ToLower(p)
-	return &Module{
-		common: c,
-		path:   p,
-		// upstream only treats https:// as remote; plain http is accepted too
-		remote: strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://"),
-	}, nil
+	m.path = p
+	// upstream only treats https:// as remote; plain http is accepted too
+	m.remote = strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://")
+	return m, nil
 }
 
 func (m *Module) read(ctx context.Context, env *modules.Env) (string, error) {
+	if m.path == "" {
+		return m.text, nil
+	}
 	var body []byte
 	if m.remote {
 		res, err := env.Fetch.Get(ctx, m.path, nil)
@@ -87,8 +102,56 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	}
 	w, h := m.common.InnerSize()
 	c := env.Canvas(w, h, render.FontRegular, int(m.common.FontSize))
+	if m.onePerDay {
+		drawLine(c, lineOfDay(text, env.Now), int(m.common.FontSize))
+		return c, nil
+	}
 	draw(c, parse(text), int(m.common.FontSize), m.common.Language)
 	return c, nil
+}
+
+// lineOfDay picks one line per calendar day, walking through the text's lines (headings
+// and blank lines skipped, list markers removed). Without candidates the text is shown.
+func lineOfDay(text string, now time.Time) string {
+	var lines []string
+	for _, p := range parse(text) {
+		if !p.Blank && !p.Heading && strings.TrimSpace(p.Text) != "" {
+			lines = append(lines, p.Text)
+		}
+	}
+	if len(lines) == 0 {
+		return strings.TrimSpace(text)
+	}
+	y, mo, d := now.Date()
+	day := time.Date(y, mo, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+	return lines[int(day%int64(len(lines)))]
+}
+
+// drawLine sets a single line large and centred, like a quote of the day: the largest
+// size whose wrapped lines fit the tile (with some air), never below the body size.
+func drawLine(c *render.Canvas, text string, body int) {
+	floor := min(body, 10)
+	for size := max(floor, min(c.H/2, c.W/3)); size >= floor; size-- {
+		st := render.Style{Font: render.FontRegular, Size: size}
+		w := c.W * 9 / 10
+		lines := c.WrapStyle(text, st, w, w)
+		step := size * 5 / 4
+		capH := c.CapHeight(st)
+		_, desc := c.Metrics(st)
+		total := (len(lines)-1)*step + capH + desc
+		wide := false
+		for _, l := range lines {
+			wide = wide || c.Advance(l, st) > w
+		}
+		if (total <= c.H*8/10 && !wide) || size == floor {
+			y := (c.H-total)/2 + capH
+			for _, l := range c.Clip(lines, max(1, c.H/step), st, w) {
+				c.TextCenter(c.W/2, y, l, st, render.InkBlack)
+				y += step
+			}
+			return
+		}
+	}
 }
 
 // para is one source line: a paragraph, list item or heading; blank lines become gaps.

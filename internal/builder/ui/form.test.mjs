@@ -44,3 +44,42 @@ test("stripSecrets blanks secret fields only", () => {
   const meta = { fields: [{ key: "api_key", kind: "secret" }, { key: "location", kind: "text" }] };
   assert.deepEqual(stripSecrets(meta, { api_key: "k", location: "B", size: [1, 2] }), { api_key: "", location: "B", size: [1, 2] });
 });
+
+test("partition puts advanced fields behind More options", async () => {
+  const { partition } = await import("./form.js");
+  const meta = { fields: [{ key: "a" }, { key: "b", advanced: true }, { key: "c", show_if: { key: "a", values: ["x"] } }] };
+  const { basic, advanced } = partition(meta, { a: "y" });
+  assert.deepEqual(basic.map(f => f.key), ["a"]);
+  assert.deepEqual(advanced.map(f => f.key), ["b"]);
+});
+
+test("optionLabel shows format examples", async () => {
+  const { optionLabel } = await import("./form.js");
+  const examples = { de: { "D MMM": "13 Okt" } };
+  assert.equal(optionLabel({ key: "date_format" }, "D MMM", examples, "de"), "13 Okt");
+  assert.equal(optionLabel({ key: "units", labels: { metric: "°C, m/s" } }, "metric", examples, "de"), "°C, m/s");
+  assert.equal(optionLabel({ key: "x" }, 24, examples, "de"), "24");
+});
+
+test("normalize derives the text source of upstream settings", async () => {
+  const { normalize } = await import("./form.js");
+  assert.deepEqual(normalize("TextToDisplay", { filepath: "https://x/t.txt" }).source, "url");
+  assert.deepEqual(normalize("TextToDisplay", { filepath: "/home/pi/t.txt" }).source, "file");
+  assert.deepEqual(normalize("TextToDisplay", { text: "Hi" }).source, "text");
+  assert.deepEqual(normalize("TextToDisplay", { source: "file", filepath: "/x" }).source, "file");
+  assert.deepEqual(normalize("Stocks", { tickers: "A" }), { tickers: "A" });
+});
+
+test("normalize keeps upstream weather on OpenWeatherMap", async () => {
+  const { normalize } = await import("./form.js");
+  assert.equal(normalize("Weather", { api_key: "k" }).provider, "openweathermap");
+  assert.equal(normalize("Weather", { latitude: 1 }).provider, "open-meteo");
+  assert.equal(normalize("Weather", { provider: "open-meteo", api_key: "k" }).provider, "open-meteo");
+});
+
+test("choosing Other… keeps the current value until something is typed", async () => {
+  const { selectRead } = await import("./form.js");
+  const f = { key: "date_format", kind: "select", options: ["D MMM"], custom: true };
+  assert.deepEqual(selectRead(f, "__custom"), { skip: true });
+  assert.deepEqual(selectRead(f, "D MMM"), { value: "D MMM" });
+});

@@ -79,3 +79,30 @@ test("bestFree picks the largest free box up to the preferred size, at least the
   // no room even for the minimum
   assert.equal(bestFree(g, [[0, 0, 12, 16]], [1, 1], [12, 4]), null);
 });
+
+test("makeRoom shrinks the biggest tile that can spare the space", async () => {
+  const { makeRoom } = await import("./grid.js");
+  const g = { columns: 12, rows: 16 };
+  // the user's converted dashboard: 4 + 8 + 2 + 2 rows, all full width
+  const cells = [[0, 0, 12, 4], [0, 4, 12, 8], [0, 12, 12, 2], [0, 14, 12, 2]];
+  const mins = [[2, 1], [2, 2], [2, 1], [2, 1]];
+  const r = makeRoom(g, cells, mins, [2, 2]);
+  assert.deepEqual(r.cells[1], [0, 4, 12, 6], "the calendar gives two rows");
+  assert.deepEqual(r.cell, [0, 10, 12, 2]);
+  assert.equal(r.shrunk, 1);
+  // nothing can give: null
+  assert.equal(makeRoom(g, [[0, 0, 12, 16]], [[12, 16]], [1, 1]), null);
+});
+
+test("nudge moves and resizes by one cell, refusing overlaps and the minimum", async () => {
+  const { nudge } = await import("./grid.js");
+  const g = { columns: 12, rows: 16 };
+  const cells = [[0, 0, 12, 4], [0, 4, 6, 4]];
+  const mins = [[2, 2], [2, 2]];
+  assert.deepEqual(nudge(g, cells, mins, 1, "right"), [1, 4, 6, 4]);
+  assert.equal(nudge(g, cells, mins, 1, "up"), null, "would overlap the top tile");
+  assert.deepEqual(nudge(g, cells, mins, 1, "taller"), [0, 4, 6, 5]);
+  assert.deepEqual(nudge(g, cells, mins, 1, "wider"), [0, 4, 7, 4]);
+  assert.deepEqual(nudge(g, cells, [[2, 2], [2, 4]], 1, "shorter"), null, "already at the minimum");
+  assert.deepEqual(nudge(g, cells, mins, 0, "left"), null, "already at the edge");
+});

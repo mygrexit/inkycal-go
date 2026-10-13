@@ -11,6 +11,7 @@
 <body>
 <header class="bar">
   <strong class="brand">inkycal builder</strong>
+  <button id="display-chip" type="button" class="chip" title="Change the display"></button>
   <span id="file" class="muted"></span>
   <span class="spacer"></span>
   <div class="seg" role="group" aria-label="View">
@@ -25,6 +26,7 @@
       <option value="0.5">50 %</option>
     </select>
   </label>
+  <button id="wizard-open" type="button" title="Set up step by step">Assistant</button>
   <button id="undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
   <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
   <button id="refresh" type="button" title="Fetch live data again instead of the 10-minute cache">Refresh data</button>
@@ -47,8 +49,26 @@
       <div id="info-area" hidden><span>info line</span></div>
     </div>
     <div id="busy" hidden>rendering…</div>
+    <ul id="tile-list" aria-label="Tiles"></ul>
   </section>
   <aside id="inspector" aria-label="Settings"></aside>
 </main>
+<dialog id="wizard" aria-label="Assistant">
+  <p class="muted small" id="wizard-step"></p>
+  <div id="wizard-body"></div>
+  <div class="actions">
+    <button id="wizard-back" type="button">Back</button>
+    <span class="spacer"></span>
+    <button id="wizard-skip" type="button">Close</button>
+    <button id="wizard-next" type="button" class="primary">Next</button>
+  </div>
+</dialog>
+<dialog id="display-dialog" aria-label="Choose your display">
+  <h3>Which display do you have?</h3>
+  <p class="muted small">The size and colours are on the box; V1/V2 is on a sticker on the back of the panel.</p>
+  <input id="display-search" type="search" placeholder="Search, e.g. 7.5 red" aria-label="Search displays">
+  <div id="display-list"></div>
+  <div class="actions"><button id="display-close" type="button">Cancel</button></div>
+</dialog>
 </body>
 </html>

@@ -58,3 +58,41 @@ export function stripSecrets(meta, values) {
   }
   return out;
 }
+
+// partition splits the visible fields into the essentials and "More options".
+export function partition(meta, values) {
+  const shown = (meta.fields || []).filter(f => visible(f, values));
+  return { basic: shown.filter(f => !f.advanced), advanced: shown.filter(f => f.advanced) };
+}
+
+// optionLabel is what a select shows for an option: a rendered example for date and
+// time formats, the field's own label, or the value.
+export function optionLabel(field, option, examples, lang) {
+  const key = String(option);
+  if ((field.key === "date_format" || field.key === "time_format") && examples && examples[lang] && examples[lang][key]) {
+    return examples[lang][key];
+  }
+  if (field.labels && field.labels[key]) return field.labels[key];
+  return key;
+}
+
+// normalize fills in what older (upstream) settings leave implicit, so the inspector
+// shows the right fields: a TextToDisplay without "source" reads its filepath.
+export function normalize(name, config) {
+  if (name === "TextToDisplay" && !config.source) {
+    const p = String(config.filepath || "").toLowerCase();
+    const source = config.text ? "text" : p.startsWith("http://") || p.startsWith("https://") ? "url" : p ? "file" : "text";
+    return { ...config, source };
+  }
+  if (name === "Weather" && !config.provider) {
+    return { ...config, provider: config.api_key ? "openweathermap" : "open-meteo" };
+  }
+  return config;
+}
+
+// selectRead turns a select's value into a change; "Other…" changes nothing until a
+// value is typed into its text box.
+export function selectRead(field, raw) {
+  if (raw === "__custom") return { skip: true };
+  return { value: coerce(field, raw) };
+}

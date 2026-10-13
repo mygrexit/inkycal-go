@@ -364,6 +364,9 @@ func TestErrorHint(t *testing.T) {
 		{"Weather", `weather: current: Get "https://api.openweathermap.org/…": dial tcp: lookup api.openweathermap.org: no such host`, "de", "Wetter: keine Verbindung"},
 		{"Calendar", "calendar: calendar 2: boom", "de", "Kalender: Fehler – Details mit journalctl -u inkycal-go"},
 		{"Calendar", "boom", "en", "Calendar: error – see journalctl -u inkycal-go"},
+		{"Weather", "weather: latitude and longitude are missing (search the place)", "de", "Wetter: noch nicht eingerichtet – im Builder ausfüllen"},
+		{"Agenda", "agenda: ical_urls is missing", "en", "Agenda: not set up yet – fill it in with the builder"},
+		{"Widget", `unknown module "Widget"`, "de", "Widget: dieses Modul gibt es nicht mehr – Kachel entfernen"},
 	} {
 		if got := errorHint(c.name, errors.New(c.err), c.lang); got != c.want {
 			t.Errorf("%s %q:\n got %q\nwant %q", c.name, c.err, got, c.want)

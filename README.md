@@ -181,10 +181,24 @@ inkycal --mode builder --settings settings.json            # on your computer
 inkycal --mode builder --listen 0.0.0.0:8080               # on the Pi (keep it on USB power)
 ```
 
-It prints an address with an access token. Drag modules onto the grid, resize them, edit their
-settings, and watch a live preview rendered by the same code that draws the panel, either in
-e-paper tones or as exact panel pixels. Saving writes settings.json and keeps the previous
-version as `settings.json.bak`.
+It prints an address with an access token (the same one every time). On a new settings file an
+assistant asks for your display (by name, size and colours), offers templates, lists what still
+needs connecting and lets you pick when to update, with a rough battery estimate.
+
+Drag modules onto the grid, resize them, edit their settings, and watch a live preview rendered by
+the same code that draws the panel, either in e-paper tones or as exact panel pixels. Essentials
+come first, the rest sits under "More options"; errors are explained in plain words. On a phone the
+builder becomes one column with move and size buttons. Saving writes settings.json and keeps the
+previous version as `settings.json.bak`.
+
+What works without an account:
+
+- **Weather** uses Open-Meteo by default (search your town). Settings with an OpenWeatherMap
+  `api_key` keep using it.
+- **Text & notes** takes text typed in the builder, a web address or a file, optionally one line
+  per day.
+- **Calendars** come with help on where to find the secret iCal address (Google, Apple, Outlook,
+  Nextcloud, waste collection) and a test button.
 
 ### Themes and tile styles
 

@@ -14,8 +14,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"inkycal/internal/app"
 	"inkycal/internal/config"
+	"inkycal/internal/epd"
+	"inkycal/internal/layout"
 	"inkycal/internal/modules"
 	"inkycal/internal/render"
 )
@@ -259,7 +263,7 @@ func TestPreviewUsesThePanelsInks(t *testing.T) {
 		t.Errorf("yellow colour ink dot = %d,%d", r, g)
 	}
 	rec := do(t, s, "GET", "/api/catalog", "", true)
-	if !strings.Contains(rec.Body.String(), `"epd_7_in_5_v2":{"inks":"bw","diagonal":7.5}`) {
+	if !strings.Contains(rec.Body.String(), `"epd_7_in_5_v2":{"model":"epd_7_in_5_v2","name":"Waveshare 7.5″ V2 · black, white","inches":7.5,"inks":"bw"`) {
 		t.Errorf("catalog panels missing: %.300s", rec.Body.String())
 	}
 }
@@ -340,5 +344,152 @@ func TestTokenIsKeptAcrossRestarts(t *testing.T) {
 	}
 	if st, err := os.Stat(filepath.Join(dir, "builder-token")); err != nil || st.Mode().Perm() != 0o600 {
 		t.Errorf("token file: %v %v", st, err)
+	}
+}
+
+func TestCatalogFormatExamples(t *testing.T) {
+	s, _ := newTestServer(t, gridSettings)
+	s.cfg.Catalog = []modules.Meta{{Name: "Dot", Title: "Dot", Fields: []modules.Field{
+		{Key: "date_format", Kind: modules.KindSelect, Options: []any{"D MMM", "ddd, D. MMM"}, Custom: true},
+	}}}
+	rec := do(t, s, "GET", "/api/catalog", "", true)
+	var got struct {
+		Examples map[string]map[string]string `json:"examples"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &got)
+	if got.Examples["de"]["ddd, D. MMM"] != "Di, 13. Okt" || got.Examples["en"]["D MMM"] != "13 Oct" {
+		t.Errorf("examples %v", got.Examples)
+	}
+}
+
+func TestExplainErrors(t *testing.T) {
+	cases := map[string]string{
+		"weather: GET https://x?…: HTTP 401: invalid key":       "key",
+		"calendar: GET https://x/cal.ics: HTTP 404: Not Found":  "address",
+		"dial tcp: lookup api.example.com: no such host":        "connection",
+		"context deadline exceeded":                             "too long",
+		"calendar: https://x: not an iCalendar file (got HTML)": "login page",
+		"todoist: api_key is missing":                           "fill in",
+		`unknown module "Widget"`:                               "remove the tile",
+		"weird":                                                 "",
+	}
+	for msg, want := range cases {
+		got := explain(msg)
+		if want == "" && got != "" || want != "" && !strings.Contains(got, want) {
+			t.Errorf("explain(%q) = %q, want mention of %q", msg, got, want)
+		}
+	}
+}
+
+func TestGeocode(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.Write([]byte(`{"results":[{"name":"Berlin","latitude":52.52,"longitude":13.41,"country":"Deutschland","country_code":"DE","admin1":"Berlin"},
+			{"name":"Berlin","latitude":44.47,"longitude":-71.18,"country":"United States","country_code":"US","admin1":"New Hampshire"}]}`))
+	}))
+	defer srv.Close()
+	old := geocodeURL
+	geocodeURL = srv.URL
+	defer func() { geocodeURL = old }()
+	s, _ := newTestServer(t, gridSettings)
+	rec := do(t, s, "GET", "/api/geocode?q=Berlin&lang=de", "", true)
+	var places []struct {
+		Name     string  `json:"name"`
+		Label    string  `json:"label"`
+		Location string  `json:"location"`
+		Lat      float64 `json:"latitude"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &places); err != nil || len(places) != 2 {
+		t.Fatalf("%v %s", err, rec.Body)
+	}
+	if places[0].Label != "Berlin, Berlin, Deutschland" || places[0].Location != "Berlin,DE" || places[0].Lat != 52.52 {
+		t.Errorf("place %+v", places[0])
+	}
+	if !strings.Contains(gotQuery, "name=Berlin") || !strings.Contains(gotQuery, "language=de") {
+		t.Errorf("query %s", gotQuery)
+	}
+	if rec := do(t, s, "GET", "/api/geocode?q=", "", true); rec.Code != http.StatusBadRequest {
+		t.Errorf("empty query: %d", rec.Code)
+	}
+}
+
+func TestCalendarTest(t *testing.T) {
+	ics := "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:1\r\nDTSTART:" + time.Now().Add(48*time.Hour).UTC().Format("20060102T150405Z") +
+		"\r\nDTEND:" + time.Now().Add(49*time.Hour).UTC().Format("20060102T150405Z") + "\r\nSUMMARY:Elternabend\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/good.ics":
+			w.Write([]byte(ics))
+		case "/login":
+			w.Write([]byte("<html><body>Please sign in</body></html>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	s, _ := newTestServer(t, gridSettings)
+	check := func(path string) (res struct {
+		OK     bool `json:"ok"`
+		Events int  `json:"events"`
+		Next   []struct{ Date, Title string }
+		Error  string `json:"error"`
+		Hint   string `json:"hint"`
+	}, body string) {
+		rec := do(t, s, "POST", "/api/test-calendar", `{"url":"`+srv.URL+path+`"}`, true)
+		json.Unmarshal(rec.Body.Bytes(), &res)
+		return res, rec.Body.String()
+	}
+	if r, b := check("/good.ics?token=SECRET"); !r.OK || r.Events != 1 || len(r.Next) != 1 || r.Next[0].Title != "Elternabend" {
+		t.Errorf("good: %s", b)
+	}
+	if r, b := check("/login?token=SECRET"); r.OK || !strings.Contains(r.Hint, "login page") || strings.Contains(b, "SECRET") {
+		t.Errorf("login page: %s", b)
+	}
+	if r, b := check("/gone.ics"); r.OK || !strings.Contains(r.Hint, "not found") {
+		t.Errorf("404: %s", b)
+	}
+	rec := do(t, s, "GET", "/api/catalog", "", true)
+	if !strings.Contains(rec.Body.String(), `"guides"`) || !strings.Contains(rec.Body.String(), "Google") {
+		t.Error("catalog has no calendar guides")
+	}
+}
+
+// Every template is a valid grid that gives each module at least its minimum size on
+// the common displays.
+func TestTemplatesFit(t *testing.T) {
+	metas := map[string]modules.Meta{}
+	for _, m := range app.Catalog {
+		metas[m.Name] = m
+	}
+	for _, tpl := range templates {
+		for _, model := range []string{"epd_7_in_5_v2_colour", "epd_12_in_48_colour_V2"} {
+			size := epd.Models[model]
+			pageW, areaH := size[1], size[0]
+			var cells []layout.Cell
+			for _, m := range tpl.Modules {
+				meta, ok := metas[m.Name]
+				if !ok {
+					t.Fatalf("%s: unknown module %s", tpl.ID, m.Name)
+				}
+				r := layout.Default.Rect(m.Cell, pageW, areaH)
+				if r.W-2*templatePadX < meta.MinW || r.H-2*templatePadY < meta.MinH {
+					t.Errorf("%s on %s: %s gets %dx%d, needs %dx%d", tpl.ID, model, m.Name, r.W-2*templatePadX, r.H-2*templatePadY, meta.MinW, meta.MinH)
+				}
+				cells = append(cells, m.Cell)
+			}
+			if err := layout.Default.Validate(cells); err != nil {
+				t.Errorf("%s: %v", tpl.ID, err)
+			}
+		}
+	}
+}
+
+// Modules without settings (Greek, Jokes) send "fields": [], never null.
+func TestCatalogFieldsAreLists(t *testing.T) {
+	s, _ := newTestServer(t, gridSettings)
+	s.cfg.Catalog = []modules.Meta{{Name: "Dot", Title: "Dot"}}
+	if rec := do(t, s, "GET", "/api/catalog", "", true); strings.Contains(rec.Body.String(), `"fields":null`) {
+		t.Errorf("%.200s", rec.Body)
 	}
 }

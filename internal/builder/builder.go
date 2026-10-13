@@ -31,6 +31,7 @@ import (
 	"inkycal/internal/layout"
 	"inkycal/internal/modules"
 	"inkycal/internal/render"
+	"inkycal/internal/timefmt"
 )
 
 //go:embed ui/*.html ui/*.css ui/*.js ui/*.svg
@@ -86,6 +87,40 @@ func New(cfg Config) (*Server, error) {
 	return s, nil
 }
 
+// catalogModules sends every module's fields as a list (JSON [] rather than null).
+func catalogModules(ms []modules.Meta) []modules.Meta {
+	out := make([]modules.Meta, len(ms))
+	for i, m := range ms {
+		if m.Fields == nil {
+			m.Fields = []modules.Field{}
+		}
+		out[i] = m
+	}
+	return out
+}
+
+// formatExamples renders every date/time format option on a fixed day, so the builder can
+// offer "Tue, 13 Oct" instead of "ddd, D MMM".
+func (s *Server) formatExamples() map[string]map[string]string {
+	at := time.Date(2026, 10, 13, 9, 30, 0, 0, time.UTC)
+	out := map[string]map[string]string{"en": {}, "de": {}}
+	for _, m := range s.cfg.Catalog {
+		for _, f := range m.Fields {
+			if f.Key != "date_format" && f.Key != "time_format" {
+				continue
+			}
+			for _, o := range f.Options {
+				if layout, ok := o.(string); ok {
+					for lang := range out {
+						out[lang][layout] = timefmt.Format(at, layout, lang)
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 // loadToken reuses the token of an earlier run, so the address printed at start stays
 // the same; the first run creates it (owner-only, it guards settings with API keys).
 func loadToken(path string) (string, error) {
@@ -122,6 +157,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/settings", s.putSettings)
 	mux.HandleFunc("POST /api/preview", s.preview)
 	mux.HandleFunc("GET /api/fonts", s.listFonts)
+	mux.HandleFunc("GET /api/geocode", s.geocode)
+	mux.HandleFunc("POST /api/test-calendar", s.testCalendar)
 	mux.HandleFunc("PUT /api/fonts/{name}", s.putFont)
 	return s.auth(mux)
 }
@@ -144,22 +181,23 @@ func writeJSON(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-type panel struct {
-	Inks     string  `json:"inks"`
-	Diagonal float64 `json:"diagonal"`
-}
-
 func (s *Server) catalog(w http.ResponseWriter, _ *http.Request) {
-	panels := map[string]panel{}
-	for m := range epd.Models {
-		panels[m] = panel{Inks: epd.Inks(m), Diagonal: epd.Diagonal(m)}
+	list := epd.Panels()
+	panels := make(map[string]epd.Panel, len(list))
+	for _, p := range list {
+		panels[p.Model] = p
 	}
 	writeJSON(w, map[string]any{
-		"models":    epd.Models,
-		"panels":    panels,
-		"modules":   s.cfg.Catalog,
-		"grid":      layout.Default,
-		"font_rule": map[string]int{"h_div": 9, "w_div": 40, "min": 12, "max": 32}, // modules.AutoFontSize
+		"examples":         s.formatExamples(),
+		"guides":           guides,
+		"templates":        templates,
+		"template_padding": [2]int{templatePadX, templatePadY},
+		"models":           epd.Models,
+		"panels":           panels,
+		"panel_list":       list,
+		"modules":          catalogModules(s.cfg.Catalog),
+		"grid":             layout.Default,
+		"font_rule":        map[string]int{"h_div": 9, "w_div": 40, "min": 12, "max": 32}, // modules.AutoFontSize
 	})
 }
 
@@ -278,6 +316,7 @@ type moduleError struct {
 	Position int    `json:"position"` // 1-based index in settings order
 	Name     string `json:"name"`
 	Error    string `json:"error"`
+	Hint     string `json:"hint,omitempty"` // what to do, in plain words
 }
 
 func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
@@ -316,7 +355,8 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	errs := []moduleError{}
 	for i, m := range composed.Modules {
 		if m.Err != nil {
-			errs = append(errs, moduleError{i + 1, st.Modules[i].Name, queryString.ReplaceAllString(m.Err.Error(), "?…")})
+			msg := queryString.ReplaceAllString(m.Err.Error(), "?…")
+			errs = append(errs, moduleError{i + 1, st.Modules[i].Name, msg, explain(msg)})
 		}
 	}
 	writeJSON(w, map[string]any{

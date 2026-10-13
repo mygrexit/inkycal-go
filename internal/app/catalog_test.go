@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+
+	"inkycal/internal/modules"
 )
 
 func TestCatalogMatchesRegistry(t *testing.T) {
@@ -61,6 +63,22 @@ func TestCatalogCoversUpstreamKeys(t *testing.T) {
 		for k := range m.Config {
 			if !common[k] && !fields[m.Name][k] && !upstreamOnlyKeys[m.Name][k] {
 				t.Errorf("%s: upstream key %q is not in Meta", m.Name, k)
+			}
+		}
+	}
+}
+
+// The builder groups the palette and shows an icon per module; format fields offer
+// options (rendered as examples) instead of token strings.
+func TestCatalogIsFriendly(t *testing.T) {
+	groups := map[string]bool{"weather": true, "calendar": true, "info": true, "pictures": true}
+	for _, m := range Catalog {
+		if !groups[m.Group] || m.Icon == "" {
+			t.Errorf("%s: group %q icon %q", m.Name, m.Group, m.Icon)
+		}
+		for _, f := range m.Fields {
+			if (f.Key == "date_format" || f.Key == "time_format") && (f.Kind != modules.KindSelect || len(f.Options) < 3 || !f.Custom) {
+				t.Errorf("%s.%s: want a select of formats with a custom option", m.Name, f.Key)
 			}
 		}
 	}

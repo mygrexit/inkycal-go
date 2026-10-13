@@ -117,3 +117,38 @@ export function resizeCell(cell, edge, dc, dr, min, grid) {
 export function autoFont(rule, innerW, innerH) {
   return Math.max(rule.min, Math.min(rule.max, Math.floor(innerH / rule.h_div), Math.floor(innerW / rule.w_div)));
 }
+
+// makeRoom frees space on a full page: the biggest tile that can spare need rows (or
+// columns) above its minimum shrinks from the bottom (or right), and the new tile goes
+// into the gap. Returns {cells, cell, shrunk} or null.
+export function makeRoom(grid, cells, mins, need) {
+  const order = cells.map((c, i) => i).sort((a, b) => cells[b][2] * cells[b][3] - cells[a][2] * cells[a][3]);
+  for (const i of order) {
+    const [c, r, cs, rs] = cells[i];
+    const tries = [];
+    if (cs >= need[0] && rs - need[1] >= mins[i][1]) tries.push([c, r, cs, rs - need[1]]);
+    if (rs >= need[1] && cs - need[0] >= mins[i][0]) tries.push([c, r, cs - need[0], rs]);
+    for (const shrunk of tries) {
+      const next = cells.map((x, j) => (j === i ? shrunk : x));
+      const cell = bestFree(grid, next, need, [grid.columns, need[1]]);
+      if (cell) return { cells: next, cell, shrunk: i };
+    }
+  }
+  return null;
+}
+
+// nudge applies one phone button to tile i: up, down, left, right, taller, shorter,
+// wider, narrower. null when it would leave the grid, overlap or go below the minimum.
+export function nudge(grid, cells, mins, i, action) {
+  const cell = cells[i];
+  const step = {
+    up: () => moveCell(cell, 0, -1, grid), down: () => moveCell(cell, 0, 1, grid),
+    left: () => moveCell(cell, -1, 0, grid), right: () => moveCell(cell, 1, 0, grid),
+    taller: () => resizeCell(cell, "s", 0, 1, mins[i], grid), shorter: () => resizeCell(cell, "s", 0, -1, mins[i], grid),
+    wider: () => resizeCell(cell, "e", 1, 0, mins[i], grid), narrower: () => resizeCell(cell, "e", -1, 0, mins[i], grid),
+  }[action];
+  if (!step) return null;
+  const next = step();
+  if (String(next) === String(cell) || !fits(grid, cells, next, i)) return null;
+  return next;
+}

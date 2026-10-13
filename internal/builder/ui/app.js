@@ -1,13 +1,18 @@
 // inkycal builder: places modules on the grid and shows the page as the panel renders it.
-import { cellRect, fits, minSpans, bestFree, fromLegacy, moveCell, resizeCell, autoFont } from "./grid.js";
-import { coerce, display, visible, missing } from "./form.js";
+import { cellRect, fits, minSpans, bestFree, makeRoom, nudge, fromLegacy, moveCell, resizeCell, autoFont } from "./grid.js";
+import { coerce, display, visible, missing, partition, optionLabel, normalize, selectRead } from "./form.js";
 import { toPaper } from "./paper.js";
+import { groupPanels, ORIENTATIONS } from "./panels.js";
+import { paletteGroups, tileTitle } from "./palette.js";
+import { estimateDays, SCHEDULES, BATTERIES, applySchedule, applyTemplate, templateFits, pickSchedule, wakesFor } from "./wizard.js";
 import { presetsFor, inkOptions, effective, matchPreset, cleanStyle, fontChoice, applyFont } from "./style.js";
 
 const $ = sel => document.querySelector(sel);
 const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
 const LANGS = ["en", "de"];
 const COMMON_KEYS = ["size", "cell", "padding_x", "padding_y", "fontsize", "language"];
+
+let inspectorLang = "en"; // language of the selected tile, for format examples
 
 const state = {
   catalog: null,
@@ -132,7 +137,7 @@ async function runPreview() {
     const res = await api("POST", "/api/preview" + (refresh ? "?refresh=1" : ""), state.settings);
     const data = await res.json();
     state.errors = {};
-    for (const e of data.errors) state.errors[e.position - 1] = e.error;
+    for (const e of data.errors) state.errors[e.position - 1] = e;
     showImage(data.image);
     setStatus(isDirty() ? "unsaved changes" : "saved", isDirty() ? "dirty" : "");
   } catch (err) {
@@ -178,7 +183,9 @@ const isDirty = () => snapshot() !== state.saved;
 function layoutPage() {
   const p = page();
   const stage = $("#stage");
-  const fit = Math.min((stage.clientWidth - 80) / p.pageW, (stage.clientHeight - 80) / p.pageH);
+  const fit = narrow()
+    ? Math.min((stage.clientWidth - 32) / p.pageW, (window.innerHeight * 0.62) / p.pageH)
+    : Math.min((stage.clientWidth - 80) / p.pageW, (stage.clientHeight - 80) / p.pageH);
   state.scale = state.zoom === "fit" ? Math.max(0.1, fit) : Number(state.zoom);
   const el = $("#page");
   el.style.width = `${p.pageW * state.scale}px`;
@@ -207,7 +214,48 @@ function place(el, rect) {
   el.style.height = `${rect.h * s}px`;
 }
 
+const narrow = () => window.matchMedia("(max-width: 900px)").matches;
+
+const NUDGES = [
+  ["up", "↑", "Move up"], ["down", "↓", "Move down"], ["left", "←", "Move left"], ["right", "→", "Move right"],
+  ["taller", "↕+", "Taller"], ["shorter", "↕−", "Shorter"], ["wider", "↔+", "Wider"], ["narrower", "↔−", "Narrower"],
+];
+
+// renderTileList is the phone way to arrange tiles: a list with move and size buttons.
+function renderTileList() {
+  const list = $("#tile-list");
+  list.replaceChildren();
+  const cells = modules().map(m => m.config.cell);
+  const mins = modules().map(m => spansFor(m));
+  modules().forEach((m, i) => {
+    if (!m.config.cell) return;
+    const li = document.createElement("li");
+    li.className = i === state.selected ? "selected" : "";
+    const name = document.createElement("button");
+    name.type = "button";
+    name.className = "tile-name";
+    name.textContent = tileTitle(metaOf(m.name), m) + (state.errors[i] ? " ⚠" : "");
+    name.addEventListener("click", () => select(i));
+    const tools = document.createElement("span");
+    tools.className = "nudges";
+    for (const [action, sym, label] of NUDGES) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = sym;
+      b.title = label;
+      b.setAttribute("aria-label", `${label}: ${name.textContent}`);
+      const next = nudge(grid(), cells, mins, i, action);
+      b.disabled = !next;
+      b.addEventListener("click", () => applyCell(i, next));
+      tools.append(b);
+    }
+    li.append(name, tools);
+    list.append(li);
+  });
+}
+
 function renderTiles() {
+  renderTileList();
   const p = page();
   const box = $("#tiles");
   box.replaceChildren();
@@ -219,13 +267,13 @@ function renderTiles() {
     t.tabIndex = 0;
     t.setAttribute("role", "button");
     const [c, r, cs, rs] = m.config.cell;
-    t.setAttribute("aria-label", `${meta ? meta.title : m.name}, column ${c + 1}, row ${r + 1}, ${cs} × ${rs}`);
+    t.setAttribute("aria-label", `${tileTitle(meta, m)}, column ${c + 1}, row ${r + 1}, ${cs} × ${rs}`);
     t.dataset.index = i;
-    if (state.errors[i]) t.title = state.errors[i];
+    if (state.errors[i]) t.title = state.errors[i].hint || state.errors[i].error;
     place(t, cellRect(grid(), m.config.cell, p.pageW, p.areaH));
     const label = document.createElement("span");
     label.className = "label";
-    label.textContent = (meta ? meta.title : m.name) + (state.errors[i] ? " — error" : "");
+    label.textContent = tileTitle(meta, m) + (state.errors[i] ? " — error" : "");
     t.append(label);
     for (const edge of ["n", "s", "e", "w", "ne", "nw", "se", "sw"]) {
       const h = document.createElement("div");
@@ -244,29 +292,38 @@ function renderTiles() {
 function renderPalette() {
   const list = $("#module-list");
   list.replaceChildren();
-  for (const meta of state.catalog.modules) {
-    const li = document.createElement("li");
-    li.draggable = true;
-    li.tabIndex = 0;
-    li.setAttribute("role", "button");
-    const title = document.createElement("strong");
-    title.textContent = meta.title;
-    const desc = document.createElement("span");
-    desc.textContent = meta.description;
-    li.append(title, desc);
-    li.addEventListener("click", () => addModule(meta, null));
-    li.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        addModule(meta, null);
-      }
-    });
-    li.addEventListener("dragstart", e => e.dataTransfer.setData("text/x-inkycal-module", meta.name));
-    list.append(li);
+  state.paletteEntries = [];
+  for (const g of paletteGroups(state.catalog)) {
+    const h = document.createElement("li");
+    h.className = "group";
+    h.textContent = g.title;
+    list.append(h);
+    for (const e of g.entries) {
+      const idx = state.paletteEntries.push(e) - 1;
+      const li = document.createElement("li");
+      li.draggable = true;
+      li.tabIndex = 0;
+      li.setAttribute("role", "button");
+      const title = document.createElement("strong");
+      title.textContent = (e.icon ? e.icon + "  " : "") + e.title;
+      const desc = document.createElement("span");
+      desc.textContent = e.description || "";
+      li.append(title, desc);
+      li.addEventListener("click", () => addModule(e.meta, null, e.config));
+      li.addEventListener("keydown", ev => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          addModule(e.meta, null, e.config);
+        }
+      });
+      li.addEventListener("dragstart", ev => ev.dataTransfer.setData("text/x-inkycal-module", String(idx)));
+      list.append(li);
+    }
   }
 }
 
 function renderAll() {
+  $("#display-chip").textContent = panelName();
   $("#undo").disabled = state.history.length < 2;
   $("#redo").disabled = !state.future.length;
   setStatus(isDirty() ? "unsaved changes" : "saved", isDirty() ? "dirty" : "");
@@ -290,8 +347,8 @@ function defaultLanguage() {
   return navigator.language && navigator.language.startsWith("de") ? "de" : "en";
 }
 
-function addModule(meta, at) {
-  const config = { ...Object.fromEntries((meta.fields || []).filter(f => f.default !== undefined).map(f => [f.key, f.default])) };
+function addModule(meta, at, preset = {}) {
+  const config = { ...Object.fromEntries((meta.fields || []).filter(f => f.default !== undefined).map(f => [f.key, f.default])), ...preset };
   config.padding_x = 20;
   config.padding_y = 16;
   config.language = defaultLanguage();
@@ -303,8 +360,16 @@ function addModule(meta, at) {
   // a click (or a drop on a taken spot) gets the largest free box up to a full-width band
   if (!cell || !fits(grid(), cells, cell, -1)) cell = bestFree(grid(), cells, [cs, rs], [grid().columns, Math.max(rs, 4)]);
   if (!cell) {
-    setStatus(`no free space for ${meta.title} (needs ${cs} × ${rs} cells)`, "error");
-    return;
+    // a full page: shrink the biggest tile that can spare the room
+    const room = makeRoom(grid(), cells, modules().map(m => spansFor(m)), [cs, rs]);
+    if (!room) {
+      setStatus(`no room for ${meta.title}: make another tile smaller first`, "error");
+      return;
+    }
+    const other = modules()[room.shrunk];
+    applyCellSilently(room.shrunk, room.cells[room.shrunk]);
+    cell = room.cell;
+    banner(`The page was full: ${(metaOf(other.name) || { title: other.name }).title} got smaller to make room. Undo with Ctrl+Z.`);
   }
   config.cell = cell;
   modules().push(entry);
@@ -332,6 +397,11 @@ let drag = null;
 
 function startDrag(e) {
   if (e.button !== 0) return;
+  if (e.pointerType === "touch" && narrow()) {
+    // fingers scroll the page; tiles move with the buttons in the list below
+    select(Number(e.currentTarget.dataset.index));
+    return;
+  }
   const tile = e.currentTarget;
   const i = Number(tile.dataset.index);
   const entry = modules()[i];
@@ -383,11 +453,15 @@ function finishDrag() {
 
 // applyCell moves or resizes a module; a font size that was automatic stays automatic.
 function applyCell(i, cell) {
+  applyCellSilently(i, cell);
+  commit();
+}
+
+function applyCellSilently(i, cell) {
   const entry = modules()[i];
   const wasAuto = Number(entry.config.fontsize) === autoFont(state.catalog.font_rule, ...innerSize(entry));
   entry.config.cell = cell;
   if (wasAuto) entry.config.fontsize = autoFont(state.catalog.font_rule, ...innerSize(entry));
-  commit();
 }
 
 function cellAt(clientX, clientY) {
@@ -413,11 +487,34 @@ function fieldInput(field, value, onChange) {
       input.checked = Boolean(shown);
       wrap.append(input, title);
       break;
-    case "select":
+    case "select": {
       input = document.createElement("select");
       if (!field.required) input.append(new Option("(default)", ""));
-      for (const o of field.options) input.append(new Option(String(o), String(o)));
-      input.value = shown === "" ? "" : String(shown);
+      for (const o of field.options) input.append(new Option(optionLabel(field, o, state.catalog.examples, inspectorLang), String(o)));
+      const known = shown === "" || field.options.some(o => String(o) === String(shown));
+      wrap.append(title, input);
+      if (field.custom) {
+        // a typed value for formats the list does not offer
+        input.append(new Option("Other…", "__custom"));
+        const own = document.createElement("input");
+        own.type = "text";
+        own.value = known ? "" : String(shown);
+        own.hidden = known;
+        own.addEventListener("change", () => onChange(own.value.trim() || undefined, true));
+        input.addEventListener("change", () => {
+          own.hidden = input.value !== "__custom";
+          if (!own.hidden) own.focus();
+        });
+        wrap.append(own);
+      }
+      input.value = known ? (shown === "" ? "" : String(shown)) : "__custom";
+      break;
+    }
+    case "multiline":
+      input = document.createElement("textarea");
+      input.value = shown;
+      input.rows = 7;
+      input.className = "prose";
       wrap.append(title, input);
       break;
     case "url_list":
@@ -457,12 +554,16 @@ function fieldInput(field, value, onChange) {
     help.textContent = field.help;
     wrap.append(help);
   }
-  const read = () => coerce(field, field.kind === "bool" ? input.checked : input.value);
+  const read = () => (field.kind === "select" ? selectRead(field, input.value) : { value: coerce(field, field.kind === "bool" ? input.checked : input.value) });
   // typing updates the preview; leaving the field records one undo step
   input.addEventListener("input", () => {
-    onChange(read(), false);
+    const r = read();
+    if (!r.skip) onChange(r.value, false);
   });
-  input.addEventListener("change", () => onChange(read(), true));
+  input.addEventListener("change", () => {
+    const r = read();
+    if (!r.skip) onChange(r.value, true);
+  });
   return wrap;
 }
 
@@ -481,7 +582,7 @@ function renderInspector() {
   const entry = modules()[state.selected];
   const meta = metaOf(entry.name);
   const h = document.createElement("h3");
-  h.textContent = meta ? meta.title : entry.name;
+  h.textContent = tileTitle(meta, entry);
   box.append(h);
   if (meta) {
     const p = document.createElement("p");
@@ -500,10 +601,22 @@ function renderInspector() {
   updateTileView();
 
   const values = entry.config;
+  inspectorLang = values.language || "en";
   const absent = meta ? missing(meta, values) : [];
+  const more = document.createElement("details");
+  more.className = "more";
+  const moreTitle = document.createElement("summary");
+  moreTitle.textContent = "More options";
+  more.append(moreTitle);
   if (meta) {
-    for (const f of meta.fields || []) {
-      if (!visible(f, values)) continue;
+    const { basic, advanced } = partition(meta, values);
+    for (const f of [...basic, ...advanced]) {
+      if (f.kind === "place") {
+        const el = placeInput(f, values);
+        if (absent.includes(f.key)) el.classList.add("missing");
+        (f.advanced ? more : box).append(el);
+        continue;
+      }
       const el = fieldInput(f, values[f.key], (v, record) => {
         setValue(values, f.key, v);
         if (record) commit();
@@ -513,10 +626,11 @@ function renderInspector() {
         el.classList.add("missing");
         const m = document.createElement("span");
         m.className = "err";
-        m.textContent = "required";
+        m.textContent = "please fill in";
         el.append(m);
       }
-      box.append(el);
+      if (f.key === "ical_urls") el.append(calendarHelp(values));
+      (f.advanced ? more : box).append(el);
     }
   } else {
     const p = document.createElement("p");
@@ -526,10 +640,7 @@ function renderInspector() {
     box.append(rawEditor(entry));
   }
 
-  const layout = document.createElement("fieldset");
-  const legend = document.createElement("legend");
-  legend.textContent = "Layout";
-  layout.append(legend);
+  const layout = more;
   const [iw, ih] = innerSize(entry);
   const auto = autoFont(state.catalog.font_rule, iw, ih);
   const num = (key, label) =>
@@ -538,8 +649,8 @@ function renderInspector() {
       if (record) commit();
       else schedulePreview();
     });
-  layout.append(num("padding_x", "Padding left/right (px)"), num("padding_y", "Padding top/bottom (px)"));
-  const font = num("fontsize", "Font size (px)");
+  layout.append(num("padding_x", "Inner margin left/right (px)"), num("padding_y", "Inner margin top/bottom (px)"));
+  const font = num("fontsize", "Base text size (px)");
   const autoBtn = document.createElement("button");
   autoBtn.type = "button";
   autoBtn.textContent = `Auto (${auto} px)`;
@@ -550,7 +661,7 @@ function renderInspector() {
   font.append(autoBtn);
   layout.append(font);
   layout.append(
-    fieldInput({ key: "language", label: "Language", kind: "select", options: LANGS, required: true }, values.language || "en", (v, record) => {
+    fieldInput({ key: "language", label: "Language", kind: "select", options: LANGS, labels: { en: "English", de: "Deutsch" }, required: true }, values.language || "en", (v, record) => {
       setValue(values, "language", v);
       if (record) commit();
     }),
@@ -581,9 +692,15 @@ function renderInspector() {
 function renderModuleError() {
   const el = $("#module-error");
   if (!el) return;
-  const text = state.errors[state.selected];
-  el.className = text ? "module-error" : "";
-  el.textContent = text || "";
+  const e = state.errors[state.selected];
+  el.className = e ? "module-error" : "";
+  el.replaceChildren();
+  if (!e) return;
+  const what = document.createElement("strong");
+  what.textContent = e.hint || "This tile could not be drawn.";
+  const raw = document.createElement("small");
+  raw.textContent = e.error;
+  el.append(what, document.createElement("br"), raw);
 }
 
 function rawEditor(entry) {
@@ -620,13 +737,18 @@ function renderPageSettings(box) {
     if (record) commit();
     else schedulePreview();
   };
-  const models = Object.keys(state.catalog.models).sort();
-  box.append(fieldInput({ key: "model", label: "Display", kind: "select", options: models, required: true }, s.model, (v, record) => {
-    if (!record) return;
-    s.model = v;
-    reflow();
-  }));
-  box.append(fieldInput({ key: "orientation", label: "Orientation", kind: "select", options: [0, 180], required: true }, s.orientation ?? 0, on("orientation")));
+  const disp = document.createElement("div");
+  disp.className = "field";
+  const dl = document.createElement("span");
+  dl.textContent = "Display";
+  const pick = document.createElement("button");
+  pick.type = "button";
+  pick.textContent = panelName() + " — change…";
+  pick.addEventListener("click", openDisplayPicker);
+  disp.append(dl, pick);
+  box.append(disp);
+  box.append(fieldInput({ key: "orientation", label: "Orientation", kind: "select", options: ORIENTATIONS.map(o => o.value),
+    labels: Object.fromEntries(ORIENTATIONS.map(o => [String(o.value), o.label])), required: true }, s.orientation ?? 0, on("orientation")));
   box.append(fieldInput({ key: "update_times", label: "Update times", kind: "text_list", help: "HH:MM, one per line; empty uses the interval" },
     s.update_times, (v, record) => {
       setValue(s, "update_times", v === undefined ? undefined : v.split(", "));
@@ -722,7 +844,8 @@ function styleEditor(owner, key, title, parent) {
   fs.append(presets);
 
   const inks = inkOptions(panelInks());
-  const inherit = parent ? "(theme)" : "(default)";
+  const isTile = key !== "theme";
+  const inherit = isTile ? "(theme)" : "(default)";
   const row = document.createElement("div");
   row.className = "row";
   for (const part of ["paper", "ink", "accent"]) {
@@ -743,7 +866,7 @@ function styleEditor(owner, key, title, parent) {
   const ft = document.createElement("span");
   ft.textContent = "Font";
   const sel = document.createElement("select");
-  sel.append(new Option(parent ? "(theme)" : "Sans (default)", ""));
+  sel.append(new Option(isTile ? "(theme)" : "Sans (default)", ""));
   for (const [v, l] of [["sans", "Sans"], ["serif", "Serif"], ["mono", "Mono"]]) sel.append(new Option(l, v));
   for (const f of state.fonts) {
     const gaps = ["german", "greek"].filter(k => !f.coverage[k]);
@@ -767,19 +890,19 @@ function styleEditor(owner, key, title, parent) {
   range.step = "5";
   range.value = String(pct);
   range.addEventListener("input", () => (sz.textContent = `Text size ${range.value} %`));
-  range.addEventListener("change", () => set(st => ({ ...st, scale: Number(range.value) / 100 === 1 && !parent ? 0 : Number(range.value) / 100 })));
+  range.addEventListener("change", () => set(st => ({ ...st, scale: Number(range.value) / 100 === 1 && !isTile ? 0 : Number(range.value) / 100 })));
   sizeWrap.append(sz, range);
   fs.append(sizeWrap);
 
   if (Object.keys(own).length) {
     const reset = document.createElement("button");
     reset.type = "button";
-    reset.textContent = parent ? "Use the theme" : "Reset theme";
+    reset.textContent = isTile ? "Use the theme" : "Reset theme";
     reset.addEventListener("click", () => set(() => ({})));
     fs.append(reset);
   }
 
-  if (!parent) {
+  if (key === "theme") {
     if (panelInks() === "bwr") {
       fs.append(fieldInput({ key: "colour_ink", label: "Your panel's colour", kind: "select", options: ["red", "yellow"], required: true },
         state.settings.colour_ink || "red", (v, record) => {
@@ -843,6 +966,350 @@ function updateTileView() {
   } catch {
     // the preview has not loaded yet
   }
+}
+
+// ---------- calendar help ----------
+
+// calendarHelp explains where the secret iCal address is and tests each address.
+function calendarHelp(values) {
+  const box = document.createElement("div");
+  box.className = "cal-help";
+  const how = document.createElement("details");
+  const sum = document.createElement("summary");
+  sum.textContent = "How do I get this address?";
+  how.append(sum);
+  for (const g of state.catalog.guides || []) {
+    const p = document.createElement("p");
+    const n = document.createElement("strong");
+    n.textContent = g.name + ": ";
+    p.append(n, g.steps);
+    how.append(p);
+  }
+  const test = document.createElement("button");
+  test.type = "button";
+  test.textContent = "Test the addresses";
+  const out = document.createElement("div");
+  out.className = "cal-results";
+  test.addEventListener("click", async e => {
+    e.preventDefault();
+    const urls = display({ kind: "url_list" }, values.ical_urls).split("\n").filter(Boolean);
+    out.replaceChildren();
+    if (!urls.length) out.textContent = "Add an address first.";
+    for (const [i, url] of urls.entries()) {
+      const line = document.createElement("p");
+      line.textContent = `Calendar ${i + 1}: testing…`;
+      out.append(line);
+      try {
+        const r = await (await api("POST", "/api/test-calendar", { url })).json();
+        if (r.ok) {
+          const next = (r.next || []).map(n => `${n.date} ${n.title}`).join(" · ");
+          line.textContent = `Calendar ${i + 1}: ✓ ${r.events} events in the next two months` + (next ? ` — ${next}` : "") + (r.hint ? ` (${r.hint})` : "");
+          line.className = "ok";
+        } else {
+          line.textContent = `Calendar ${i + 1}: ✗ ${r.hint || r.error}`;
+          line.className = "bad";
+        }
+      } catch (err) {
+        line.textContent = `Calendar ${i + 1}: ✗ ${err.message}`;
+        line.className = "bad";
+      }
+    }
+  });
+  box.append(how, test, out);
+  return box;
+}
+
+// ---------- assistant ----------
+
+const STEPS = ["display", "template", "connect", "schedule"];
+const wiz = { step: 0, schedule: "daily", battery: 1200 };
+
+function openWizard(isNew = false) {
+  wiz.step = 0;
+  wiz.schedule = pickSchedule(state.settings, isNew);
+  wiz.battery = state.settings.use_pi_sugar === false ? 0 : 1200;
+  renderWizard();
+  $("#wizard").showModal();
+}
+
+function wizardButton(text, onClick, cls = "") {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = cls;
+  b.textContent = text;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function renderWizard() {
+  const body = $("#wizard-body");
+  body.replaceChildren();
+  const step = STEPS[wiz.step];
+  $("#wizard-step").textContent = `Step ${wiz.step + 1} of ${STEPS.length}`;
+  $("#wizard-back").disabled = wiz.step === 0;
+  $("#wizard-next").textContent = wiz.step === STEPS.length - 1 ? "Done" : "Next";
+  const h = document.createElement("h3");
+  body.append(h);
+  const p = page();
+  if (step === "display") {
+    h.textContent = "Which display do you have?";
+    const hint = document.createElement("p");
+    hint.className = "muted small";
+    hint.textContent = "Size and colours are on the box; V1/V2 on a sticker on the back. Current: " + panelName();
+    const search = document.createElement("input");
+    search.type = "search";
+    search.placeholder = "Search, e.g. 7.5 red";
+    search.className = "wide";
+    const list = document.createElement("div");
+    list.className = "wizard-list";
+    const fill = () => {
+      list.replaceChildren();
+      for (const g of groupPanels(state.catalog.panel_list || [], search.value)) {
+        for (const pn of g.panels) {
+          const b = wizardButton("", () => {
+            state.settings.model = pn.model;
+            reflow();
+            renderWizard();
+          }, "panel-option" + (pn.model === state.settings.model ? " current" : ""));
+          const n = document.createElement("strong");
+          n.textContent = pn.name;
+          const m = document.createElement("span");
+          m.textContent = `${pn.w} × ${pn.h} px` + (pn.hint ? " · " + pn.hint : "");
+          b.append(n, m);
+          list.append(b);
+        }
+      }
+    };
+    search.addEventListener("input", fill);
+    fill();
+    body.append(hint, search, list);
+  } else if (step === "template") {
+    h.textContent = "What should it show?";
+    const list = document.createElement("div");
+    list.className = "wizard-list";
+    if (modules().length) {
+      list.append(wizardButton("Keep my current tiles", () => {
+        wiz.step++;
+        renderWizard();
+      }, "panel-option current"));
+    }
+    for (const tpl of state.catalog.templates || []) {
+      const fits = templateFits(tpl, state.catalog, p.pageW, p.areaH);
+      const b = wizardButton("", () => {
+        if (modules().length && !confirm("Replace the current tiles with this template?")) return;
+        Object.assign(state.settings, applyTemplate(state.settings, tpl, state.catalog, defaultLanguage(), p.pageW, p.areaH));
+        state.selected = -1;
+        banner("");
+        commit();
+        wiz.step++;
+        renderWizard();
+      }, "panel-option");
+      b.disabled = !fits;
+      const n = document.createElement("strong");
+      n.textContent = tpl.title;
+      const m = document.createElement("span");
+      m.textContent = tpl.description + (fits ? "" : " — too big for this display");
+      b.append(n, m);
+      list.append(b);
+    }
+    body.append(list);
+  } else if (step === "connect") {
+    h.textContent = "Connect your services";
+    // required fields first; an empty calendar address is worth a hint too
+    const needs = (meta, m) => {
+      const keys = missing(meta, m.config);
+      const fields = (meta.fields || []).filter(f => keys.includes(f.key) && !f.advanced);
+      if (!keys.length && (meta.fields || []).some(f => f.key === "ical_urls") && !m.config.ical_urls) {
+        return { optional: true, labels: ["your calendar address (optional)"] };
+      }
+      return { optional: false, labels: fields.map(f => f.label) };
+    };
+    const todo = modules().map((m, i) => ({ m, i, meta: metaOf(m.name) })).filter(x => x.meta && needs(x.meta, x.m).labels.length);
+    const list = document.createElement("div");
+    list.className = "wizard-list";
+    if (!todo.length) {
+      const ok = document.createElement("p");
+      ok.textContent = "✓ Every tile has what it needs.";
+      list.append(ok);
+    }
+    for (const { m, i, meta } of todo) {
+      const { optional, labels } = needs(meta, m);
+      const b = wizardButton("", () => {
+        $("#wizard").close();
+        select(i);
+        banner(`Fill in the marked fields of "${tileTitle(meta, m)}" — then open the assistant again or just save.`);
+      }, "panel-option");
+      const n = document.createElement("strong");
+      n.textContent = (optional ? "＋ " : "⚠ ") + tileTitle(meta, m);
+      const d = document.createElement("span");
+      d.textContent = (optional ? "Add " : "Needs: ") + labels.join(", ") + " — set up";
+      b.append(n, d);
+      list.append(b);
+    }
+    body.append(list);
+  } else {
+    h.textContent = "When should it update?";
+    const list = document.createElement("div");
+    list.className = "wizard-list";
+    const panel = state.catalog.panels && state.catalog.panels[state.settings.model];
+    const est = document.createElement("p");
+    est.className = "estimate";
+    const showEstimate = () => {
+      const sc = SCHEDULES.find(x => x.id === wiz.schedule);
+      if (!wiz.battery) {
+        est.textContent = "On USB power the panel can update as often as you like.";
+        return;
+      }
+      const days = estimateDays({ wakesPerDay: sc.keep ? wakesFor(state.settings) : sc.wakesPerDay, panel, capacity: wiz.battery });
+      est.textContent = days >= 14 ? `Battery lasts about ${Math.round(days / 7)} weeks (rough estimate).` : `Battery lasts about ${days} days (rough estimate).`;
+    };
+    for (const sc of SCHEDULES) {
+      const lab = document.createElement("label");
+      lab.className = "field check";
+      const r = document.createElement("input");
+      r.type = "radio";
+      r.name = "schedule";
+      r.checked = sc.id === wiz.schedule;
+      r.addEventListener("change", () => {
+        wiz.schedule = sc.id;
+        showEstimate();
+      });
+      const t = document.createElement("span");
+      t.textContent = sc.label;
+      lab.append(r, t);
+      list.append(lab);
+    }
+    const bat = document.createElement("select");
+    for (const b of BATTERIES) bat.append(new Option(b.label, String(b.id)));
+    bat.value = String(wiz.battery);
+    bat.addEventListener("change", () => {
+      wiz.battery = Number(bat.value);
+      showEstimate();
+    });
+    showEstimate();
+    body.append(list, bat, est);
+  }
+}
+
+function wizardNext() {
+  if (STEPS[wiz.step] === "schedule") {
+    Object.assign(state.settings, applySchedule(state.settings, SCHEDULES.find(x => x.id === wiz.schedule)));
+    commit();
+    $("#wizard").close();
+    setStatus("ready — press Save to keep it", "dirty");
+    return;
+  }
+  wiz.step++;
+  renderWizard();
+}
+
+// ---------- place search ----------
+
+// placeInput searches a town and writes its name and coordinates into the tile.
+function placeInput(field, values) {
+  const wrap = document.createElement("div");
+  wrap.className = "field place";
+  const title = document.createElement("span");
+  title.textContent = field.label + (field.required ? " *" : "");
+  const row = document.createElement("div");
+  row.className = "secret";
+  const input = document.createElement("input");
+  input.type = "search";
+  input.value = values[field.key] || "";
+  input.placeholder = "e.g. Hamburg";
+  const go = document.createElement("button");
+  go.type = "button";
+  go.textContent = "Search";
+  const list = document.createElement("div");
+  list.className = "place-results";
+  const search = async () => {
+    const q = input.value.trim();
+    if (!q) return;
+    list.textContent = "searching…";
+    try {
+      const res = await api("GET", "/api/geocode?q=" + encodeURIComponent(q) + "&lang=" + encodeURIComponent(inspectorLang));
+      const places = await res.json();
+      list.replaceChildren();
+      if (!places.length) list.textContent = "Nothing found — try another spelling.";
+      for (const p of places) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = p.label;
+        b.addEventListener("click", () => {
+          values[field.key] = p.location;
+          values.latitude = Math.round(p.latitude * 1000) / 1000;
+          values.longitude = Math.round(p.longitude * 1000) / 1000;
+          commit();
+        });
+        list.append(b);
+      }
+    } catch (err) {
+      list.textContent = "Search failed: " + err.message;
+    }
+  };
+  go.addEventListener("click", search);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      search();
+    }
+  });
+  row.append(input, go);
+  wrap.append(title, row, list);
+  if (values.latitude !== undefined && values.longitude !== undefined) {
+    const at = document.createElement("small");
+    at.textContent = `📍 ${values[field.key] || ""} (${values.latitude}, ${values.longitude})`;
+    wrap.append(at);
+  } else if (field.help) {
+    const help = document.createElement("small");
+    help.textContent = field.help;
+    wrap.append(help);
+  }
+  return wrap;
+}
+
+// ---------- display picker ----------
+
+function panelName() {
+  const p = state.catalog.panels && state.catalog.panels[state.settings.model];
+  return p ? p.name : "Choose your display";
+}
+
+function openDisplayPicker() {
+  const dlg = $("#display-dialog");
+  $("#display-search").value = "";
+  renderDisplayList("");
+  dlg.showModal();
+  $("#display-search").focus();
+}
+
+function renderDisplayList(query) {
+  const box = $("#display-list");
+  box.replaceChildren();
+  for (const g of groupPanels(state.catalog.panel_list || [], query)) {
+    const h = document.createElement("h4");
+    h.textContent = g.group;
+    box.append(h);
+    for (const p of g.panels) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "panel-option" + (p.model === state.settings.model ? " current" : "");
+      const name = document.createElement("strong");
+      name.textContent = p.name;
+      const meta = document.createElement("span");
+      meta.textContent = `${p.w} × ${p.h} px` + (p.hint ? " · " + p.hint : "");
+      b.append(name, meta);
+      b.addEventListener("click", () => {
+        $("#display-dialog").close();
+        if (p.model === state.settings.model) return;
+        state.settings.model = p.model;
+        banner("");
+        reflow();
+      });
+      box.append(b);
+    }
+  }
+  if (!box.children.length) box.textContent = "No display matches.";
 }
 
 // reflow keeps every module inside the (possibly changed) page and grid.
@@ -921,6 +1388,7 @@ function toGrid() {
 }
 
 async function load() {
+  let isNew = false;
   if (!token) {
     document.body.textContent = "Open the address the builder printed in the terminal (it contains #token=…).";
     return;
@@ -929,11 +1397,11 @@ async function load() {
     state.catalog = await (await api("GET", "/api/catalog")).json();
     await loadFonts();
     const res = await api("GET", "/api/settings");
-    const isNew = res.headers.get("X-Inkycal-New") === "1";
+    isNew = res.headers.get("X-Inkycal-New") === "1";
     state.settings = await res.json();
     state.settings.modules = state.settings.modules || [];
     state.settings.modules.sort((a, b) => (a.position || 0) - (b.position || 0));
-    for (const m of state.settings.modules) m.config = m.config || {};
+    for (const m of state.settings.modules) m.config = normalize(m.name, m.config || {});
     state.saved = isNew ? "" : snapshot();
     const converted = toGrid();
     if (isNew) banner("New settings: choose your display under Page, then add modules.");
@@ -948,6 +1416,7 @@ async function load() {
   state.history = [snapshot()];
   renderAll();
   runPreview();
+  if (isNew) openWizard(true);
 }
 
 function setView(view) {
@@ -964,6 +1433,16 @@ function wire() {
   window.addEventListener("hashchange", () => location.reload());
   setView("paper");
   $("#view-paper").addEventListener("click", () => setView("paper"));
+  $("#display-chip").addEventListener("click", openDisplayPicker);
+  $("#wizard-open").addEventListener("click", () => openWizard(false));
+  $("#wizard-next").addEventListener("click", wizardNext);
+  $("#wizard-back").addEventListener("click", () => {
+    wiz.step = Math.max(0, wiz.step - 1);
+    renderWizard();
+  });
+  $("#wizard-skip").addEventListener("click", () => $("#wizard").close());
+  $("#display-close").addEventListener("click", () => $("#display-dialog").close());
+  $("#display-search").addEventListener("input", e => renderDisplayList(e.target.value));
   $("#view-pixels").addEventListener("click", () => setView("pixels"));
   $("#zoom").addEventListener("change", e => {
     state.zoom = e.target.value;
@@ -990,11 +1469,10 @@ function wire() {
     if (e.dataTransfer.types.includes("text/x-inkycal-module")) e.preventDefault();
   });
   stage.addEventListener("drop", e => {
-    const name = e.dataTransfer.getData("text/x-inkycal-module");
-    const meta = name && metaOf(name);
-    if (!meta) return;
+    const entry = state.paletteEntries[Number(e.dataTransfer.getData("text/x-inkycal-module"))];
+    if (!entry) return;
     e.preventDefault();
-    addModule(meta, cellAt(e.clientX, e.clientY));
+    addModule(entry.meta, cellAt(e.clientX, e.clientY), entry.config);
   });
 }
 
