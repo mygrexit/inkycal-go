@@ -96,3 +96,15 @@ func TestBuildDay(t *testing.T) {
 		t.Errorf("winter 06:00 slots = %s", got)
 	}
 }
+
+func TestHourLabel12h(t *testing.T) {
+	loc := berlin(t)
+	for h, want := range map[int]string{0: "12am", 6: "6am", 12: "12pm", 17: "5pm"} {
+		if got := (settings{Hour12: true}).hourLabel(time.Date(2026, 10, 13, h, 0, 0, 0, loc)); got != want {
+			t.Errorf("%d → %s, want %s", h, got, want)
+		}
+	}
+	if got := (settings{}).hourLabel(time.Date(2026, 10, 13, 17, 0, 0, 0, loc)); got != "17" {
+		t.Errorf("24h: %s", got)
+	}
+}

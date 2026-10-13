@@ -21,11 +21,12 @@ import (
 type fakeDisplay struct {
 	shows, clears int
 	err           error
+	last          render.Frame
 }
 
-func (d *fakeDisplay) Size() (int, int)        { return 800, 480 }
-func (d *fakeDisplay) Show(render.Frame) error { d.shows++; return d.err }
-func (d *fakeDisplay) Clear(cycles int) error  { d.clears += cycles; return nil }
+func (d *fakeDisplay) Size() (int, int)          { return 800, 480 }
+func (d *fakeDisplay) Show(f render.Frame) error { d.shows++; d.last = f; return d.err }
+func (d *fakeDisplay) Clear(cycles int) error    { d.clears += cycles; return nil }
 
 type fakePiSugar struct {
 	alarms           []time.Time
@@ -186,6 +187,20 @@ func TestCalibration(t *testing.T) {
 	RunCycle(context.Background(), o)
 	if d.clears != 1 {
 		t.Errorf("calibration must run once per hour, ran %d", d.clears)
+	}
+}
+
+func TestNoModulesShowsAHint(t *testing.T) {
+	o, d, _, _ := testOptions(t, "Dot")
+	o.Settings.Modules = nil
+	o.Settings.InfoSection = false // only the hint may ink the panel
+	RunCycle(context.Background(), o)
+	inked := false
+	for _, b := range d.last.Black {
+		inked = inked || b != 0xFF
+	}
+	if d.shows != 1 || !inked {
+		t.Errorf("shows=%d inked=%v: an empty settings.json must not leave a blank panel", d.shows, inked)
 	}
 }
 

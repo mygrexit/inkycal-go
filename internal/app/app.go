@@ -187,7 +187,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	}
 
 	outcomes := runModules(ctx, o, now)
-	parts := make([]render.Part, len(outcomes))
+	parts := make([]render.Part, len(outcomes), max(len(outcomes), 1))
 	for i, oc := range outcomes {
 		parts[i] = oc.part
 		if oc.err != nil {
@@ -212,6 +212,11 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		info, infoHeight = infoText(now, bool(s.ImageHash), outcomes, battery, hasBattery), int(s.InfoSectionHeight)
 	}
 	panelW, panelH := o.Display.Size()
+	if len(parts) == 0 { // upstream shows a message instead of a blank panel
+		c := render.NewCanvas(panelH-80, 120, render.FontDefault, 22)
+		drawHint(c, "settings.json has no modules")
+		parts = append(parts, render.Part{Img: c, SectionW: panelH, SectionH: 120})
+	}
 	canvas := render.Assemble(panelH, panelW, parts, render.Layout{
 		Border: bool(s.BorderAroundModules), Dividers: bool(s.Dividers), Info: info, InfoHeight: infoHeight})
 	frame, err := render.Pack(canvas, panelW, panelH, int(s.Orientation))
