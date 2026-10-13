@@ -95,6 +95,9 @@ func (c *Canvas) set(x, y int, ink Ink) {
 	}
 }
 
+// Set inks one pixel; points outside the canvas are ignored.
+func (c *Canvas) Set(x, y int, ink Ink) { c.set(x, y, ink) }
+
 // InkAt reports whether the pixel carries ink on the black and/or colour layer.
 func (c *Canvas) InkAt(x, y int) (black, colour bool) {
 	return c.Black.GrayAt(x, y).Y <= InkThreshold, c.Colour.GrayAt(x, y).Y <= InkThreshold
