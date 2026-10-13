@@ -1,6 +1,9 @@
 package render
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func inkBox(c *Canvas) (x0, y0, x1, y1 int, ok bool) {
 	x0, y0 = c.W, c.H
@@ -63,5 +66,24 @@ func TestFit(t *testing.T) {
 	}
 	if c.Fit("abc", st, 2) != "" {
 		t.Error("expected empty result")
+	}
+}
+
+func TestWrapStyleAndClip(t *testing.T) {
+	c := NewCanvas(400, 100, FontDefault, 20)
+	st := Style{Font: FontRegular, Size: 20}
+	lines := c.WrapStyle("alpha beta  gamma\n delta", st, c.Advance("alpha beta", st), 1000)
+	if len(lines) != 2 || lines[0] != "alpha beta" || lines[1] != "gamma delta" {
+		t.Errorf("first/rest widths: %q", lines)
+	}
+	long := c.WrapStyle("Donaudampfschifffahrtsgesellschaft", st, 60, 60)
+	if len(long) != 1 || c.Advance(long[0], st) > 60 || !strings.HasSuffix(long[0], "…") {
+		t.Errorf("over-long word: %q", long)
+	}
+	if got := c.Clip([]string{"a", "b", "c"}, 2, st, 400); len(got) != 2 || got[1] != "b …" {
+		t.Errorf("clip: %q", got)
+	}
+	if got := c.Clip([]string{"a"}, 2, st, 400); len(got) != 1 {
+		t.Errorf("clip short: %q", got)
 	}
 }

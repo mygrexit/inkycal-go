@@ -183,7 +183,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 func sparkline(c *render.Canvas, vs []float64, x, y, w, h int, ink render.Ink) {
 	pts := sparkPoints(vs, w-2, h-2)
 	for i := 1; i < len(pts); i++ {
-		line(c, x+pts[i-1][0], y+pts[i-1][1], x+pts[i][0], y+pts[i][1], ink)
+		c.Line(x+pts[i-1][0], y+pts[i-1][1], x+pts[i][0], y+pts[i][1], 2, ink)
 	}
 }
 
@@ -207,42 +207,4 @@ func sparkPoints(vs []float64, w, h int) [][2]int {
 		pts[i] = [2]int{px, py}
 	}
 	return pts
-}
-
-// line is Bresenham with a 2×2 pen.
-func line(c *render.Canvas, x0, y0, x1, y1 int, ink render.Ink) {
-	dx, dy := abs(x1-x0), -abs(y1-y0)
-	sx, sy := 1, 1
-	if x0 > x1 {
-		sx = -1
-	}
-	if y0 > y1 {
-		sy = -1
-	}
-	e := dx + dy
-	for {
-		c.Set(x0, y0, ink)
-		c.Set(x0+1, y0, ink)
-		c.Set(x0, y0+1, ink)
-		c.Set(x0+1, y0+1, ink)
-		if x0 == x1 && y0 == y1 {
-			return
-		}
-		e2 := 2 * e
-		if e2 >= dy {
-			e += dy
-			x0 += sx
-		}
-		if e2 <= dx {
-			e += dx
-			y0 += sy
-		}
-	}
-}
-
-func abs(v int) int {
-	if v < 0 {
-		return -v
-	}
-	return v
 }

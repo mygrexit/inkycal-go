@@ -67,3 +67,6 @@ func WindLevel(mps float64) int { return windLevel(mps) }
 func DayIcon(points []ForecastPoint, fallback string, now time.Time) string {
 	return dayIcon(points, fallback, now)
 }
+
+// SameDay reports whether b falls on a's calendar day in a's location.
+func SameDay(a, b time.Time) bool { return sameDay(a, b) }

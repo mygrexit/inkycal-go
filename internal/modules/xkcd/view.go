@@ -76,13 +76,7 @@ func wrapAlt(c *render.Canvas, alt string, st render.Style, width, maxLines int)
 	if alt == "" || maxLines <= 0 || width <= 0 {
 		return nil
 	}
-	id, size := c.Font()
-	c.SetFont(st.Font, st.Size)
-	lines := c.Wrap(alt, width)
-	c.SetFont(id, size)
-	for i, l := range lines { // a single over-long word stays on its own line
-		lines[i] = c.Fit(l, st, width)
-	}
+	lines := c.WrapStyle(alt, st, width, width)
 	if len(lines) > maxLines {
 		rest := strings.Join(lines[maxLines-1:], " ")
 		lines = lines[:maxLines]

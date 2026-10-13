@@ -95,27 +95,6 @@ func split(joke string) (setup, punch string) {
 // clean folds all whitespace runs into single spaces.
 func clean(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// wrap breaks text on spaces into lines no wider than width in st; a word wider
-// than width is shortened with an ellipsis so nothing is clipped mid-glyph.
-func wrap(c *render.Canvas, text string, st render.Style, width int) []string {
-	var lines []string
-	cur := ""
-	for _, word := range strings.Fields(text) {
-		if cur == "" {
-			cur = word
-		} else if c.Advance(cur+" "+word, st) <= width {
-			cur += " " + word
-		} else {
-			lines = append(lines, c.Fit(cur, st, width))
-			cur = word
-		}
-	}
-	if cur != "" {
-		lines = append(lines, c.Fit(cur, st, width))
-	}
-	return lines
-}
-
 // layout is the joke typeset at one size.
 type layout struct {
 	st, pst    render.Style
@@ -142,8 +121,8 @@ func typeset(c *render.Canvas, setup, punch string, size int) layout {
 		l.gap = size / 2
 		width -= l.indent
 	}
-	l.setup = wrap(c, setup, l.st, width)
-	l.punch = wrap(c, punch, l.pst, width)
+	l.setup = c.WrapStyle(setup, l.st, width, width)
+	l.punch = c.WrapStyle(punch, l.pst, width, width)
 	n := len(l.setup) + len(l.punch)
 	l.height = l.capH + (n-1)*l.step + l.desc
 	if len(l.punch) > 0 {

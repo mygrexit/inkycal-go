@@ -155,12 +155,6 @@ func capitalise(s string) string {
 	return string(unicode.ToUpper(r)) + s[n:]
 }
 
-func sameDay(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.In(a.Location()).Date()
-	return ay == by && am == bm && ad == bd
-}
-
 // windText renders mean wind and, if wanted and different, the gust: "3–7 m/s".
 func (s settings) windText(mean, gust float64) string {
 	m := int(math.Round(s.Wind.convert(mean)))
@@ -230,7 +224,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 		start := time.Date(y, mo, d+i, 0, 0, 0, 0, now.Location())
 		var day []weather.ForecastPoint
 		for _, p := range points {
-			if sameDay(p.Time, start) && (i > 0 || p.Time.After(now.Add(-90*time.Minute))) {
+			if weather.SameDay(p.Time, start) && (i > 0 || p.Time.After(now.Add(-90*time.Minute))) {
 				day = append(day, p)
 			}
 		}

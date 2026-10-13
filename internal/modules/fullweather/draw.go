@@ -322,7 +322,7 @@ func drawChart(c *render.Canvas, v view, x, y, w, h int, s float64) {
 	r := max(1, u(1.6))
 	for i := 1; i < len(samples); i++ {
 		a, b := samples[i-1], samples[i]
-		thickLine(c, xOf(a.Time), yOf(a.Temp), xOf(b.Time), yOf(b.Temp), r)
+		c.Line(xOf(a.Time), yOf(a.Temp), xOf(b.Time), yOf(b.Temp), 2*r+1, render.InkBlack)
 	}
 	nx, ny := xOf(t0), yOf(samples[0].Temp)
 	c.FillCircle(nx, ny, u(9), render.InkWhite)
@@ -388,23 +388,6 @@ func shade(c *render.Canvas, x0, y0, x1, y1 int) {
 	}
 	c.HLine(x0, x1-1, y0, render.InkBlack)
 	c.HLine(x0, x1-1, y0+1, render.InkBlack)
-}
-
-// thickLine stamps discs of radius r along the segment.
-func thickLine(c *render.Canvas, x0, y0, x1, y1, r int) {
-	n := max(abs(x1-x0), abs(y1-y0), 1)
-	for i := 0; i <= n; i++ {
-		x := x0 + (x1-x0)*i/n
-		y := y0 + (y1-y0)*i/n
-		c.FillCircle(x, y, r, render.InkBlack)
-	}
-}
-
-func abs(v int) int {
-	if v < 0 {
-		return -v
-	}
-	return v
 }
 
 // drawDays draws one centred column per day: weekday, date, icon, high and low,

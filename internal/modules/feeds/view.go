@@ -2,45 +2,9 @@ package feeds
 
 import (
 	"fmt"
-	"strings"
 
 	"inkycal/internal/render"
 )
-
-// wrap breaks text on spaces into lines no wider than first (first line) and
-// rest (following lines) in st. A word wider than its line is shortened with an
-// ellipsis so nothing is clipped mid-glyph.
-func wrap(c *render.Canvas, text string, st render.Style, first, rest int) []string {
-	var lines []string
-	width := first
-	cur := ""
-	for _, word := range strings.Fields(text) {
-		if cur == "" {
-			cur = word
-		} else if c.Advance(cur+" "+word, st) <= width {
-			cur += " " + word
-		} else {
-			lines = append(lines, c.Fit(cur, st, width))
-			cur, width = word, rest
-		}
-	}
-	if cur != "" {
-		lines = append(lines, c.Fit(cur, st, width))
-	}
-	return lines
-}
-
-// clip keeps at most n lines and marks a cut with "…" on the last one kept.
-func clip(c *render.Canvas, lines []string, n int, st render.Style, width int) []string {
-	if len(lines) <= n {
-		return lines
-	}
-	lines = lines[:n]
-	if n > 0 {
-		lines[n-1] = c.Fit(lines[n-1]+" …", st, width)
-	}
-	return lines
-}
 
 // block is one item as typeset.
 type block struct {
@@ -97,8 +61,8 @@ func layout(c *render.Canvas, items []item, m metrics, limit int) (out []block, 
 				srcW = c.Advance(b.Source, m.small) + m.step
 			}
 		}
-		b.Head = clip(c, wrap(c, it.Title, m.head, c.W-srcW, c.W), 2, m.head, c.W)
-		b.Summary = clip(c, wrap(c, it.Summary, m.sum, c.W, c.W), m.maxSummary, m.sum, c.W)
+		b.Head = c.Clip(c.WrapStyle(it.Title, m.head, c.W-srcW, c.W), 2, m.head, c.W)
+		b.Summary = c.Clip(c.WrapStyle(it.Summary, m.sum, c.W, c.W), m.maxSummary, m.sum, c.W)
 		n := len(b.Head) + len(b.Summary)
 		if n == 0 {
 			used = i + 1
@@ -114,7 +78,7 @@ func layout(c *render.Canvas, items []item, m metrics, limit int) (out []block, 
 				break
 			}
 			sumLines := fit - len(b.Head)
-			b.Summary = clip(c, wrap(c, it.Summary, m.sum, c.W, c.W), sumLines, m.sum, c.W)
+			b.Summary = c.Clip(c.WrapStyle(it.Summary, m.sum, c.W, c.W), sumLines, m.sum, c.W)
 			return append(out, b), i + 1
 		}
 		out = append(out, b)

@@ -75,3 +75,46 @@ func Border(c *Canvas, x, y, w, h, r int, shrinkX, shrinkY float64, ink Ink) {
 	bh := int(float64(h) * (1 - shrinkY))
 	c.RoundedRect(x+(w-bw)/2, y+(h-bh)/2, bw+1, bh+1, r, ink)
 }
+
+// Line draws a straight segment with a pen w pixels wide: a square pen up to 2 px
+// (crisp sparklines), a round one above (smooth curves without notches at joints).
+func (c *Canvas) Line(x0, y0, x1, y1, w int, ink Ink) {
+	dx, dy := x1-x0, y1-y0
+	if dx < 0 {
+		dx = -dx
+	}
+	if dy > 0 {
+		dy = -dy
+	}
+	sx, sy := 1, 1
+	if x0 > x1 {
+		sx = -1
+	}
+	if y0 > y1 {
+		sy = -1
+	}
+	e := dx + dy
+	for {
+		if w <= 2 {
+			for py := 0; py < max(w, 1); py++ {
+				for px := 0; px < max(w, 1); px++ {
+					c.set(x0+px, y0+py, ink)
+				}
+			}
+		} else {
+			c.FillCircle(x0, y0, w/2, ink)
+		}
+		if x0 == x1 && y0 == y1 {
+			return
+		}
+		e2 := 2 * e
+		if e2 >= dy {
+			e += dy
+			x0 += sx
+		}
+		if e2 <= dx {
+			e += dx
+			y0 += sy
+		}
+	}
+}

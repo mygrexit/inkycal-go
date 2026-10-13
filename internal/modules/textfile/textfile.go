@@ -148,27 +148,6 @@ func parse(text string) []para {
 	return out
 }
 
-// wrap breaks text on spaces into lines no wider than width in st; a word wider
-// than width is shortened with an ellipsis so nothing is clipped mid-glyph.
-func wrap(c *render.Canvas, text string, st render.Style, width int) []string {
-	var lines []string
-	cur := ""
-	for _, word := range strings.Fields(text) {
-		if cur == "" {
-			cur = word
-		} else if c.Advance(cur+" "+word, st) <= width {
-			cur += " " + word
-		} else {
-			lines = append(lines, c.Fit(cur, st, width))
-			cur = word
-		}
-	}
-	if cur != "" {
-		lines = append(lines, c.Fit(cur, st, width))
-	}
-	return lines
-}
-
 // line is one typeset line.
 type line struct {
 	X, Baseline int
@@ -222,7 +201,7 @@ func layout(c *render.Canvas, ps []para, m metrics, limit int) (lines []line, ne
 			markerX = (p.Level - 1) * m.level
 			x = markerX + max(m.level, c.Advance(p.Marker, st)+c.Advance(" ", st)*2)
 		}
-		for j, t := range wrap(c, p.Text, st, c.W-x) {
+		for j, t := range c.WrapStyle(p.Text, st, c.W-x, c.W-x) {
 			if y+m.desc > limit {
 				if j > 0 {
 					lines[len(lines)-1].Text = c.Fit(lines[len(lines)-1].Text+" …", st, c.W-x)
