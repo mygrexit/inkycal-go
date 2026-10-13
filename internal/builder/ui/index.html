@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>inkycal builder</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="bar">
+  <strong class="brand">inkycal builder</strong>
+  <span id="file" class="muted"></span>
+  <span class="spacer"></span>
+  <div class="seg" role="group" aria-label="View">
+    <button id="view-paper" type="button" aria-pressed="true" title="How it looks on the wall">Paper</button>
+    <button id="view-pixels" type="button" aria-pressed="false" title="The exact panel pixels">Pixels</button>
+  </div>
+  <label class="zoom">Zoom
+    <select id="zoom">
+      <option value="fit">Fit</option>
+      <option value="1">100 %</option>
+      <option value="0.75">75 %</option>
+      <option value="0.5">50 %</option>
+    </select>
+  </label>
+  <button id="undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
+  <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <button id="refresh" type="button" title="Fetch live data again instead of the 10-minute cache">Refresh data</button>
+  <span id="status" class="muted" aria-live="polite"></span>
+  <button id="save" type="button" class="primary">Save</button>
+</header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <aside id="palette" aria-label="Modules">
+    <h2>Modules</h2>
+    <p class="muted small">Drag onto the panel, or click to add.</p>
+    <ul id="module-list"></ul>
+  </aside>
+  <section id="stage" aria-label="Panel">
+    <div id="page">
+      <img id="pixels" alt="">
+      <canvas id="paper"></canvas>
+      <div id="gridlines"></div>
+      <div id="tiles"></div>
+      <div id="info-area" hidden><span>info line</span></div>
+    </div>
+    <div id="busy" hidden>rendering…</div>
+  </section>
+  <aside id="inspector" aria-label="Settings"></aside>
+</main>
+</body>
+</html>

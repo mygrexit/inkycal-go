@@ -75,3 +75,12 @@ func TestExitCodes(t *testing.T) {
 		t.Errorf("missing settings: %d", code)
 	}
 }
+
+func TestBuilderModeFailsOnBadListenAddress(t *testing.T) {
+	dir := t.TempDir()
+	code := run([]string{"--mode", "builder", "--settings", filepath.Join(dir, "settings.json"),
+		"--state-dir", dir, "--listen", "not-an-address"})
+	if code != 1 {
+		t.Errorf("exit code %d, want 1", code)
+	}
+}

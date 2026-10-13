@@ -56,20 +56,28 @@ func main() { os.Exit(run(os.Args[1:])) }
 func run(args []string) int {
 	fs := flag.NewFlagSet("inkycal", flag.ContinueOnError)
 	settingsPath := fs.String("settings", "", "settings.json (default: $INKYCAL_SETTINGS_PATH, /boot/settings.json, /boot/firmware/settings.json)")
-	mode := fs.String("mode", "run", "run | once | dry-run | clear")
+	mode := fs.String("mode", "run", "run | once | dry-run | clear | builder")
 	out := fs.String("out", "preview.png", "dry-run: PNG output path")
 	stateDir := fs.String("state-dir", "", "state + HTTP cache (default: $STATE_DIRECTORY or /var/lib/inkycal)")
 	pisugarAddr := fs.String("pisugar", "127.0.0.1:8423", "pisugar-server TCP address")
+	listen := fs.String("listen", "127.0.0.1:8080", "builder: address to serve on (0.0.0.0:8080 to reach it from other devices)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	switch *mode {
-	case "run", "once", "dry-run", "clear":
+	case "run", "once", "dry-run", "clear", "builder":
 	default:
 		fmt.Fprintf(os.Stderr, "unknown mode %q\n", *mode)
 		return 2
 	}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	if *mode == "builder" {
+		if err := runBuilder(*settingsPath, *stateDir, *listen); err != nil {
+			slog.Error("builder failed", "err", err)
+			return 1
+		}
+		return 0
+	}
 	if err := runMode(*mode, *settingsPath, *out, resolveStateDir(*stateDir, *mode), *pisugarAddr); err != nil {
 		slog.Error("inkycal failed", "err", err)
 		return 1

@@ -25,6 +25,7 @@ type Client struct {
 	CacheDir string        // "" disables the cache
 	Attempts int           // tries per request
 	Backoff  time.Duration // wait before the 2nd try, doubled each time
+	FreshFor time.Duration // > 0: a cached copy younger than this is served without a request (builder)
 }
 
 type Result struct {
@@ -62,6 +63,11 @@ func New(cacheDir string) *Client {
 // 4xx errors (wrong key, wrong URL) are returned directly so misconfiguration stays visible.
 func (c *Client) Get(ctx context.Context, url string, header http.Header) (Result, error) {
 	key := cacheKey(url, header)
+	if c.FreshFor > 0 {
+		if cached, at, ok := c.load(key); ok && time.Since(at) < c.FreshFor {
+			return Result{Body: cached, FetchedAt: at}, nil
+		}
+	}
 	body, err := c.fetch(ctx, url, header)
 	if err == nil {
 		c.store(key, body)
