@@ -95,3 +95,11 @@ func TestFindSettings(t *testing.T) {
 		t.Fatal("expected error when nothing exists")
 	}
 }
+
+func TestLoadRejectsBadUpdateTimes(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "settings.json")
+	os.WriteFile(p, []byte(`{"model":"epd_7_in_5_v2_colour","update_times":["6 Uhr"],"modules":[]}`), 0o600)
+	if _, err := Load(p); err == nil {
+		t.Error("invalid update_times accepted")
+	}
+}

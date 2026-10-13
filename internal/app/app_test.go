@@ -362,3 +362,16 @@ func TestFailedModuleShowsHint(t *testing.T) {
 		t.Errorf("failed module: err=%v, hint drawn=%v", out[1].err, inked)
 	}
 }
+
+func TestRunCycleUsesUpdateTimes(t *testing.T) {
+	o, _, p, _ := testOptions(t, "Dot") // now = 10:07
+	o.Settings.UpdateTimes = config.StringList{"06:00", "12:00"}
+	res, err := RunCycle(context.Background(), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	if !res.Wake.Equal(want) || len(p.alarms) != 1 || !p.alarms[0].Equal(want) {
+		t.Errorf("wake %v alarms %v, want %v", res.Wake, p.alarms, want)
+	}
+}

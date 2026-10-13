@@ -53,3 +53,43 @@ func TestCalibrationDue(t *testing.T) {
 		t.Error("13 is not a calibration hour")
 	}
 }
+
+func TestParseTimes(t *testing.T) {
+	got, err := ParseTimes([]string{"12:00", "6:00", " 06:00 "})
+	if err != nil || len(got) != 2 || got[0] != 6*60 || got[1] != 12*60 {
+		t.Errorf("ParseTimes = %v, %v (want sorted, deduplicated [360 720])", got, err)
+	}
+	for _, bad := range []string{"24:00", "6", "06:60", "x"} {
+		if _, err := ParseTimes([]string{bad}); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestNextWakeAt(t *testing.T) {
+	times := []int{6 * 60, 12 * 60}
+	cases := []struct{ now, want time.Time }{
+		{at(5, 0, 0), at(6, 0, 0)},
+		{at(6, 0, 30), at(12, 0, 0)}, // woke at 06:00, now plans noon
+		{at(5, 59, 0), at(12, 0, 0)}, // 06:00 is closer than minSleep
+		{at(12, 1, 0), time.Date(2026, 10, 11, 6, 0, 0, 0, time.UTC)},
+		{at(23, 59, 0), time.Date(2026, 10, 11, 6, 0, 0, 0, time.UTC)},
+	}
+	for _, c := range cases {
+		if got := NextWakeAt(c.now, times, 90*time.Second); !got.Equal(c.want) {
+			t.Errorf("NextWakeAt(%s) = %s, want %s", c.now.Format("15:04:05"), got, c.want)
+		}
+	}
+}
+
+func TestNextWakeAtAcrossDST(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skip("no tzdata")
+	}
+	now := time.Date(2026, 10, 24, 12, 5, 0, 0, berlin) // night of 25 Oct: 03:00 → 02:00
+	got := NextWakeAt(now, []int{6 * 60}, time.Minute)
+	if got.Day() != 25 || got.Hour() != 6 || got.Minute() != 0 {
+		t.Errorf("got %s", got)
+	}
+}

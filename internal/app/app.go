@@ -150,6 +150,14 @@ func infoText(now time.Time, imageHash bool, outcomes []moduleOutcome, battery f
 	return strings.TrimSpace(b.String())
 }
 
+// nextWake uses the fixed update_times when configured, else the update_interval grid.
+func nextWake(s *config.Settings, now time.Time) time.Time {
+	if times, err := schedule.ParseTimes(s.UpdateTimes); err == nil && len(times) > 0 {
+		return schedule.NextWakeAt(now, times, minSleep)
+	}
+	return schedule.NextWake(now, int(s.UpdateInterval), minSleep)
+}
+
 func shouldPowerOff(s *config.Settings, hasPiSugar, alarmOK, maintenance, plugged bool) bool {
 	return hasPiSugar && bool(s.ShutdownAfterRun) && alarmOK && !maintenance && !plugged
 }
@@ -166,7 +174,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		}
 	}
 	now := o.Now().In(o.Loc)
-	res.Wake = schedule.NextWake(now, int(s.UpdateInterval), minSleep)
+	res.Wake = nextWake(s, now)
 	st, err := state.Load(o.StateDir)
 	if err != nil {
 		slog.Warn("state unreadable, starting fresh", "err", err)
@@ -246,7 +254,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	// Modules, calibration or a cold panel can take longer than minSleep: never power off
 	// with an alarm that has passed (repeat=127 would only wake us the next day).
 	if alarmOK && res.Wake.Sub(o.Now()) < minSleep {
-		res.Wake = schedule.NextWake(o.Now().In(o.Loc), int(s.UpdateInterval), minSleep)
+		res.Wake = nextWake(s, o.Now().In(o.Loc))
 		if err := o.PiSugar.SetAlarm(res.Wake, alarmEveryDay); err != nil {
 			slog.Error("re-setting wake-up alarm failed, staying on", "err", err)
 			alarmOK = false

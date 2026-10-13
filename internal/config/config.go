@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"inkycal/internal/schedule"
 	"os"
 	"sort"
 )
@@ -15,6 +16,7 @@ var SearchPaths = []string{"/boot/settings.json", "/boot/firmware/settings.json"
 type Settings struct {
 	Model               string        `json:"model"`
 	UpdateInterval      FlexInt       `json:"update_interval"`
+	UpdateTimes         StringList    `json:"update_times"` // "HH:MM" wake times; overrides update_interval
 	Orientation         FlexInt       `json:"orientation"`
 	InfoSection         FlexBool      `json:"info_section"`
 	InfoSectionHeight   FlexInt       `json:"info_section_height"`
@@ -91,6 +93,9 @@ func Load(path string) (*Settings, error) {
 	}
 	if s.Model == "" {
 		return nil, errors.New("model is missing")
+	}
+	if _, err := schedule.ParseTimes(s.UpdateTimes); err != nil {
+		return nil, err
 	}
 	sort.SliceStable(s.Modules, func(i, j int) bool { return s.Modules[i].Position < s.Modules[j].Position })
 	return &s, nil
