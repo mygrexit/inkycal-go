@@ -4,9 +4,9 @@
 
 > **The original author is king.** Inkycal is the work of [aceisace](https://github.com/aceisace) and the
 > [aceinnolab](https://github.com/aceinnolab) contributors. The ideas, the module set, the settings format and
-> years of work on e-paper drivers all come from there. If you use or like this, please
-> **[sponsor the original project](https://github.com/sponsors/aceisace)** and use the official
-> Inkycal: it supports far more displays and modules, and it is actually maintained.
+> years of work on e-paper drivers all come from there. This port took little effort of my own: it was
+> built almost entirely with agentic AI. I don't maintain it. If you use or like it, please
+> **[sponsor the original project](https://github.com/sponsors/aceisace)**, which is actively maintained.
 
 <p align="center"><img src="docs/screenshot.png" width="480" alt="inkycal-go on a 12.48&quot; black/white/red panel"></p>
 
