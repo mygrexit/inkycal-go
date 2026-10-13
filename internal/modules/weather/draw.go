@@ -20,7 +20,7 @@ func sizeForCap(c *render.Canvas, font render.FontID, capPx int) int {
 //	13          ☁   14°     ≋ ▂▄▆
 //	Dienstag         8°     ☀↑ 7:54
 //	Oktober                 ☀↓ 18:48
-//	            jetzt  8   11   14   17   20
+//	                6  8   11   14   17   20
 //	             ☁     ☁   ☂    ☂    ☁    ☁
 //	             8°   11°  14°  13°  10°   9°
 func drawDay(c *render.Canvas, v dayView, lang string) {
@@ -64,7 +64,7 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	c.Icon(colX, u(88), iconW, u(36), glyphSunset, render.FontWeather, render.InkBlack, 0.95)
 	c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
 
-	// Timeline: now plus the coming 3-hour slots of today.
+	// Timeline: the observation plus the coming 3-hour slots of today.
 	label := render.Style{Font: render.FontRegular, Size: sizeForCap(c, render.FontRegular, u(15))}
 	temp := render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, u(19))}
 	colW := (right - x0) / maxSlots

@@ -22,11 +22,11 @@ func (s settings) temp(celsius float64) float64 {
 	return celsius
 }
 
-const maxSlots = 6 // "now" plus the next 3-hour forecasts of today
+const maxSlots = 6 // the current observation plus the next 3-hour forecasts of today
 
 // slot is one column of the day's timeline.
 type slot struct {
-	Label string // "jetzt" or the hour
+	Label string // the hour
 	Icon  string // OWM icon code
 	Temp  string
 }
@@ -91,13 +91,6 @@ func dayIcon(points []forecastPoint, currentIcon string, now time.Time) string {
 	return best + "d"
 }
 
-func nowLabel(lang string) string {
-	if lang == "de" {
-		return "jetzt"
-	}
-	return "now"
-}
-
 func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.In(a.Location()).Date()
@@ -112,13 +105,16 @@ func (s settings) roundTemp(celsius float64) string {
 // buildDay condenses current weather and today's forecasts into the band's content.
 func buildDay(s settings, cur current, points []forecastPoint, now time.Time) dayView {
 	hi, lo, wind := cur.Temp, cur.Temp, cur.WindMean
-	slots := []slot{{Label: nowLabel(s.Lang), Icon: cur.Icon, Temp: s.roundTemp(cur.Temp)}}
+	// The first slot is labelled with the hour of the observation, not "now": the
+	// panel is read for hours after the update. A forecast within half an hour of
+	// it would repeat the same hour.
+	slots := []slot{{Label: strconv.Itoa(now.Add(30 * time.Minute).Hour()), Icon: cur.Icon, Temp: s.roundTemp(cur.Temp)}}
 	for _, p := range points {
 		if !sameDay(p.Time, now) || !p.Time.After(now) {
 			continue
 		}
 		hi, lo, wind = math.Max(hi, p.Temp), math.Min(lo, p.Temp), math.Max(wind, p.Wind)
-		if len(slots) < maxSlots {
+		if len(slots) < maxSlots && p.Time.After(now.Add(30*time.Minute)) {
 			slots = append(slots, slot{Label: strconv.Itoa(p.Time.Hour()), Icon: p.Icon, Temp: s.roundTemp(p.Temp)})
 		}
 	}

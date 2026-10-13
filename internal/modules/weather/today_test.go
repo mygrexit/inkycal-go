@@ -66,10 +66,17 @@ func TestBuildDay(t *testing.T) {
 	if v.Sunrise != "7:54" || v.Sunset != "18:48" {
 		t.Errorf("sun %s %s", v.Sunrise, v.Sunset)
 	}
-	if len(v.Slots) != 6 || v.Slots[0].Label != "jetzt" || v.Slots[0].Temp != "8°" || v.Slots[1].Label != "8" || v.Slots[5].Label != "20" {
+	if len(v.Slots) != 6 || v.Slots[0].Label != "6" || v.Slots[0].Temp != "8°" || v.Slots[1].Label != "8" || v.Slots[5].Label != "20" {
 		t.Errorf("slots = %+v", v.Slots)
 	}
 	if v.Icon != "03d" || !v.Date.Equal(now) {
 		t.Errorf("icon %s date %v", v.Icon, v.Date)
+	}
+
+	// A wake shortly before the hour: the observation counts as that hour, and the
+	// forecast for the same hour would only repeat it.
+	v = buildDay(settings{Lang: "de"}, cur, pts, time.Date(2026, 10, 13, 10, 40, 0, 0, loc))
+	if v.Slots[0].Label != "11" || v.Slots[1].Label != "14" {
+		t.Errorf("10:40 slots = %+v", v.Slots)
 	}
 }
