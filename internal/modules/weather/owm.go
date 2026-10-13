@@ -22,6 +22,7 @@ type current struct {
 	MaxTemp  float64
 	Humidity int
 	WindMPS  float64 // gust if reported, else mean speed (as in Python)
+	WindMean float64 // mean speed, m/s
 	Sunrise  time.Time
 	Sunset   time.Time
 }
@@ -31,6 +32,7 @@ type forecastPoint struct {
 	Time time.Time
 	Temp float64
 	Icon string
+	Wind float64 // mean speed, m/s
 }
 
 type owmWeather struct {
@@ -61,6 +63,9 @@ type owmForecast struct {
 			Temp float64 `json:"temp"`
 		} `json:"main"`
 		Weather []owmWeather `json:"weather"`
+		Wind    struct {
+			Speed float64 `json:"speed"`
+		} `json:"wind"`
 	} `json:"list"`
 }
 
@@ -98,6 +103,7 @@ func fetchCurrent(ctx context.Context, fc *fetch.Client, apiKey, location, lang 
 		MaxTemp:  raw.Main.TempMax,
 		Humidity: raw.Main.Humidity,
 		WindMPS:  wind,
+		WindMean: raw.Wind.Speed,
 		Sunrise:  time.Unix(raw.Sys.Sunrise, 0).In(loc),
 		Sunset:   time.Unix(raw.Sys.Sunset, 0).In(loc),
 	}, stale, nil
@@ -118,6 +124,7 @@ func fetchForecast(ctx context.Context, fc *fetch.Client, apiKey, location, lang
 			Time: time.Unix(f.Dt, 0).In(loc),
 			Temp: f.Main.Temp,
 			Icon: f.Weather[0].Icon,
+			Wind: f.Wind.Speed,
 		})
 	}
 	return points, stale, nil

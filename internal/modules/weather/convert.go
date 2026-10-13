@@ -1,36 +1,22 @@
 package weather
 
-import (
-	"math"
-	"time"
-)
-
 // Glyphs of the Weather Icons font (render.FontWeather).
 const (
-	glyphNA          = ""
-	glyphThermometer = ""
-	glyphHumidity    = ""
-	glyphWind        = ""
-	glyphSunrise     = ""
-	glyphSunset      = ""
+	glyphNA      = ""
+	glyphWind    = ""
+	glyphSunrise = ""
+	glyphSunset  = ""
 )
 
-// Wind units, named like the Python OpenWeatherMap wrapper.
-const (
-	windMetersSec = "meters_sec"
-	windMilesHour = "miles_hour"
-	windBeaufort  = "beaufort"
-)
-
-// weatherIcons maps OpenWeatherMap icon codes to Weather Icons glyphs (table from inkycal_weather.py).
+// weatherIcons maps OpenWeatherMap icon codes to Weather Icons glyphs, checked against a
+// rendered sheet of the font (the table inherited from Python showed "broken clouds"
+// as a windy cloud and "shower rain" as sleet).
 var weatherIcons = map[string]string{
-	"01d": "", "02d": "", "03d": "", "04d": "", "09d": "",
-	"10d": "", "11d": "", "13d": "", "50d": "",
-	"01n": "", "02n": "", "03n": "", "04n": "", "09n": "",
-	"10n": "", "11n": "", "13n": "", "50n": "",
+	"01d": "\uf00d", "02d": "\uf002", "03d": "\uf041", "04d": "\uf013", "09d": "\uf019",
+	"10d": "\uf008", "11d": "\uf01e", "13d": "\uf01b", "50d": "\uf014",
+	"01n": "\uf02e", "02n": "\uf086", "03n": "\uf041", "04n": "\uf013", "09n": "\uf019",
+	"10n": "\uf028", "11n": "\uf01e", "13n": "\uf01b", "50n": "\uf014",
 }
-
-var moonGlyphs = [8]string{"", "", "", "", "", "", "", ""}
 
 // iconGlyph returns the glyph for an OWM icon code; unknown codes get "n/a"
 // instead of failing the whole module like Python's KeyError.
@@ -52,24 +38,4 @@ func beaufort(mps float64) int {
 		}
 	}
 	return 12
-}
-
-func convertWind(mps float64, unit string) float64 {
-	switch unit {
-	case windBeaufort:
-		return float64(beaufort(mps))
-	case windMilesHour:
-		return mps * 2.23694
-	default:
-		return mps
-	}
-}
-
-// moonPhaseGlyph approximates the moon phase exactly like Python's get_moon_phase.
-func moonPhaseGlyph(t time.Time) string {
-	epoch := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)
-	days := t.Sub(epoch).Hours() / 24
-	lunations := 0.20439731 + days*0.03386319269
-	position := lunations - math.Floor(lunations)
-	return moonGlyphs[int(math.Floor(position*8+0.5))&7]
 }

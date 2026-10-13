@@ -34,7 +34,7 @@ func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
 }
 
 func TestNewValidation(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,100],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
+	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":14,"language":"en"}`)
 	if _, err := New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
 		t.Error("missing api_key accepted")
 	}
@@ -43,7 +43,7 @@ func TestNewValidation(t *testing.T) {
 	}
 	tiny := mustCommon(t, `{"size":[60,30],"padding_x":0,"padding_y":0,"fontsize":14}`)
 	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
-		t.Error("60x30 accepted, would divide by zero in the grid")
+		t.Error("60x30 accepted, too small for the today band")
 	}
 
 	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"imperial","use_beaufort":"True","hour_format":"12","forecast_interval":"daily","round_windspeed":true}`))
@@ -54,7 +54,7 @@ func TestNewValidation(t *testing.T) {
 	if mod.location != "4893171" {
 		t.Errorf("numeric location = %q", mod.location)
 	}
-	want := settings{Fahrenheit: true, WindUnit: windBeaufort, RoundWind: true, Daily: true, Hour12: true, Lang: "en"}
+	want := settings{Fahrenheit: true, Hour12: true, Lang: "en"}
 	if mod.set != want {
 		t.Errorf("settings = %+v, want %+v", mod.set, want)
 	}
@@ -62,13 +62,13 @@ func TestNewValidation(t *testing.T) {
 
 func TestGenerate(t *testing.T) {
 	loc := berlin(t)
-	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
-	forecast := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}]},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}]}]}`,
+	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
+	forecast := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
 		now.Add(3*time.Hour).Unix(), now.Add(6*time.Hour).Unix())
-	serveOWM(t, currentFixture("04d", "7.9", now.Add(-2*time.Hour), now.Add(9*time.Hour)), forecast)
+	serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), forecast)
 
-	common := mustCommon(t, `{"size":[480,100],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
-	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"forecast_interval":"hourly","units":"metric","hour_format":24,"use_beaufort":false,"round_temperature":true,"round_windspeed":true}`))
+	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,15 +78,18 @@ func TestGenerate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.W != 460 || c.H != 80 {
-		t.Fatalf("canvas = %dx%d, want 460x80", c.W, c.H)
+	if c.W != 904 || c.H != 250 {
+		t.Fatalf("canvas = %dx%d, want 904x250", c.W, c.H)
 	}
-	g := computeGrid(460, 80)
-	if _, colour := inkIn(c, g.Cols[0], 0, g.Cols[0]+g.ColW, c.H); !colour {
-		t.Error("current weather icon not drawn in colour")
+	if _, colour := inkIn(c, 0, 0, 280, 125); !colour {
+		t.Error("date numeral not drawn in colour")
 	}
-	if black, _ := inkIn(c, g.Cols[3], 0, g.Cols[3]+g.ColW, c.H); !black {
-		t.Error("first forecast column has no black ink")
+	if black, _ := inkIn(c, 300, 0, 424, 124); !black {
+		t.Error("day icon missing")
+	}
+	// 12 m/s later today is strong wind: the gauge turns red.
+	if _, colour := inkIn(c, 734, 0, c.W, 45); !colour {
+		t.Error("strong-wind gauge not red")
 	}
 	if env.Stale {
 		t.Error("Stale set although nothing came from cache")

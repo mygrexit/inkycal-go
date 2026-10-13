@@ -60,23 +60,13 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if strings.TrimSpace(string(rc.Location)) == "" {
 		return nil, errors.New("weather: location is missing")
 	}
-	if w, h := c.InnerSize(); w < 70 || h < 30 {
-		return nil, fmt.Errorf("weather: inner size %dx%d too small (min 70x30)", w, h)
+	if w, h := c.InnerSize(); w < 400 || h < 120 {
+		return nil, fmt.Errorf("weather: inner size %dx%d too small (min 400x120)", w, h)
 	}
 	s := settings{
 		Fahrenheit: strings.EqualFold(rc.Units, "imperial"),
-		WindUnit:   windMetersSec,
-		RoundTemp:  bool(rc.RoundTemperature),
-		RoundWind:  bool(rc.RoundWindspeed),
-		Daily:      strings.EqualFold(rc.ForecastInterval, "daily"),
 		Hour12:     int(rc.HourFormat) == 12,
 		Lang:       c.Language,
-	}
-	switch {
-	case bool(rc.UseBeaufort):
-		s.WindUnit = windBeaufort
-	case s.Fahrenheit:
-		s.WindUnit = windMilesHour
 	}
 	return &Module{common: c, apiKey: rc.APIKey, location: string(rc.Location), set: s}, nil
 }
@@ -104,12 +94,8 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	}
 	env.Stale = env.Stale || staleC || staleF
 
-	v, err := buildView(m.set, cur, points, env.Now)
-	if err != nil {
-		return nil, err
-	}
 	w, h := m.common.InnerSize()
 	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
-	draw(c, v, computeGrid(w, h))
+	drawDay(c, buildDay(m.set, cur, points, env.Now), m.set.Lang)
 	return c, nil
 }

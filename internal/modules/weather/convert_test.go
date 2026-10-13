@@ -1,10 +1,6 @@
 package weather
 
-import (
-	"math"
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestBeaufort(t *testing.T) {
 	cases := []struct {
@@ -18,41 +14,17 @@ func TestBeaufort(t *testing.T) {
 	}
 }
 
-func TestConvertWind(t *testing.T) {
-	if got := convertWind(10, windMetersSec); got != 10 {
-		t.Errorf("meters_sec = %v", got)
-	}
-	if got := convertWind(10, windMilesHour); math.Abs(got-22.3694) > 1e-9 {
-		t.Errorf("miles_hour = %v", got)
-	}
-	if got := convertWind(10, windBeaufort); got != 5 {
-		t.Errorf("beaufort = %v", got)
-	}
-}
-
 func TestToFahrenheit(t *testing.T) {
 	if toFahrenheit(0) != 32 || toFahrenheit(100) != 212 {
 		t.Errorf("toFahrenheit wrong: %v %v", toFahrenheit(0), toFahrenheit(100))
 	}
 }
 
-func TestMoonPhaseGlyph(t *testing.T) {
-	// 2001-01-01: lunation position 0.204 -> index 2.
-	if got := moonPhaseGlyph(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)); got != "" {
-		t.Errorf("2001-01-01: got %q", got)
-	}
-	// 2001-01-11: 0.2044 + 10*0.03386 = 0.543 -> index 4.
-	if got := moonPhaseGlyph(time.Date(2001, 1, 11, 0, 0, 0, 0, time.UTC)); got != "" {
-		t.Errorf("2001-01-11: got %q", got)
-	}
-}
-
 func TestIconGlyph(t *testing.T) {
-	if got := iconGlyph("01d"); got != "" {
-		t.Errorf("01d = %q", got)
-	}
-	if got := iconGlyph("13n"); got != "" {
-		t.Errorf("13n = %q", got)
+	for code, want := range map[string]string{"01d": "\uf00d", "04d": "\uf013", "09n": "\uf019", "10d": "\uf008", "13n": "\uf01b"} {
+		if got := iconGlyph(code); got != want {
+			t.Errorf("%s = %U, want %U", code, []rune(got)[0], []rune(want)[0])
+		}
 	}
 	if got := iconGlyph("77z"); got != glyphNA {
 		t.Errorf("unknown code = %q, want glyphNA", got)

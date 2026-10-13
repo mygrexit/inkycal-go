@@ -67,7 +67,7 @@ const p2Settings = `{
   "use_pi_sugar": false,
   "shutdown_after_run": false,
   "modules": [
-    {"position": 1, "name": "Weather", "config": {"size": [480, 100], "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de",
+    {"position": 1, "name": "Weather", "config": {"size": [480, 160], "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de",
       "api_key": "test", "location": "Berlin,DE", "forecast_interval": "daily", "units": "metric", "hour_format": 24,
       "use_beaufort": false, "round_temperature": true, "round_windspeed": true}},
     {"position": 2, "name": "Agenda", "config": {"size": [480, 150], "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de",

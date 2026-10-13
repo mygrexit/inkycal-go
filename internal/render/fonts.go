@@ -16,6 +16,9 @@ const (
 	FontRegular                // NotoSans SemiCondensed
 	FontWeather                // Weather Icons
 	FontMaterial               // Material Icons
+	FontBold                   // NotoSans SemiCondensed Bold
+	FontDisplay                // Noto Serif Display SemiBold (Latin + Greek)
+	FontEmoji                  // Noto Emoji, monochrome outlines
 )
 
 //go:embed fonts/*.ttf
@@ -26,6 +29,9 @@ var fontFiles = map[FontID]string{
 	FontRegular:  "fonts/NotoSans-SemiCondensed.ttf",
 	FontWeather:  "fonts/weathericons-regular-webfont.ttf",
 	FontMaterial: "fonts/MaterialIcons.ttf",
+	FontBold:     "fonts/NotoSans-SemiCondensedBold.ttf",
+	FontDisplay:  "fonts/NotoSerifDisplay-SemiBold.ttf",
+	FontEmoji:    "fonts/NotoEmoji.ttf",
 }
 
 var (
