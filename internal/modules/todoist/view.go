@@ -12,19 +12,12 @@ import (
 	"inkycal/internal/timefmt"
 )
 
-const (
-	bulletFilled = "● "
-	bulletEmpty  = "○ "
-)
-
-// row is one rendered todo line.
+// row is one task as drawn: a checkbox, the task and its due date.
 type row struct {
-	Project        string
-	Due            string
-	Overdue        bool
-	Priority       string
-	PriorityColour bool
-	Name           string
+	Name   string
+	Due    string // "" without due date
+	Urgent bool   // overdue or due today: red due label
+	High   bool   // highest priority: red checkbox
 }
 
 // parseDue reads the date part of a Todoist due value ("2026-10-10", "2026-10-10T15:00:00Z", ...).
@@ -35,130 +28,148 @@ func parseDue(s string, loc *time.Location) (time.Time, error) {
 	return time.ParseInLocation("2006-01-02", s[:10], loc)
 }
 
-// buildRows groups tasks by project (API order), sorts each group by due date
-// (tasks with a date first) and priority, and formats every line.
-func buildRows(projects []project, tasks []task, filter []string, showPriority bool, now time.Time) ([]row, error) {
-	names := make(map[string]string, len(projects))
-	var order []string
-	for _, p := range projects {
-		if len(filter) > 0 && !slices.Contains(filter, p.Name) {
-			continue
-		}
-		names[p.ID] = p.Name
-		order = append(order, p.ID)
+func midnight(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
+}
+
+// dueLabel words a due date the way one would say it: overdue, today, tomorrow,
+// the weekday within the coming week, else the date.
+func dueLabel(due, now time.Time, lang string) string {
+	days := int(midnight(due).Sub(midnight(now)).Hours()/24 + 0.5)
+	if midnight(due).Before(midnight(now)) {
+		days = -1
 	}
-	if len(filter) > 0 && len(order) == 0 {
+	de := lang == "de"
+	switch {
+	case days < 0 && de:
+		return "überfällig"
+	case days < 0:
+		return "overdue"
+	case days == 0 && de:
+		return "heute"
+	case days == 0:
+		return "today"
+	case days == 1 && de:
+		return "morgen"
+	case days == 1:
+		return "tomorrow"
+	case days < 7:
+		return timefmt.Format(due, "ddd", lang)
+	}
+	return timefmt.Format(due, "D. MMM", lang)
+}
+
+// buildRows keeps the tasks of the selected projects and sorts them by urgency:
+// overdue, today, upcoming, undated; equal dates by priority (4 = highest).
+func buildRows(projects []project, tasks []task, filter []string, showPriority bool, now time.Time, lang string) ([]row, error) {
+	keep := make(map[string]bool, len(projects))
+	for _, p := range projects {
+		if len(filter) == 0 || slices.Contains(filter, p.Name) {
+			keep[p.ID] = true
+		}
+	}
+	if len(filter) > 0 && len(keep) == 0 {
 		return nil, fmt.Errorf("todoist: no project matches project_filter %q", strings.Join(filter, ","))
 	}
-
-	y, m, d := now.Date()
-	today := time.Date(y, m, d, 0, 0, 0, 0, now.Location())
-
+	today := midnight(now)
 	type item struct {
 		row
 		due      time.Time
 		hasDue   bool
 		priority int
 	}
-	groups := map[string][]item{}
+	var items []item
 	for _, t := range tasks {
-		name, ok := names[t.ProjectID]
-		if !ok {
+		if !keep[t.ProjectID] {
 			continue
 		}
-		it := item{row: row{Project: name, Name: t.Content}, priority: t.Priority}
+		it := item{row: row{Name: t.Content, High: showPriority && t.Priority == 4}, priority: t.Priority}
 		if t.Due != nil && t.Due.Date != "" {
-			dueDate, err := parseDue(t.Due.Date, now.Location())
+			d, err := parseDue(t.Due.Date, now.Location())
 			if err != nil {
 				slog.Warn("todoist: skipping task with unparsable due date", "task", t.Content, "due", t.Due.Date)
 				continue
 			}
-			it.due, it.hasDue = dueDate, true
-			it.Overdue = dueDate.Before(today)
-			if dueDate.Equal(today) {
-				it.Due = "TODAY"
-			} else {
-				it.Due = timefmt.Format(dueDate, "D-MMM-YY", "en")
-			}
+			it.due, it.hasDue = d, true
+			it.Due = dueLabel(d, now, lang)
+			it.Urgent = !d.After(today)
 		}
-		if showPriority {
-			switch t.Priority {
-			case 4:
-				it.Priority, it.PriorityColour = bulletFilled, true
-			case 3:
-				it.Priority = bulletFilled
-			case 2:
-				it.Priority = bulletEmpty
-			}
-		}
-		groups[t.ProjectID] = append(groups[t.ProjectID], it)
+		items = append(items, it)
 	}
-
-	var rows []row
-	for _, id := range order {
-		items := groups[id]
-		sort.SliceStable(items, func(i, j int) bool {
-			a, b := items[i], items[j]
-			if a.hasDue != b.hasDue {
-				return a.hasDue
-			}
-			if !a.due.Equal(b.due) {
-				return a.due.Before(b.due)
-			}
-			return a.priority > b.priority
-		})
-		for _, it := range items {
-			rows = append(rows, it.row)
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		if a.hasDue != b.hasDue {
+			return a.hasDue
 		}
+		if !a.due.Equal(b.due) {
+			return a.due.Before(b.due)
+		}
+		return a.priority > b.priority
+	})
+	rows := make([]row, len(items))
+	for i, it := range items {
+		rows[i] = it.row
 	}
 	return rows, nil
 }
 
-// columnWidth is the widest text plus 10 %, like Python's offsets.
-func columnWidth(c *render.Canvas, rows []row, pick func(row) string) int {
-	w := 0
-	for _, r := range rows {
-		if s := pick(r); s != "" {
-			w = max(w, int(float64(c.TextWidth(s))*1.1))
+// drawRows sets the tasks in two columns, each line a checkbox, the task and its
+// due date on the right. What does not fit is counted in the last line.
+func drawRows(c *render.Canvas, rows []row, body int, lang string) {
+	name := render.Style{Font: render.FontDefault, Size: body}
+	small := render.Style{Font: render.FontRegular, Size: body * 5 / 6}
+	rowH := body * 8 / 5
+	perCol := max(1, c.H/rowH)
+	colGap := body * 2
+	colW := (c.W - colGap) / 2
+	capH := c.CapHeight(name)
+	box := capH + capH/4
+
+	if len(rows) == 0 {
+		msg := "Alles erledigt"
+		if lang != "de" {
+			msg = "All done"
 		}
+		c.Text(0, (rowH+capH)/2, msg, name, render.InkBlack)
+		return
 	}
-	return w
-}
-
-func drawRows(c *render.Canvas, rows []row) {
-	lh := c.LineHeight() + 1
-	maxLines := c.H / lh
-	top := (c.H % lh) / 2
-	projW := columnWidth(c, rows, func(r row) string { return r.Project })
-	dueW := columnWidth(c, rows, func(r row) string { return r.Due })
-	prioW := columnWidth(c, rows, func(r row) string { return r.Priority })
-
-	for i, r := range rows {
-		if i >= maxLines {
-			slog.Warn("todoist: more todos than available lines", "shown", maxLines, "total", len(rows))
-			break
+	capacity := 2 * perCol
+	shown := rows
+	if len(rows) > capacity {
+		shown = rows[:capacity-1]
+	}
+	for i, r := range shown {
+		x := (i / perCol) * (colW + colGap)
+		y := (i % perCol) * rowH
+		baseline := y + (rowH+capH)/2
+		ink := render.InkBlack
+		if r.High {
+			ink = render.InkColour
 		}
-		y := top + i*lh
-		if r.Project != "" {
-			c.Write(0, y, projW, lh, r.Project, render.TextOpts{Align: render.AlignLeft, Ink: render.InkColour})
+		for t := 0; t < 2; t++ { // 2 px checkbox
+			c.RoundedRect(x+t, baseline-box+t+1, box-2*t, box-2*t, 2, ink)
 		}
+		xt := x + box + body/2
+		dueW := 0
 		if r.Due != "" {
-			ink := render.InkBlack
-			if r.Overdue {
-				ink = render.InkColour
+			dueInk := render.InkBlack
+			if r.Urgent {
+				dueInk = render.InkColour
 			}
-			c.Write(projW, y, dueW, lh, r.Due, render.TextOpts{Align: render.AlignLeft, Ink: ink})
+			c.TextRight(x+colW, baseline, r.Due, small, dueInk)
+			dueW = c.Advance(r.Due, small) + body/2
 		}
-		if r.Priority != "" {
-			ink := render.InkBlack
-			if r.PriorityColour {
-				ink = render.InkColour
-			}
-			c.Write(projW+dueW, y, prioW, lh, r.Priority, render.TextOpts{Align: render.AlignLeft, Ink: ink})
+		c.Text(xt, baseline, c.Fit(r.Name, name, x+colW-dueW-xt), name, render.InkBlack)
+	}
+	if rest := len(rows) - len(shown); rest > 0 {
+		i := len(shown)
+		x := (i / perCol) * (colW + colGap)
+		baseline := (i%perCol)*rowH + (rowH+capH)/2
+		more := fmt.Sprintf("+ %d weitere", rest)
+		if lang != "de" {
+			more = fmt.Sprintf("+ %d more", rest)
 		}
-		if r.Name != "" {
-			x := projW + dueW + prioW
-			c.Write(x, y, c.W-x, lh, r.Name, render.TextOpts{Align: render.AlignLeft})
-		}
+		c.Text(x+box+body/2, baseline, more, small, render.InkBlack)
 	}
 }

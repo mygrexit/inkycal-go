@@ -1,4 +1,4 @@
-// Package todoist ports inkycal_todoist.py: open tasks grouped by project.
+// Package todoist shows open Todoist tasks, most urgent first.
 package todoist
 
 import (
@@ -68,12 +68,12 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	}
 	env.Stale = env.Stale || staleP || staleT
 
-	rows, err := buildRows(projects, tasks, m.filter, m.showPriority, env.Now)
+	rows, err := buildRows(projects, tasks, m.filter, m.showPriority, env.Now, m.common.Language)
 	if err != nil {
 		return nil, err
 	}
 	w, h := m.common.InnerSize()
 	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
-	drawRows(c, rows)
+	drawRows(c, rows, int(m.common.FontSize), m.common.Language)
 	return c, nil
 }

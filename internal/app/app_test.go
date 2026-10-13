@@ -329,3 +329,36 @@ func TestInfoTextRoundsBatteryWithImageHash(t *testing.T) {
 		t.Errorf("image_hash off: %q", got)
 	}
 }
+
+func TestErrorHint(t *testing.T) {
+	for _, c := range []struct {
+		name, err, lang, want string
+	}{
+		{"Todoist", `todoist: projects: GET https://api.todoist.com/…: HTTP 401: {"error":"Unauthorized"}`, "de", "Todoist: Zugang abgelehnt – API-Schlüssel in settings.json prüfen"},
+		{"Weather", `weather: current: Get "https://api.openweathermap.org/…": dial tcp: lookup api.openweathermap.org: no such host`, "de", "Wetter: keine Verbindung"},
+		{"Calendar", "calendar: calendar 2: boom", "de", "Kalender: Fehler – Details mit journalctl -u inkycal-go"},
+		{"Calendar", "boom", "en", "Calendar: error – see journalctl -u inkycal-go"},
+	} {
+		if got := errorHint(c.name, errors.New(c.err), c.lang); got != c.want {
+			t.Errorf("%s %q:\n got %q\nwant %q", c.name, c.err, got, c.want)
+		}
+	}
+}
+
+func TestFailedModuleShowsHint(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Dot", "Fail")
+	out := runModules(context.Background(), o, o.Now())
+	img := out[1].part.Img
+	inked := false
+	for y := 0; y < img.H && !inked; y++ {
+		for x := 0; x < img.W; x++ {
+			if b, _ := img.InkAt(x, y); b {
+				inked = true
+				break
+			}
+		}
+	}
+	if out[1].err == nil || !inked {
+		t.Errorf("failed module: err=%v, hint drawn=%v", out[1].err, inked)
+	}
+}

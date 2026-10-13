@@ -5,6 +5,7 @@ import (
 	"inkycal/internal/modules/agenda"
 	"inkycal/internal/modules/calendar"
 	"inkycal/internal/modules/feeds"
+	"inkycal/internal/modules/greek"
 	"inkycal/internal/modules/todoist"
 	"inkycal/internal/modules/weather"
 )
@@ -14,6 +15,7 @@ var Registry = map[string]modules.Factory{
 	"Agenda":   agenda.New,
 	"Calendar": calendar.New,
 	"Feeds":    feeds.New,
+	"Greek":    greek.New,
 	"Todoist":  todoist.New,
 	"Weather":  weather.New,
 }

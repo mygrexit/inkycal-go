@@ -81,7 +81,7 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	w, h := m.common.InnerSize()
 	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
 	weeks := monthGrid(now.Year(), now.Month(), m.weekStart)
-	l := computeLayout(w, h, c.LineHeight(), m.showEvents, len(weeks))
+	l := computeLayout(w, h, int(m.common.FontSize), m.showEvents, len(weeks))
 
 	var events []ical.Event
 	if m.showEvents && (len(m.urls) > 0 || len(m.files) > 0) {
@@ -106,88 +106,147 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	return c, nil
 }
 
+// drawGrid draws the weekday header and the month as a quiet grid of numbers:
+// today in a red disc, days with events marked by a red dot, past days lighter.
 func (m *Module) drawGrid(c *render.Canvas, l layout, weeks [][7]int, now time.Time, events []ical.Event) {
 	lang := m.common.Language
-	c.Write(0, 0, c.W, l.MonthH, timefmt.Format(now, "MMMM", lang), render.TextOpts{Autofit: true})
-
+	head := render.Style{Font: render.FontRegular, Size: l.Body * 4 / 5}
 	first := weekStartDate(now, m.weekStart)
 	for i := 0; i < 7; i++ {
 		name := timefmt.Format(first.AddDate(0, 0, i), "ddd", lang)
-		c.Write(l.GridX+l.CellW*i, l.MonthH, l.CellW, l.WeekdaysH, name, render.TextOpts{Autofit: true, FillHeight: 0.9})
+		c.TextCenter(l.GridX+l.CellW*i+l.CellW/2, l.HeaderH-l.Body/2, name, head, render.InkBlack)
 	}
+	c.HLine(0, c.W-1, l.HeaderH-1, render.InkBlack)
 
-	_, baseSize := c.Font()
-	pos := map[int][2]int{}
-	c.SetFont(render.FontDefault, l.NumSize)
+	marked := map[int]bool{}
+	for _, d := range eventDays(events, now.Year(), now.Month(), now.Location()) {
+		marked[d] = true
+	}
+	future := render.Style{Font: render.FontDefault, Size: l.NumSize}
+	past := render.Style{Font: render.FontRegular, Size: l.NumSize}
+	bold := render.Style{Font: render.FontBold, Size: l.NumSize}
+	capH := c.CapHeight(future)
+	dotR := max(2, l.CellH/14)
 	for wi, week := range weeks {
 		for col, day := range week {
 			if day == 0 {
 				continue
 			}
 			x, y := l.cell(wi, col)
-			pos[day] = [2]int{x, y}
-			if day != now.Day() {
-				c.Write(x, y, l.CellW, l.CellH, strconv.Itoa(day), render.TextOpts{})
+			cx := x + l.CellW/2
+			baseline := y + (l.CellH+capH)/2 - dotR
+			label := strconv.Itoa(day)
+			switch {
+			case day == now.Day():
+				c.FillCircle(cx, baseline-capH/2, l.CellH*9/20, render.InkColour)
+				c.TextCenter(cx, baseline, label, bold, render.InkWhite)
+				continue
+			case day < now.Day():
+				c.TextCenter(cx, baseline, label, past, render.InkBlack)
+			default:
+				c.TextCenter(cx, baseline, label, future, render.InkBlack)
+			}
+			if marked[day] {
+				c.FillCircle(cx, baseline+dotR*3, dotR, render.InkColour)
 			}
 		}
 	}
-
-	// Today: filled circle (red on the panel) with a white number.
-	today := pos[now.Day()]
-	c.FillCircle(today[0]+l.CellW/2, today[1]+l.CellH/2, l.CellW/4, render.InkColour)
-	c.SetFont(render.FontRegular, l.NumSize)
-	c.Write(today[0], today[1], l.CellW, l.CellH, strconv.Itoa(now.Day()), render.TextOpts{Ink: render.InkWhite})
-	c.SetFont(render.FontDefault, baseSize)
-
-	for _, day := range eventDays(events, now.Year(), now.Month(), now.Location()) {
-		p := pos[day]
-		render.Border(c, p[0], p[1], l.CellW, l.CellH, 6, 0.1, 0.1, render.InkColour)
-	}
 }
 
+// dayName is "Heute", "Morgen" or the formatted date of an event group.
+func dayName(day, now time.Time, formatted, lang string) string {
+	today := dateOnly(now)
+	switch dateOnly(day) {
+	case today:
+		if lang == "de" {
+			return "Heute"
+		}
+		return "Today"
+	case today.AddDate(0, 0, 1):
+		if lang == "de" {
+			return "Morgen"
+		}
+		return "Tomorrow"
+	}
+	return formatted
+}
+
+// drawEvents lists the coming events grouped by day, aligned with the grid
+// above. Today's group sits in a red frame; what does not fit is counted.
 func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []ical.Event) {
-	const lineSpacing = 2
-	const inset = 6 // room for today's frame, so text never touches it
-	const gapAbove = 8 // keeps today's frame clear of the month grid
-	lh := c.LineHeight() + lineSpacing
-	listH := l.EventsH - gapAbove
-	maxLines := listH / (lh + lineSpacing)
-	if maxLines <= 0 {
+	if l.EventsH <= 0 {
 		return
 	}
-	offset := c.H - listH
-	lineY := func(i int) int { return offset + int(float64(listH)/float64(maxLines)*float64(i)) }
-	left := render.TextOpts{Align: render.AlignLeft}
+	lang := m.common.Language
+	body := render.Style{Font: render.FontRegular, Size: l.Body}
+	title := render.Style{Font: render.FontDefault, Size: l.Body}
+	small := render.Style{Font: render.FontRegular, Size: l.Body * 5 / 6}
+	rowH := l.Body * 3 / 2
+	groupGap := l.Body / 3
+	inset := l.Body / 2 // keeps text clear of today's frame
+	capH := c.CapHeight(body)
 
-	merged := mergeSources(events, m.labels, m.dedupe, m.common.Language)
-	rows := buildEventRows(merged, now, maxLines, dateFormat(m.dateFormat, m.weekdayPrefix), m.timeFormat, m.common.Language)
+	merged := mergeSources(events, m.labels, m.dedupe, lang)
+	rows := buildEventRows(merged, now, 200, dateFormat(m.dateFormat, m.weekdayPrefix), m.timeFormat, lang)
 	if len(rows) == 0 {
-		dash := "- "
-		n := c.W / max(1, c.TextWidth(dash))
-		c.Write(0, lineY(0), c.W, lh, strings.Repeat(dash, n), left)
+		msg := "Keine Termine in den nächsten vier Wochen"
+		if lang != "de" {
+			msg = "No events in the next four weeks"
+		}
+		c.Text(inset, l.EventsY+rowH-(rowH-capH)/2, msg, body, render.InkBlack)
 		return
 	}
 
-	dateW, timeW := 0, 0
-	for _, r := range rows {
-		dateW = max(dateW, int(float64(c.TextWidth(r.Date))*1.1))
-		timeW = max(timeW, int(float64(c.TextWidth(r.Time))*1.1))
+	// Place rows top to bottom until the area is full (keeping a line for the overflow count).
+	type placed struct {
+		row      eventRow
+		y        int
+		newGroup bool
 	}
-	x0, w := inset, c.W-2*inset
-	firstToday, lastToday := -1, -1
+	var out []placed
+	y := l.EventsY + inset/2
+	bottom := l.EventsY + l.EventsH
 	for i, r := range rows {
-		y := lineY(i)
-		// The date only opens each day's group; following rows of the same day leave it out.
-		if i == 0 || r.Date != rows[i-1].Date {
-			c.Write(x0, y, dateW, lh, r.Date, render.TextOpts{Align: render.AlignLeft, Ink: render.InkColour})
+		newGroup := i == 0 || r.Date != rows[i-1].Date
+		if newGroup && i > 0 {
+			y += groupGap
 		}
-		if r.AllDay {
-			drawTitle(c, x0+dateW, y, w-dateW, lh, r.Title, r.Label)
-		} else {
-			c.Write(x0+dateW, y, timeW, lh, r.Time, left)
-			drawTitle(c, x0+dateW+timeW, y, w-dateW-timeW, lh, r.Title, r.Label)
+		reserve := 0
+		if i < len(rows)-1 {
+			reserve = rowH
 		}
-		if r.Today {
+		if y+rowH+reserve > bottom {
+			break
+		}
+		out = append(out, placed{r, y, newGroup})
+		y += rowH
+	}
+
+	dayW, timeW := 0, 0
+	for _, p := range out {
+		dayW = max(dayW, c.Advance(dayName(p.row.Day, now, p.row.Date, lang), title))
+		timeW = max(timeW, c.Advance(p.row.Time, body))
+	}
+	gap := l.Body
+	xDay, xTime := inset, inset+dayW+gap
+	xTitle := xTime + timeW + gap
+	firstToday, lastToday := -1, -1
+	for i, p := range out {
+		baseline := p.y + (rowH+capH)/2
+		if p.newGroup {
+			ink := render.InkBlack
+			if p.row.Today {
+				ink = render.InkColour
+			}
+			c.Text(xDay, baseline, dayName(p.row.Day, now, p.row.Date, lang), title, ink)
+		}
+		xt := xTime
+		if !p.row.AllDay {
+			c.Text(xTime, baseline, p.row.Time, body, render.InkBlack)
+			xt = xTitle
+		}
+		drawTitle(c, xt, baseline, c.W-inset-xt, p.row.Title, p.row.Label, title, small)
+		if p.row.Today {
 			if firstToday < 0 {
 				firstToday = i
 			}
@@ -195,43 +254,33 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 		}
 	}
 	if firstToday >= 0 {
-		top := lineY(firstToday) - lineSpacing - 1
-		bottom := lineY(lastToday) + lh + lineSpacing
+		top := out[firstToday].y - inset/2
+		h := out[lastToday].y + rowH + inset/2 - top
 		for t := 0; t < 2; t++ { // 2 px
-			c.RoundedRect(t, top+t, c.W-2*t, bottom-top-2*t, 8-t, render.InkColour)
+			c.RoundedRect(t, top+t, c.W-2*t, h-2*t, l.Body/2-t, render.InkColour)
 		}
+	}
+	if rest := len(rows) - len(out); rest > 0 {
+		more := fmt.Sprintf("+ %d weitere", rest)
+		if lang != "de" {
+			more = fmt.Sprintf("+ %d more", rest)
+		}
+		c.Text(xTime, y+(rowH+capH)/2, more, small, render.InkBlack)
 	}
 }
 
-// drawTitle writes the title and, if set, "(label)" in colour right after it.
+// drawTitle sets the title and, if set, the calendar label in red after it.
 // A long title is shortened so the label always stays visible.
-func drawTitle(c *render.Canvas, x, y, w, h int, title, label string) {
-	left := render.TextOpts{Align: render.AlignLeft}
+func drawTitle(c *render.Canvas, x, baseline, w int, title, label string, st, labelSt render.Style) {
 	if label == "" {
-		c.Write(x, y, w, h, title, left)
+		c.Text(x, baseline, c.Fit(title, st, w), st, render.InkBlack)
 		return
 	}
-	tag := "(" + label + ")"
-	gap := c.TextWidth(" ")
-	title = fitText(c, title, w-gap-c.TextWidth(tag))
+	gap := c.Advance(" ", st)
+	title = c.Fit(title, st, w-gap-c.Advance(label, labelSt))
 	tw := 0
 	if title != "" {
-		tw = c.TextWidth(title) + gap
-		c.Write(x, y, tw, h, title, left)
+		tw = c.Text(x, baseline, title, st, render.InkBlack) + gap
 	}
-	c.Write(x+tw, y, w-tw, h, tag, render.TextOpts{Align: render.AlignLeft, Ink: render.InkColour})
-}
-
-// fitText shortens s with "…" until it is at most maxW pixels wide ("" if nothing fits).
-func fitText(c *render.Canvas, s string, maxW int) string {
-	if c.TextWidth(s) <= maxW {
-		return s
-	}
-	r := []rune(s)
-	for n := len(r) - 1; n > 0; n-- {
-		if t := strings.TrimSpace(string(r[:n])) + "…"; c.TextWidth(t) <= maxW {
-			return t
-		}
-	}
-	return ""
+	c.Text(x+tw, baseline, label, labelSt, render.InkColour)
 }

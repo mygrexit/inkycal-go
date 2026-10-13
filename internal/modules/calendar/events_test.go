@@ -51,7 +51,7 @@ func TestBuildEventRows(t *testing.T) {
 	if rows[0].Title != "Läuft (2 days)" || rows[1].Title != "Zahnarzt" {
 		t.Errorf("order = %q, %q", rows[0].Title, rows[1].Title)
 	}
-	if rows[1].Date != "10 Oct" || rows[1].Time != "10:00 - 11:00" || rows[1].AllDay {
+	if rows[1].Date != "10 Oct" || rows[1].Time != "10:00–11:00" || rows[1].AllDay {
 		t.Errorf("Zahnarzt row = %+v", rows[1])
 	}
 	if rows[2].Title != "Urlaub (3 days)" || !rows[2].AllDay {

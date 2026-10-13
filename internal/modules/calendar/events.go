@@ -12,6 +12,7 @@ import (
 )
 
 type eventRow struct {
+	Day    time.Time // start date (local midnight)
 	Date   string
 	Time   string
 	Title  string
@@ -169,8 +170,9 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 			title += " " + dayCount(days, lang)
 		}
 		rows = append(rows, eventRow{
+			Day:    dateOnly(start),
 			Date:   timefmt.Format(start, dateFmt, lang),
-			Time:   timefmt.Format(start, timeFmt, lang) + " - " + timefmt.Format(e.End.In(loc), timeFmt, lang),
+			Time:   timefmt.Format(start, timeFmt, lang) + "–" + timefmt.Format(e.End.In(loc), timeFmt, lang),
 			Title:  title,
 			Label:  e.Label,
 			AllDay: e.AllDay,

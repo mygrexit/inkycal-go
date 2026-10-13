@@ -36,7 +36,8 @@ const previewSettings = `{
       "week_starts_on": "Monday", "show_events": true, "ical_urls": ["{{BASE}}/niko.ics", "{{BASE}}/sofia.ics"],
       "date_format": "DD. MMM", "time_format": "HH:mm", "dedupe_events": true, "calendar_labels": "Niko,Sofia", "weekday_prefix": true}},
     {"position": 3, "name": "Todoist", "config": {"size": [984, 180], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de",
-      "api_key": "{{TODOIST}}"}}
+      "api_key": "{{TODOIST}}"}},
+    {"position": 4, "name": "Greek", "config": {"size": [984, 174], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de"}}
   ]
 }`
 
@@ -55,7 +56,9 @@ func previewAllDay(uid, start, end, title string) string {
 func previewServer(t *testing.T, now time.Time, todoistOK bool) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
-	day := func(h int) int64 { return time.Date(now.Year(), now.Month(), now.Day(), h, 0, 0, 0, now.Location()).Unix() }
+	day := func(h int) int64 {
+		return time.Date(now.Year(), now.Month(), now.Day(), h, 0, 0, 0, now.Location()).Unix()
+	}
 	mux.HandleFunc("/data/2.5/weather", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"weather":[{"icon":"04n"}],"main":{"temp":7.6,"temp_max":9,"humidity":90},"wind":{"speed":3.2,"gust":6},"sys":{"sunrise":%d,"sunset":%d}}`,
 			day(7)+54*60, day(18)+48*60)

@@ -105,12 +105,14 @@ func runModules(ctx context.Context, o *Options, now time.Time) []moduleOutcome 
 			m, err := factory(common, entry.Config)
 			if err != nil {
 				out[i].err = err
+				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
 				return
 			}
 			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch}
 			cv, err := m.Generate(ctx, env)
 			if err != nil {
 				out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
+				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
 				return
 			}
 			out[i].part.Img = cv
@@ -196,7 +198,8 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		info, infoHeight = infoText(now, bool(s.ImageHash), outcomes, battery, hasBattery), int(s.InfoSectionHeight)
 	}
 	panelW, panelH := o.Display.Size()
-	canvas := render.Assemble(panelH, panelW, parts, bool(s.BorderAroundModules), info, infoHeight)
+	canvas := render.Assemble(panelH, panelW, parts, render.Layout{
+		Border: bool(s.BorderAroundModules), Dividers: bool(s.Dividers), Info: info, InfoHeight: infoHeight})
 	frame, err := render.Pack(canvas, panelW, panelH, int(s.Orientation))
 	if err != nil {
 		return res, err

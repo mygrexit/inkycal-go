@@ -30,29 +30,44 @@ var (
 
 func TestBuildRows(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, berlin(t))
-	rows, err := buildRows(testProjects, testTasks, nil, true, now)
+	rows, err := buildRows(testProjects, testTasks, nil, true, now, "de")
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Most urgent first: overdue, today, upcoming, undated; then priority.
 	want := []row{
-		{Project: "Inbox", Due: "12-Oct-26", Priority: "● ", Name: "Brief"},
-		{Project: "Inbox", Priority: "○ ", Name: "Milch"},
-		{Project: "Work", Due: "8-Oct-26", Overdue: true, Priority: "● ", PriorityColour: true, Name: "Steuer"},
-		{Project: "Work", Due: "TODAY", Name: "Meeting vorbereiten"},
+		{Name: "Steuer", Due: "überfällig", Urgent: true, High: true},
+		{Name: "Meeting vorbereiten", Due: "heute", Urgent: true},
+		{Name: "Brief", Due: "Mo"},
+		{Name: "Milch"},
 	}
 	if !slices.Equal(rows, want) {
 		t.Errorf("rows =\n%+v\nwant\n%+v", rows, want)
 	}
 }
 
+func TestDueLabel(t *testing.T) {
+	now := time.Date(2026, 10, 10, 9, 0, 0, 0, berlin(t))
+	day := func(d int) time.Time { return time.Date(2026, 10, 10+d, 0, 0, 0, 0, now.Location()) }
+	for _, c := range []struct {
+		offset int
+		lang   string
+		want   string
+	}{{-1, "de", "überfällig"}, {0, "de", "heute"}, {1, "de", "morgen"}, {4, "de", "Mi"}, {9, "de", "19. Okt"}, {0, "en", "today"}, {1, "en", "tomorrow"}} {
+		if got := dueLabel(day(c.offset), now, c.lang); got != c.want {
+			t.Errorf("offset %d %s: %q, want %q", c.offset, c.lang, got, c.want)
+		}
+	}
+}
+
 func TestBuildRowsWithoutPriority(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, berlin(t))
-	rows, err := buildRows(testProjects, testTasks, nil, false, now)
+	rows, err := buildRows(testProjects, testTasks, nil, false, now, "de")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range rows {
-		if r.Priority != "" || r.PriorityColour {
+		if r.High {
 			t.Errorf("priority shown although disabled: %+v", r)
 		}
 	}
@@ -60,14 +75,14 @@ func TestBuildRowsWithoutPriority(t *testing.T) {
 
 func TestBuildRowsFilter(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, berlin(t))
-	rows, err := buildRows(testProjects, testTasks, []string{"Work"}, true, now)
+	rows, err := buildRows(testProjects, testTasks, []string{"Work"}, true, now, "de")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 2 || rows[0].Project != "Work" || rows[1].Project != "Work" {
+	if len(rows) != 2 || rows[0].Name != "Steuer" || rows[1].Name != "Meeting vorbereiten" {
 		t.Errorf("filtered rows = %+v", rows)
 	}
-	if _, err := buildRows(testProjects, testTasks, []string{"Nope"}, true, now); err == nil {
+	if _, err := buildRows(testProjects, testTasks, []string{"Nope"}, true, now, "de"); err == nil {
 		t.Error("filter without matching project accepted")
 	}
 }

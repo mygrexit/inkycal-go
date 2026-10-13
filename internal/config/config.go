@@ -21,6 +21,7 @@ type Settings struct {
 	CalibrationHours    []int         `json:"calibration_hours"`
 	CalibrationCycles   FlexInt       `json:"calibration_cycles"`
 	BorderAroundModules FlexBool      `json:"border_around_modules"`
+	Dividers            FlexBool      `json:"dividers"`
 	ImageHash           FlexBool      `json:"image_hash"`
 	UsePiSugar          FlexBool      `json:"use_pi_sugar"`
 	ShutdownAfterRun    FlexBool      `json:"shutdown_after_run"`

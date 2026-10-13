@@ -162,18 +162,3 @@ func TestGenerateWithoutEventsSkipsFetch(t *testing.T) {
 		t.Error("today circle missing")
 	}
 }
-
-func TestFitTextShortensWithEllipsis(t *testing.T) {
-	c := render.NewCanvas(400, 100, render.FontDefault, 18)
-	long := "Laternenbasteln in der Kita mit allen Eltern"
-	if got := fitText(c, long, c.TextWidth(long)); got != long {
-		t.Errorf("text that fits was changed: %q", got)
-	}
-	short := fitText(c, long, 120)
-	if !strings.HasSuffix(short, "…") || c.TextWidth(short) > 120 {
-		t.Errorf("fitText = %q (%d px)", short, c.TextWidth(short))
-	}
-	if got := fitText(c, long, 1); got != "" {
-		t.Errorf("no room: %q", got)
-	}
-}

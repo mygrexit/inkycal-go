@@ -51,17 +51,22 @@ func TestWeekStartDate(t *testing.T) {
 }
 
 func TestComputeLayout(t *testing.T) {
-	l := computeLayout(460, 380, 20, true, 5)
-	want := layout{MonthH: 38, WeekdaysH: 25, CellW: 65, CellH: 38, GridX: 2, GridY: 64, EventsH: 127, NumSize: 19}
+	l := computeLayout(904, 624, 24, true, 5)
+	want := layout{HeaderH: 36, CellW: 129, CellH: 46, GridX: 0, GridY: 36, EventsY: 36 + 5*46 + 24, EventsH: 624 - (36 + 5*46 + 24), NumSize: 27, Body: 24}
 	if l != want {
 		t.Errorf("layout = %+v, want %+v", l, want)
 	}
 	x, y := l.cell(1, 5)
-	if x != 2+65*5 || y != 64+38 {
+	if x != 129*5 || y != 36+46 {
 		t.Errorf("cell(1,5) = %d,%d", x, y)
 	}
-	noEvents := computeLayout(460, 380, 20, false, 5)
-	if noEvents.EventsH != 0 || noEvents.CellH != (380-38-25)/6 {
+	noEvents := computeLayout(904, 624, 24, false, 5)
+	if noEvents.EventsH != 0 || noEvents.CellH != (624-36)/5 {
 		t.Errorf("no events layout = %+v", noEvents)
+	}
+	// Six weeks still leave room for seven event rows (1.5 lines each).
+	six := computeLayout(904, 624, 24, true, 6)
+	if six.EventsH < 7*24*3/2 {
+		t.Errorf("six weeks squeeze the event list: %+v", six)
 	}
 }

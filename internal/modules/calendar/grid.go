@@ -31,32 +31,31 @@ func weekStartDate(now time.Time, weekStart time.Weekday) time.Time {
 	return time.Date(y, m, d-offset, 0, 0, 0, 0, now.Location())
 }
 
-// layout holds the section sizes of inkycal_calendar.py.
+// layout places the weekday header, the month grid and the event list.
 type layout struct {
-	MonthH, WeekdaysH int
-	CellW, CellH      int
-	GridX, GridY      int
-	EventsH           int // includes the space of unused grid rows
-	NumSize           int // font size of the day numbers
+	HeaderH          int // weekday names and the rule under them
+	CellW, CellH     int
+	GridX, GridY     int
+	EventsY, EventsH int // event list area below the grid
+	NumSize          int // font size of the day numbers
+	Body             int // font size of the event list
 }
 
-func computeLayout(w, h, lineHeight int, showEvents bool, weeks int) layout {
-	l := layout{
-		MonthH:    int(float64(h) * 0.10),
-		WeekdaysH: int(float64(lineHeight) * 1.25),
-	}
-	calendarH := h - l.MonthH - l.WeekdaysH
+// computeLayout sizes the grid from the body font size: rows are about two lines
+// tall, the event list gets everything below the weeks of this month.
+func computeLayout(w, h, body int, showEvents bool, weeks int) layout {
+	l := layout{Body: body, HeaderH: body * 3 / 2, CellW: w / 7, GridX: (w % 7) / 2}
+	l.GridY = l.HeaderH
 	if showEvents {
-		calendarH = int(float64(h) * 0.6)
-		l.EventsH = h - l.MonthH - l.WeekdaysH - calendarH
+		l.CellH = min(body*2, (h/2-l.HeaderH)/6)
+	} else {
+		l.CellH = (h - l.HeaderH) / max(weeks, 1)
 	}
-	l.CellW = w / 7
-	l.CellH = calendarH / 6
-	l.GridX = (w % 7) / 2
-	l.GridY = l.MonthH + l.WeekdaysH + (h%6)/2
-	l.NumSize = max(6, int(float64(min(l.CellW, l.CellH))*0.5))
+	l.CellH = max(l.CellH, 8)
+	l.NumSize = max(6, min(l.CellH*3/5, l.CellW/2))
 	if showEvents {
-		l.EventsH += (6 - weeks) * l.CellH
+		l.EventsY = l.GridY + weeks*l.CellH + body
+		l.EventsH = max(0, h-l.EventsY)
 	}
 	return l
 }
