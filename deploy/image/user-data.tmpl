@@ -1,0 +1,21 @@
+#cloud-config
+# Inkycal-Go first boot. Applied once, then cloud-init is switched off.
+# Weitere SSH-Schlüssel einfach unter ssh_authorized_keys ergänzen
+# (vor dem ersten Start, nur Leerzeichen, keine Tabs).
+hostname: inkycal
+timezone: Europe/Berlin
+ssh_pwauth: false
+
+users:
+  - name: pi
+    gecos: Inkycal
+    groups: [adm, sudo, video, gpio, spi, i2c, netdev, users, dialout]
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: "@PASSWD_HASH@"
+    ssh_authorized_keys:
+@SSH_KEYS@
+
+runcmd:
+  - [sh, /boot/firmware/inkycal-install/firstboot.sh]

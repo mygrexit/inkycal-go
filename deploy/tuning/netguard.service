@@ -1,0 +1,11 @@
+[Unit]
+Description=Revert risky boot/network changes unless confirmed (netguard)
+DefaultDependencies=no
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/netguard boot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,67 @@
+#!/bin/sh
+# Dead-man switch for risky changes to the boot or network setup.
+#
+#   netguard arm SCRIPT [SECONDS]  install SCRIPT as the revert action for the next boot
+#   netguard ok                    confirm the current setup works (disarms)
+#   netguard boot                  run by netguard.service at every boot
+#
+# After a reboot the guard waits SECONDS (default 300). If nobody ran "netguard ok"
+# by then, it runs the revert script and reboots into the old setup. While armed it
+# keeps the inkycal maintenance flag set: in battery mode the Pi would otherwise
+# power itself off long before the guard could act.
+set -u
+D=/var/lib/netguard
+FLAG=/boot/firmware/inkycal-maintenance
+mkdir -p "$D"
+
+# release_flag removes the maintenance flag only if netguard created it.
+release_flag() {
+	if [ -f "$D/created-flag" ]; then
+		rm -f "$FLAG" "$D/created-flag"
+	fi
+}
+
+case "${1:-}" in
+arm)
+	case "${3:-300}" in
+	'' | *[!0-9]*)
+		echo "netguard: NOT armed, SECONDS must be a number" >&2
+		exit 1
+		;;
+	esac
+	if [ ! -s "${2:-}" ] || ! sh -n "$2" || ! install -m 0700 "$2" "$D/revert.sh"; then
+		echo "netguard: NOT armed, revert script ${2:-<none>} missing or invalid" >&2
+		exit 1
+	fi
+	echo "${3:-300}" >"$D/wait"
+	if [ ! -e "$FLAG" ]; then
+		: >"$FLAG" && : >"$D/created-flag"
+	fi
+	sync
+	echo "netguard: armed with $2 (${3:-300} s after next boot), maintenance flag set"
+	;;
+ok)
+	rm -f "$D/revert.sh"
+	release_flag
+	sync
+	echo "netguard: confirmed, disarmed"
+	;;
+boot)
+	[ -f "$D/revert.sh" ] || exit 0
+	wait=$(cat "$D/wait" 2>/dev/null)
+	case "$wait" in '' | *[!0-9]*) wait=300 ;; esac
+	logger -t netguard "armed: reverting in ${wait}s unless confirmed"
+	sleep "$wait"
+	[ -f "$D/revert.sh" ] || { logger -t netguard "confirmed"; exit 0; }
+	logger -t netguard "not confirmed: reverting and rebooting"
+	sh "$D/revert.sh" >>"$D/log" 2>&1
+	mv "$D/revert.sh" "$D/revert.sh.done.$(date +%s)"
+	release_flag
+	sync
+	systemctl reboot
+	;;
+*)
+	echo "usage: netguard arm SCRIPT [SECONDS] | ok | boot" >&2
+	exit 2
+	;;
+esac
