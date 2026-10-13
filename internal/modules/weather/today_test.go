@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -78,5 +79,20 @@ func TestBuildDay(t *testing.T) {
 	v = buildDay(settings{Lang: "de"}, cur, pts, time.Date(2026, 10, 13, 10, 40, 0, 0, loc))
 	if v.Slots[0].Label != "11" || v.Slots[1].Label != "14" {
 		t.Errorf("10:40 slots = %+v", v.Slots)
+	}
+
+	// Winter time: the 3-hour forecasts fall on 7, 10, 13 … A 06:00 update skips
+	// 7 so the timeline keeps an even rhythm across the day.
+	var winter []forecastPoint
+	for _, h := range []int{7, 10, 13, 16, 19, 22} {
+		winter = append(winter, forecastPoint{Time: time.Date(2026, 12, 1, h, 0, 0, 0, loc), Temp: 2, Icon: "04d"})
+	}
+	v = buildDay(settings{Lang: "de"}, cur, winter, time.Date(2026, 12, 1, 6, 0, 10, 0, loc))
+	var labels []string
+	for _, s := range v.Slots {
+		labels = append(labels, s.Label)
+	}
+	if got := strings.Join(labels, " "); got != "6 10 13 16 19 22" {
+		t.Errorf("winter 06:00 slots = %s", got)
 	}
 }

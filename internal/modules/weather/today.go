@@ -106,15 +106,15 @@ func (s settings) roundTemp(celsius float64) string {
 func buildDay(s settings, cur current, points []forecastPoint, now time.Time) dayView {
 	hi, lo, wind := cur.Temp, cur.Temp, cur.WindMean
 	// The first slot is labelled with the hour of the observation, not "now": the
-	// panel is read for hours after the update. A forecast within half an hour of
-	// it would repeat the same hour.
+	// panel is read for hours after the update. Forecasts follow at least 90 minutes
+	// later, so the same hour never appears twice and the columns keep an even rhythm.
 	slots := []slot{{Label: strconv.Itoa(now.Add(30 * time.Minute).Hour()), Icon: cur.Icon, Temp: s.roundTemp(cur.Temp)}}
 	for _, p := range points {
 		if !sameDay(p.Time, now) || !p.Time.After(now) {
 			continue
 		}
 		hi, lo, wind = math.Max(hi, p.Temp), math.Min(lo, p.Temp), math.Max(wind, p.Wind)
-		if len(slots) < maxSlots && p.Time.After(now.Add(30*time.Minute)) {
+		if len(slots) < maxSlots && p.Time.After(now.Add(90*time.Minute)) {
 			slots = append(slots, slot{Label: strconv.Itoa(p.Time.Hour()), Icon: p.Icon, Temp: s.roundTemp(p.Temp)})
 		}
 	}
