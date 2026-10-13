@@ -32,3 +32,16 @@ func TestMaintenance(t *testing.T) {
 		t.Fatal("flag file not detected")
 	}
 }
+
+// Windows hides extensions: a "new text file" named inkycal-maintenance is really .txt.
+func TestMaintenanceAcceptsTxtFromWindows(t *testing.T) {
+	for _, want := range []string{"/boot/firmware/inkycal-maintenance.txt", "/boot/inkycal-maintenance.txt"} {
+		found := false
+		for _, f := range MaintenanceFiles {
+			found = found || f == want
+		}
+		if !found {
+			t.Errorf("%s is not checked", want)
+		}
+	}
+}

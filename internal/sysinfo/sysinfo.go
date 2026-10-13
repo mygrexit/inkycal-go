@@ -12,7 +12,10 @@ import (
 var (
 	uptimePath = "/proc/uptime"
 	// MaintenanceFiles: if one exists, the device never powers off (so you can SSH in).
-	MaintenanceFiles = []string{"/boot/firmware/inkycal-maintenance", "/boot/inkycal-maintenance"}
+	MaintenanceFiles = []string{
+		"/boot/firmware/inkycal-maintenance", "/boot/firmware/inkycal-maintenance.txt",
+		"/boot/inkycal-maintenance", "/boot/inkycal-maintenance.txt",
+	}
 )
 
 // Uptime is the time since the kernel booted (= how long the OS took before the app started).

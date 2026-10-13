@@ -81,7 +81,7 @@ sudo rm /boot/firmware/inkycal-maintenance                 # ab jetzt Akku-Modus
 
 Der Pi ist nur noch Sekunden wach. Um wieder per SSH dranzukommen:
 
-- SD-Karte in den PC stecken und auf der Boot-Partition eine leere Datei `inkycal-maintenance` anlegen, **oder**
+- SD-Karte in den PC stecken (Windows/Mac/Linux, Laufwerk „bootfs“) und dort eine leere Datei `inkycal-maintenance` anlegen — `inkycal-maintenance.txt` geht auch, **oder**
 - USB-Strom am PiSugar anstecken. Dann schaltet sich der Pi nicht aus und aktualisiert im Intervall weiter.
 
 ## Messwerte
