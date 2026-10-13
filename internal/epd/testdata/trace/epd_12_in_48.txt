@@ -1,0 +1,63 @@
+open
+rst M1S1 01
+rst M2S2 01
+rst M1S1 00
+rst M2S2 00
+rst M1S1 01
+rst M2S2 01
+cmd M1 00
+data M1 1f
+cmd S1 00
+data S1 1f
+cmd M2 00
+data M2 13
+cmd S2 00
+data S2 13
+cmd M1 06
+data M1 17173917
+cmd M2 06
+data M2 17173917
+cmd M1 61
+data M1 028801ec
+cmd S1 61
+data S1 029001ec
+cmd M2 61
+data M2 029001ec
+cmd S2 61
+data S2 028801ec
+cmd ALL 15
+data ALL 20
+cmd ALL 50
+data ALL 2107
+cmd ALL 60
+data ALL 22
+cmd ALL e3
+data ALL 00
+cmd M1 40
+cmd M1 71
+cmd ALL e0
+data ALL 03
+cmd ALL e5
+data ALL 19
+cmd M1 13
+data M1 39852 sha256:f314c039a57a4da1
+cmd S1 13
+data S1 40344 sha256:44d6027ac35f7697
+cmd M2 13
+data M2 40344 sha256:71d0ff35f5276bd2
+cmd S2 13
+data S2 39852 sha256:5711c42f9c4ad323
+cmd M1+M2 04
+cmd ALL 12
+cmd M1 71
+cmd M1 71
+cmd S1 71
+cmd S1 71
+cmd M2 71
+cmd M2 71
+cmd S2 71
+cmd S2 71
+cmd ALL 02
+cmd ALL 07
+data ALL a5
+close

@@ -1,0 +1,32 @@
+open
+rst 01
+rst 00
+rst 01
+cmd 01
+data 3700
+cmd 00
+data cf08
+cmd 06
+data c7cc28
+cmd 04
+cmd 30
+data 3c
+cmd 41
+data 00
+cmd 50
+data 77
+cmd 60
+data 22
+cmd 61
+data 025801c0
+cmd 82
+data 1e
+cmd e5
+data 03
+cmd 10
+data 134400 sha256:74225df71c5e4392
+cmd 12
+cmd 02
+cmd 07
+data a5
+close
