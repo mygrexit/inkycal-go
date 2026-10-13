@@ -17,7 +17,12 @@ type Display interface {
 	Clear(cycles int) error    // calibration: black, colour, white per cycle
 }
 
-// Models lists supported panels and their native size.
+// SettingsPath is the settings.json the app loaded; drivers with panel-specific
+// keys (IT8951 "vcom") read it. Empty means the default search.
+var SettingsPath string
+
+// Models lists supported panels and their native size. Driver files add
+// their models in init(); the hardware side registers in openers (Linux only).
 var Models = map[string][2]int{
 	"epd_7_in_5_v2_colour":   {800, 480},
 	"epd_12_in_48_colour_V2": {1304, 984},

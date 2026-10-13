@@ -89,8 +89,11 @@ func runMode(mode, settingsPath, out, stateDir, pisugarAddr string) error {
 	var display epd.Display
 	if mode == "dry-run" {
 		display = epd.NewPNG(out, size[0], size[1])
-	} else if display, err = epd.Open(s.Model); err != nil {
-		return err
+	} else {
+		epd.SettingsPath = path // panel-specific keys such as the IT8951 "vcom"
+		if display, err = epd.Open(s.Model); err != nil {
+			return err
+		}
 	}
 	o := &app.Options{
 		Settings: s,

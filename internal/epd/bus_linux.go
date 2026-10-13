@@ -133,8 +133,25 @@ func (b *linuxBus) Data(p ...byte) error { return b.write(1, p) }
 
 func (b *linuxBus) BusyLevel() (int, error) { return b.busy.Value() }
 
+// openers builds the hardware display for models registered by driver files.
+var openers = map[string]func() (Display, error){}
+
+// openSingle wires a single-controller driver to the standard HAT bus.
+func openSingle(newDriver func(Bus, func(time.Duration)) Display) func() (Display, error) {
+	return func() (Display, error) {
+		bus, err := newLinuxBus()
+		if err != nil {
+			return nil, err
+		}
+		return newDriver(bus, time.Sleep), nil
+	}
+}
+
 // Open returns the hardware display for a model name from settings.json.
 func Open(model string) (Display, error) {
+	if open, ok := openers[model]; ok {
+		return open()
+	}
 	switch model {
 	case "epd_7_in_5_v2_colour":
 		bus, err := newLinuxBus()

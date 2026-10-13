@@ -1,0 +1,33 @@
+open
+rst 01
+rst 00
+rst 01
+cmd 12
+cmd 0c
+data aec7c3c080
+cmd 01
+data a70200
+cmd 11
+data 03
+cmd 44
+data 0000bf03
+cmd 45
+data 0000a702
+cmd 3c
+data 01
+cmd 18
+data 80
+cmd 4e
+data 0000
+cmd 4f
+data 0000
+cmd 24
+data 81600 sha256:f46f1dcee40ca77c
+cmd 26
+data 81600 sha256:50e9e15d8586a281
+cmd 22
+data f7
+cmd 20
+cmd 10
+data 03
+close
