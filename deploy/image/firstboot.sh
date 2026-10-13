@@ -51,6 +51,18 @@ else
 	echo "ERROR: pisugar-server install failed"
 fi
 
+# pisugar-poweroff tells the PiSugar to cut the power 3 s into a shutdown (filesystems are
+# unmounted after ~1.3 s); without it the Pi stays halted and the RTC alarm cannot wake it.
+debconf-set-selections <<EOF
+pisugar-poweroff pisugar-poweroff/model select $model
+pisugar-poweroff pisugar-poweroff/countdown select 3
+EOF
+if DEBIAN_FRONTEND=noninteractive dpkg -i "$I/pisugar-poweroff.deb"; then
+	systemctl enable pisugar-poweroff.service
+else
+	echo "ERROR: pisugar-poweroff install failed, the Pi will not cut its power"
+fi
+
 install -m 0755 "$I/inkycal" /usr/local/bin/inkycal
 install -m 0644 "$I/inkycal-go.service" /etc/systemd/system/inkycal-go.service
 
@@ -81,7 +93,7 @@ fi
 systemctl daemon-reload
 systemctl enable inkycal-go.service
 touch /etc/cloud/cloud-init.disabled
-rm -f "$I/pisugar-server.deb"
+rm -f "$I/pisugar-server.deb" "$I/pisugar-poweroff.deb"
 echo "== done $(date -Is)"
 if [ -n "$reboot" ]; then
 	echo "rebooting for dtoverlay=spi0-0cs"

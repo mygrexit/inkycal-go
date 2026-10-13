@@ -12,6 +12,9 @@ set -eu
 RPIOS_URL=https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-10-06/2026-10-06-raspios-trixie-arm64-lite.img.xz
 PISUGAR_URL=https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.3.5/pisugar-server_2.3.5-1_arm64.deb
 PISUGAR_SHA256=e28e7bcee544b13858094b610f53a9870099543b8652c079a7eb462598248873
+# Cuts the power after a shutdown; without it the RTC alarm cannot wake the Pi again.
+POWEROFF_URL=https://github.com/PiSugar/pisugar-power-manager-rs/releases/download/v2.3.5/pisugar-poweroff_2.3.5-1_arm64.deb
+POWEROFF_SHA256=c5d2c625b371f98b474d5dc6ef0ef414454dfc26afa489490ceef41b67745097
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 HERE=$ROOT/deploy/image
@@ -36,6 +39,9 @@ sha256sum -c "$base.sha256"
 deb=$(basename "$PISUGAR_URL")
 [ -f "$deb" ] || curl -fSLO "$PISUGAR_URL"
 echo "$PISUGAR_SHA256  $deb" | sha256sum -c
+poff=$(basename "$POWEROFF_URL")
+[ -f "$poff" ] || curl -fSLO "$POWEROFF_URL"
+echo "$POWEROFF_SHA256  $poff" | sha256sum -c
 
 (cd "$ROOT" && make build-arm64)
 
@@ -79,6 +85,7 @@ mmd -i "$BOOT" ::/inkycal-install
 mcopy -o -i "$BOOT" user-data meta-data config.txt ssh inkycal-maintenance network-config ::/
 mcopy -o -i "$BOOT" "$ROOT/dist/inkycal-arm64" ::/inkycal-install/inkycal
 mcopy -o -i "$BOOT" "$deb" ::/inkycal-install/pisugar-server.deb
+mcopy -o -i "$BOOT" "$poff" ::/inkycal-install/pisugar-poweroff.deb
 mcopy -o -i "$BOOT" "$HERE/firstboot.sh" "$ROOT/deploy/inkycal-go.service" ::/inkycal-install/
 rm -f user-data meta-data network-config config.txt ssh inkycal-maintenance
 
