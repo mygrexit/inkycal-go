@@ -60,8 +60,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if strings.TrimSpace(string(rc.Location)) == "" {
 		return nil, errors.New("weather: location is missing")
 	}
-	if w, h := c.InnerSize(); w < 300 || h < 60 {
-		return nil, fmt.Errorf("weather: inner size %dx%d too small (min 300x60)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	s := settings{
 		Fahrenheit: strings.EqualFold(rc.Units, "imperial"),

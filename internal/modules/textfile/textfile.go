@@ -43,8 +43,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if p == "" {
 		return nil, errors.New("textfile: filepath is missing")
 	}
-	if w, h := c.InnerSize(); w < 100 || h < 20 {
-		return nil, fmt.Errorf("textfile: inner size %dx%d too small (min 100x20)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	lower := strings.ToLower(p)
 	return &Module{

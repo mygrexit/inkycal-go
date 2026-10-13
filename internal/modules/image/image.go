@@ -146,6 +146,9 @@ func NewImage(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
 		return nil, fmt.Errorf("image: config is missing path")
 	}
+	if err := modules.CheckMinSize(c, ImageMeta); err != nil {
+		return nil, err
+	}
 	l, err := cfg.rawLook.parse("image", true)
 	if err != nil {
 		return nil, err

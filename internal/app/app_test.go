@@ -216,7 +216,7 @@ func TestDisableCalibration(t *testing.T) {
 
 func TestInfoText(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 5, 0, 0, time.UTC)
-	oc := []moduleOutcome{{}, {err: errors.New("x")}, {stale: true}}
+	oc := []ModuleStatus{{}, {Err: errors.New("x")}, {Stale: true}}
 	got := infoText(now, false, oc, 15, true)
 	if got != "10 Oct @ 09:05  im 2: X  im 3: cache  Low battery! (15%)" {
 		t.Errorf("%q", got)
@@ -373,7 +373,7 @@ func TestErrorHint(t *testing.T) {
 
 func TestFailedModuleShowsHint(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Dot", "Fail", "Missing", "Panic")
-	out := runModules(context.Background(), o, o.Now())
+	out := runModules(context.Background(), o, o.Now(), nil)
 	for i := 1; i < len(out); i++ {
 		img := out[i].part.Img
 		inked := false

@@ -43,6 +43,9 @@ func NewServer(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
 		return nil, fmt.Errorf("server: config is missing path")
 	}
+	if err := modules.CheckMinSize(c, ServerMeta); err != nil {
+		return nil, err
+	}
 	l, err := cfg.rawLook.parse("server", false) // Python: "Dither … Default is False."
 	if err != nil {
 		return nil, err

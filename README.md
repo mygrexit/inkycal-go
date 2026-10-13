@@ -155,6 +155,23 @@ Optional keys on top of upstream's:
 Logs: `journalctl -u inkycal-go -f`. Way back in after going live: put an empty file `inkycal-maintenance`
 on the boot partition from any PC, or plug USB power into the PiSugar.
 
+### Grid layout (optional)
+
+Modules can sit side by side. Give every module a `cell`, `[column, row, column span, row span]`
+counted from 0, and optionally the grid size (default 12 × 16):
+
+```json
+"grid": {"columns": 12, "rows": 16},
+"modules": [
+  {"position": 1, "name": "Weather",  "config": {"cell": [0, 0, 12, 4], …}},
+  {"position": 2, "name": "Calendar", "config": {"cell": [0, 4, 8, 12], …}},
+  {"position": 3, "name": "Todoist",  "config": {"cell": [8, 4, 4, 12], …}}
+]
+```
+
+The grid covers the panel above the info line. Either every module has a cell or none (then they
+stack as in upstream). On a grid `size` is ignored; keep it for upstream Inkycal.
+
 ### Build from source
 
 ```bash

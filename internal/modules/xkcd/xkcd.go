@@ -68,8 +68,8 @@ type Module struct {
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	if w, h := c.InnerSize(); w < 160 || h < 80 {
-		return nil, fmt.Errorf("xkcd: inner size %dx%d too small (min 160x80)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	var s settings
 	if len(raw) > 0 {

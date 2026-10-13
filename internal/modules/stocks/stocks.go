@@ -34,8 +34,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if len(rc.Tickers) == 0 {
 		return nil, errors.New("stocks: tickers is missing")
 	}
-	if w, h := c.InnerSize(); w < 150 || h < 20 {
-		return nil, fmt.Errorf("stocks: inner size %dx%d too small (min 150x20)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	return &Module{common: c, tickers: []string(rc.Tickers)}, nil
 }

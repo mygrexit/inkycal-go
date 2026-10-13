@@ -46,6 +46,9 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if s.Columns < 1 || s.Columns > 2 {
 		return nil, fmt.Errorf("agenda: columns must be 1 or 2, got %d", s.Columns)
 	}
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
+	}
 	return &Agenda{common: c, s: s}, nil
 }
 

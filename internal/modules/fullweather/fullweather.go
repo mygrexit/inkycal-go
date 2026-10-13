@@ -108,8 +108,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
 		return nil, fmt.Errorf("fullweather: latitude/longitude %v/%v out of range", lat, lon)
 	}
-	if w, h := c.InnerSize(); w < 400 || h < 80 {
-		return nil, fmt.Errorf("fullweather: inner size %dx%d too small (min 400x80)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	lang := c.Language
 	// Upstream takes the language from the locale, e.g. "de_DE.UTF-8".

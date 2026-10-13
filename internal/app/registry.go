@@ -1,6 +1,8 @@
 package app
 
 import (
+	"sort"
+
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/agenda"
 	"inkycal/internal/modules/calendar"
@@ -32,4 +34,16 @@ var Registry = map[string]modules.Factory{
 	"Todoist":       todoist.New,
 	"Weather":       weather.New,
 	"Xkcd":          xkcd.New,
+}
+
+// Catalog describes every registered module for the builder, sorted by title.
+var Catalog = sortedCatalog(
+	agenda.Meta, calendar.Meta, feeds.Meta, fullweather.Meta, greek.Meta,
+	imagemod.ImageMeta, imagemod.ServerMeta, jokes.Meta, imagemod.SlideshowMeta,
+	stocks.Meta, textfile.Meta, todoist.Meta, weather.Meta, xkcd.Meta,
+)
+
+func sortedCatalog(ms ...modules.Meta) []modules.Meta {
+	sort.Slice(ms, func(i, j int) bool { return ms[i].Title < ms[j].Title })
+	return ms
 }

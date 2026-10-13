@@ -24,8 +24,8 @@ type Module struct {
 
 // New takes no module keys: upstream Jokes has none besides the shared ones.
 func New(c config.Common, _ json.RawMessage) (modules.Module, error) {
-	if w, h := c.InnerSize(); w < 100 || h < 30 {
-		return nil, fmt.Errorf("jokes: inner size %dx%d too small (min 100x30)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	return &Module{common: c, url: APIURL}, nil
 }

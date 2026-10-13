@@ -31,9 +31,43 @@ func Assemble(w, h int, parts []Part, l Layout) *Canvas {
 		}
 		cursor += p.SectionH
 	}
-	info, infoHeight := l.Info, l.InfoHeight
-	if infoHeight > 0 && info != "" {
-		out.Write(0, h-infoHeight, w, infoHeight, info, TextOpts{})
-	}
+	writeInfo(out, w, h, l)
 	return out
+}
+
+// Placed is one module image and its section rectangle on the page (grid layouts).
+type Placed struct {
+	Img        *Canvas
+	X, Y, W, H int
+}
+
+// AssembleGrid centres each image in its rectangle. Dividers run along the top and left
+// edge of every module not touching the page edge, as long as the module image.
+func AssembleGrid(w, h int, parts []Placed, l Layout) *Canvas {
+	out := NewCanvas(w, h, FontDefault, 14)
+	for _, p := range parts {
+		if l.Border {
+			p.Img.RoundedRect(1, 1, p.Img.W-2, p.Img.H-2, 5, InkBlack)
+		}
+		x := p.X + (p.W-p.Img.W)/2
+		y := p.Y + (p.H-p.Img.H)/2
+		out.Paste(p.Img, x, y)
+		if l.Dividers {
+			if p.Y > 0 {
+				out.HLine(x, x+p.Img.W-1, p.Y, InkBlack)
+			}
+			if p.X > 0 {
+				out.VLine(p.X, y, y+p.Img.H-1, InkBlack)
+			}
+		}
+	}
+	writeInfo(out, w, h, l)
+	return out
+}
+
+// writeInfo sets the info line into the bottom InfoHeight pixels.
+func writeInfo(out *Canvas, w, h int, l Layout) {
+	if l.InfoHeight > 0 && l.Info != "" {
+		out.Write(0, h-l.InfoHeight, w, l.InfoHeight, l.Info, TextOpts{})
+	}
 }

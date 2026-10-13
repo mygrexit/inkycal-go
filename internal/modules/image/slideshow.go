@@ -53,6 +53,9 @@ func NewSlideshow(c config.Common, raw json.RawMessage) (modules.Module, error) 
 	if cfg.Interval == 0 {
 		cfg.Interval = 1440
 	}
+	if err := modules.CheckMinSize(c, SlideshowMeta); err != nil {
+		return nil, err
+	}
 	l, err := cfg.rawLook.parse("slideshow", true)
 	if err != nil {
 		return nil, err

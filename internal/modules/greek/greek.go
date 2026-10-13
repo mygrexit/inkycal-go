@@ -47,8 +47,8 @@ type Module struct {
 }
 
 func New(c config.Common, _ json.RawMessage) (modules.Module, error) {
-	if w, h := c.InnerSize(); w < 300 || h < 60 {
-		return nil, fmt.Errorf("greek: inner size %dx%d too small (min 300x60)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	ws, err := loadWords()
 	if err != nil {

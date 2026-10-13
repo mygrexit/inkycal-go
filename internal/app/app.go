@@ -5,9 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
-	"strings"
-	"sync"
 	"time"
 
 	"inkycal/internal/config"
@@ -17,7 +14,6 @@ import (
 	"inkycal/internal/render"
 	"inkycal/internal/schedule"
 	"inkycal/internal/state"
-	"inkycal/internal/timefmt"
 )
 
 const (
@@ -74,96 +70,6 @@ type Result struct {
 	Wake         time.Time
 	PowerOff     bool
 	Timings      Timings
-}
-
-type moduleOutcome struct {
-	part  render.Part
-	err   error
-	stale bool
-}
-
-// runModules runs all modules concurrently; a failed module leaves its section blank.
-func runModules(ctx context.Context, o *Options, now time.Time) []moduleOutcome {
-	ctx, cancel := context.WithTimeout(ctx, moduleTimeout)
-	defer cancel()
-	out := make([]moduleOutcome, len(o.Settings.Modules))
-	var wg sync.WaitGroup
-	for i, entry := range o.Settings.Modules {
-		common, err := config.ParseCommon(entry.Config)
-		w, h := common.InnerSize()
-		// A failed module keeps its section blank, so it needs a canvas even with a broken size.
-		out[i].part = render.Part{
-			Img:      render.NewCanvas(max(w, 1), max(h, 1), render.FontDefault, 14),
-			SectionW: common.Size[0], SectionH: common.Size[1],
-		}
-		if err != nil {
-			out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
-			continue
-		}
-		factory, ok := o.Registry[entry.Name]
-		if !ok {
-			out[i].err = fmt.Errorf("unknown module %q", entry.Name)
-			drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
-			continue
-		}
-		wg.Add(1)
-		go func(i int, entry config.ModuleEntry, common config.Common) {
-			defer wg.Done()
-			defer func() {
-				if r := recover(); r != nil {
-					out[i].err = fmt.Errorf("%s panicked: %v", entry.Name, r)
-					// The module may have panicked mid-drawing: hint on a fresh canvas.
-					img := out[i].part.Img
-					out[i].part.Img = render.NewCanvas(img.W, img.H, render.FontDefault, 14)
-					drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
-				}
-			}()
-			m, err := factory(common, entry.Config)
-			if err != nil {
-				out[i].err = err
-				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
-				return
-			}
-			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch}
-			cv, err := m.Generate(ctx, env)
-			if err != nil {
-				out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
-				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
-				return
-			}
-			out[i].part.Img = cv
-			out[i].stale = env.Stale
-		}(i, entry, common)
-	}
-	wg.Wait()
-	return out
-}
-
-// infoText reproduces Python's info line (timestamp only without image_hash, which would defeat the hash).
-func infoText(now time.Time, imageHash bool, outcomes []moduleOutcome, battery float64, hasBattery bool) string {
-	var b strings.Builder
-	if !imageHash {
-		b.WriteString(timefmt.Format(now, "D MMM @ HH:mm", "en") + "  ")
-	}
-	for i, oc := range outcomes {
-		switch {
-		case oc.err != nil:
-			fmt.Fprintf(&b, "im %d: X  ", i+1)
-		case oc.stale:
-			fmt.Fprintf(&b, "im %d: cache  ", i+1)
-		}
-	}
-	if hasBattery {
-		if imageHash {
-			battery = math.Floor(battery/10) * 10 // every 1 % would change the hash and force a refresh
-		}
-		if battery < 20 {
-			fmt.Fprintf(&b, "Low battery! (%.0f%%) ", battery)
-		} else {
-			fmt.Fprintf(&b, "Battery: %.0f%% ", battery)
-		}
-	}
-	return strings.TrimSpace(b.String())
 }
 
 // nextWake uses the fixed update_times when configured, else the update_interval grid.
@@ -224,40 +130,20 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		}
 	}
 
-	outcomes := runModules(ctx, o, now)
-	parts := make([]render.Part, len(outcomes), max(len(outcomes), 1))
-	for i, oc := range outcomes {
-		parts[i] = oc.part
-		if oc.err != nil {
-			res.ModuleErrors = append(res.ModuleErrors, oc.err.Error())
-			slog.Error("module failed", "position", i+1, "err", oc.err)
+	composed, err := Compose(ctx, o, now)
+	if err != nil {
+		return res, err
+	}
+	for i, m := range composed.Modules {
+		if m.Err != nil {
+			res.ModuleErrors = append(res.ModuleErrors, m.Err.Error())
+			slog.Error("module failed", "position", i+1, "err", m.Err)
 		}
 	}
-	res.Timings.Modules = time.Since(start)
+	res.Timings.Modules = time.Since(start) // as before: cycle start until the modules are done
 	o.Fetch.Prune(14 * 24 * time.Hour)
-
-	var battery float64
-	hasBattery := false
-	if o.PiSugar != nil {
-		if b, err := o.PiSugar.Battery(); err == nil {
-			battery, hasBattery = b, true
-		} else {
-			slog.Warn("battery level unavailable", "err", err)
-		}
-	}
-	info, infoHeight := "", 0
-	if s.InfoSection {
-		info, infoHeight = infoText(now, bool(s.ImageHash), outcomes, battery, hasBattery), int(s.InfoSectionHeight)
-	}
 	panelW, panelH := o.Display.Size()
-	if len(parts) == 0 { // upstream shows a message instead of a blank panel
-		c := render.NewCanvas(panelH-80, 120, render.FontDefault, 22)
-		drawHint(c, "settings.json has no modules")
-		parts = append(parts, render.Part{Img: c, SectionW: panelH, SectionH: 120})
-	}
-	canvas := render.Assemble(panelH, panelW, parts, render.Layout{
-		Border: bool(s.BorderAroundModules), Dividers: bool(s.Dividers), Info: info, InfoHeight: infoHeight})
-	frame, err := render.Pack(canvas, panelW, panelH, int(s.Orientation))
+	frame, err := render.Pack(composed.Canvas, panelW, panelH, int(s.Orientation))
 	if err != nil {
 		return res, err
 	}

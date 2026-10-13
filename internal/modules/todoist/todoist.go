@@ -35,8 +35,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if strings.TrimSpace(rc.APIKey) == "" {
 		return nil, errors.New("todoist: api_key is missing")
 	}
-	if w, h := c.InnerSize(); w < 50 || h < 20 {
-		return nil, fmt.Errorf("todoist: inner size %dx%d too small (min 50x20)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	m := &Module{common: c, token: rc.APIKey, filter: []string(rc.ProjectFilter), showPriority: true}
 	if rc.ShowPriority != nil {

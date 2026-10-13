@@ -49,8 +49,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if len(rc.FeedURLs) == 0 {
 		return nil, errors.New("feeds: feed_urls is missing")
 	}
-	if w, h := c.InnerSize(); w < 50 || h < 20 {
-		return nil, fmt.Errorf("feeds: inner size %dx%d too small (min 50x20)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	m := &Module{
 		common:  c,

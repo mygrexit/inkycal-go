@@ -47,8 +47,8 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if err := json.Unmarshal(raw, &rc); err != nil {
 		return nil, fmt.Errorf("calendar: config: %w", err)
 	}
-	if w, h := c.InnerSize(); w < 70 || h < 100 {
-		return nil, fmt.Errorf("calendar: inner size %dx%d too small (min 70x100)", w, h)
+	if err := modules.CheckMinSize(c, Meta); err != nil {
+		return nil, err
 	}
 	m := &Module{
 		common:        c,
