@@ -168,8 +168,9 @@ EOF
 cat > /etc/systemd/system/inkycal-go.service <<'EOF'
 [Unit]
 Description=Inkycal e-paper dashboard (Go)
-Wants=network-online.target
-After=network-online.target pisugar-server.service
+# No network-online.target: the app starts the panel right away and waits for the
+# network itself (30 s at most, then cached data).
+After=pisugar-server.service
 
 [Service]
 Type=simple

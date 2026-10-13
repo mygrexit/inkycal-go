@@ -3,6 +3,7 @@
 package sysinfo
 
 import (
+	"fmt"
 	"os/exec"
 
 	"golang.org/x/sys/unix"
@@ -19,3 +20,16 @@ func NTPSynced() bool {
 
 // PowerOff asks systemd to power off (the PiSugar alarm must be set before).
 func PowerOff() error { return exec.Command("systemctl", "poweroff").Run() }
+
+// SetLink brings an interface up or down. Unlike rfkill this is not restored at
+// the next boot, so a radio switched off before power-off comes back by itself.
+func SetLink(name string, up bool) error {
+	state := "down"
+	if up {
+		state = "up"
+	}
+	if out, err := exec.Command("ip", "link", "set", "dev", name, state).CombinedOutput(); err != nil {
+		return fmt.Errorf("ip link set %s %s: %w: %s", name, state, err, out)
+	}
+	return nil
+}

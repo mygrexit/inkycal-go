@@ -34,6 +34,23 @@ func (osSystem) Uptime() time.Duration {
 	return d
 }
 
+// osNetwork waits for a default route and switches the WLAN radios.
+type osNetwork struct{}
+
+func (osNetwork) Wait(ctx context.Context, timeout time.Duration) bool {
+	return sysinfo.WaitNetwork(ctx, timeout)
+}
+func (osNetwork) RadioOff() error { return setRadios(false) }
+func (osNetwork) RadioOn() error  { return setRadios(true) }
+
+func setRadios(up bool) error {
+	var errs []error
+	for _, name := range sysinfo.WirelessInterfaces() {
+		errs = append(errs, sysinfo.SetLink(name, up))
+	}
+	return errors.Join(errs...)
+}
+
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
@@ -107,6 +124,9 @@ func runMode(mode, settingsPath, out, stateDir, pisugarAddr string) error {
 	}
 	if mode == "clear" {
 		return app.Calibrate(o)
+	}
+	if mode == "run" || mode == "once" {
+		o.Network = osNetwork{} // the service starts before the network is up
 	}
 	if mode == "run" && s.UsePiSugar {
 		o.PiSugar = pisugar.New(pisugarAddr) // assign only when enabled: a typed nil would not be == nil

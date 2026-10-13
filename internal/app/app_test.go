@@ -403,3 +403,95 @@ func TestRunCycleUsesUpdateTimes(t *testing.T) {
 		t.Errorf("wake %v alarms %v, want %v", res.Wake, p.alarms, want)
 	}
 }
+
+// preparingDisplay records the order of driver calls.
+type preparingDisplay struct {
+	*fakeDisplay
+	mu  sync.Mutex
+	log []string
+}
+
+func (d *preparingDisplay) add(s string) { d.mu.Lock(); d.log = append(d.log, s); d.mu.Unlock() }
+func (d *preparingDisplay) Prepare() error {
+	d.add("prepare")
+	return nil
+}
+func (d *preparingDisplay) Release() error { d.add("release"); return nil }
+func (d *preparingDisplay) Show(f render.Frame) error {
+	d.add("show")
+	return d.fakeDisplay.Show(f)
+}
+
+func TestRunCyclePreparesPanelDuringFetch(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Dot")
+	d := &preparingDisplay{fakeDisplay: &fakeDisplay{}}
+	o.Display = d
+	RunCycle(context.Background(), o)
+	if strings.Join(d.log, ",") != "prepare,show" {
+		t.Errorf("first cycle: %v", d.log)
+	}
+	// Unchanged image: the prepared panel goes back to sleep.
+	d.log = nil
+	RunCycle(context.Background(), o)
+	if strings.Join(d.log, ",") != "prepare,release" {
+		t.Errorf("unchanged cycle: %v", d.log)
+	}
+}
+
+type fakeNetwork struct {
+	up             bool
+	waits, off, on int
+	offErr         error
+}
+
+func (n *fakeNetwork) Wait(context.Context, time.Duration) bool { n.waits++; return n.up }
+func (n *fakeNetwork) RadioOff() error                          { n.off++; return n.offErr }
+func (n *fakeNetwork) RadioOn() error                           { n.on++; return nil }
+
+func TestRunCycleWaitsForNetworkAndSwitchesRadioOffBeforePowerOff(t *testing.T) {
+	o, d, _, _ := testOptions(t, "Dot")
+	n := &fakeNetwork{up: true}
+	o.Network = n
+	res, _ := RunCycle(context.Background(), o)
+	if n.waits != 1 || n.off != 1 || n.on != 1 || !res.PowerOff || d.shows != 1 { // on: at the start
+		t.Errorf("waits=%d off=%d on=%d poweroff=%v shows=%d", n.waits, n.off, n.on, res.PowerOff, d.shows)
+	}
+	// No network: the cycle still runs (modules fall back to their cache).
+	n2 := &fakeNetwork{}
+	o.Network = n2
+	o.Settings.ImageHash = false
+	if res, _ := RunCycle(context.Background(), o); !res.Refreshed {
+		t.Error("cycle without network did not refresh")
+	}
+}
+
+func TestRadioStaysOnWhenDeviceStaysOn(t *testing.T) {
+	cases := map[string]func(*Options, *fakePiSugar, *fakeSystem){
+		"maintenance": func(o *Options, p *fakePiSugar, s *fakeSystem) { s.maintenance = true },
+		"usb power":   func(o *Options, p *fakePiSugar, s *fakeSystem) { p.plugged = true },
+		"alarm fails": func(o *Options, p *fakePiSugar, s *fakeSystem) { p.alarmErr = errors.New("i2c") },
+		"disabled":    func(o *Options, p *fakePiSugar, s *fakeSystem) { o.Settings.ShutdownAfterRun = false },
+		"no pisugar":  func(o *Options, p *fakePiSugar, s *fakeSystem) { o.PiSugar = nil },
+	}
+	for name, mutate := range cases {
+		o, _, p, s := testOptions(t, "Dot")
+		n := &fakeNetwork{up: true}
+		o.Network = n
+		mutate(o, p, s)
+		RunCycle(context.Background(), o)
+		if n.off != 0 {
+			t.Errorf("%s: radio switched off", name)
+		}
+	}
+	// Decided off during the refresh, then the corrected alarm fails: radio back on.
+	o, _, p, _ := testOptions(t, "Dot")
+	n := &fakeNetwork{up: true}
+	o.Network = n
+	clk := &testClock{t: time.Date(2026, 10, 10, 12, 58, 0, 0, time.UTC)}
+	o.Now = clk.now
+	o.Display = &slowDisplay{fakeDisplay: &fakeDisplay{}, clock: clk, took: 3 * time.Minute}
+	p.failAfter = 1
+	if res, _ := RunCycle(context.Background(), o); res.PowerOff || n.off != 1 || n.on != 2 {
+		t.Errorf("poweroff=%v off=%d on=%d", res.PowerOff, n.off, n.on)
+	}
+}

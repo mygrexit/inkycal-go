@@ -3,6 +3,7 @@ package epd
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -199,5 +200,53 @@ func TestEPD12in48RejectsImplausibleTemperature(t *testing.T) {
 		if got := bus.data["ALL:E5"]; len(got) != 1 || got[0] != want {
 			t.Errorf("raw %#x: sent temperature %v, want %#x", raw, got, want)
 		}
+	}
+}
+
+// Prepare + Show must send exactly what Show alone sends, just split in time.
+func TestEPD12in48PrepareThenShowMatchesShow(t *testing.T) {
+	plain := &fakeBus12{temp: 0x17}
+	if err := NewEPD12in48bV2(plain, noSleep).Show(testFrame12()); err != nil {
+		t.Fatal(err)
+	}
+	split := &fakeBus12{temp: 0x17}
+	e := NewEPD12in48bV2(split, noSleep)
+	if err := e.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if split.has("close") {
+		t.Fatal("prepared panel was closed")
+	}
+	if err := e.Show(testFrame12()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(plain.ops, split.ops) {
+		t.Errorf("prepared show differs: %d ops vs %d", len(split.ops), len(plain.ops))
+	}
+}
+
+// A prepared panel that shows nothing goes back to deep sleep; an unprepared one is left alone.
+func TestEPD12in48ReleaseSleepsPreparedPanel(t *testing.T) {
+	bus := &fakeBus12{temp: 0x17}
+	e := NewEPD12in48bV2(bus, noSleep)
+	if err := e.Release(); err != nil || len(bus.ops) != 0 {
+		t.Fatalf("release without prepare: err %v, ops %v", err, bus.ops)
+	}
+	if err := e.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(bus.ops[len(bus.ops)-3], ":C07") || bus.ops[len(bus.ops)-1] != "close" || bus.closed != 1 {
+		t.Errorf("released panel not in deep sleep / bus open: %v", bus.ops[len(bus.ops)-3:])
+	}
+	// The next Show initialises again.
+	n := len(bus.ops)
+	if err := e.Show(testFrame12()); err != nil {
+		t.Fatal(err)
+	}
+	if bus.ops[n] != "open" {
+		t.Errorf("show after release did not re-init: %q", bus.ops[n])
 	}
 }

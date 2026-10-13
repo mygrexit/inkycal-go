@@ -62,6 +62,7 @@ type EPD12in48bV2 struct {
 	bus         Bus12
 	sleep       func(time.Duration)
 	BusyTimeout time.Duration
+	ready       bool // Prepare ran: the next Show or Clear skips init
 }
 
 // NewEPD12in48bV2 creates the driver; sleep is time.Sleep in production and a fake in tests.
@@ -261,11 +262,40 @@ func (e *EPD12in48bV2) deepSleep() error {
 	return e.bus.Close()
 }
 
-func (e *EPD12in48bV2) run(body func() error) error {
+var _ Preparer = (*EPD12in48bV2)(nil)
+
+// Prepare wakes and initialises the panel ahead of Show or Clear, so that work
+// can overlap the module fetch. Not safe for concurrent use with Show or Clear.
+func (e *EPD12in48bV2) Prepare() error {
 	if err := e.init(); err != nil {
 		e.bus.Close()
 		return err
 	}
+	e.ready = true
+	return nil
+}
+
+// Release puts a prepared panel back into deep sleep when nothing is shown.
+func (e *EPD12in48bV2) Release() error {
+	if !e.ready {
+		return nil
+	}
+	e.ready = false
+	if err := e.deepSleep(); err != nil {
+		e.bus.Close()
+		return err
+	}
+	return nil
+}
+
+func (e *EPD12in48bV2) run(body func() error) error {
+	if !e.ready {
+		if err := e.init(); err != nil {
+			e.bus.Close()
+			return err
+		}
+	}
+	e.ready = false
 	if err := body(); err != nil {
 		e.bus.Close()
 		return err

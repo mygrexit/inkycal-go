@@ -22,6 +22,7 @@ import (
 
 const (
 	moduleTimeout = 60 * time.Second
+	networkWait   = 30 * time.Second // then the modules run on their cache
 	minSleep      = 90 * time.Second // the RTC alarm must not pass while we shut down
 	alarmEveryDay = 127              // PiSugar weekday bitmask
 )
@@ -41,12 +42,22 @@ type System interface {
 	Maintenance() bool
 }
 
+// Network is the radio side of a cycle. The service no longer waits for
+// network-online.target: the cycle waits itself, after starting the panel, and
+// switches the radio off for the refresh when the device will power off.
+type Network interface {
+	Wait(ctx context.Context, timeout time.Duration) bool
+	RadioOff() error
+	RadioOn() error
+}
+
 type Options struct {
 	Settings *config.Settings
 	StateDir string
 	Display  epd.Display
 	PiSugar  PiSugar // nil = disabled
 	System   System
+	Network  Network // nil = no waiting, radio untouched
 	Fetch    *fetch.Client
 	Loc      *time.Location
 	Now      func() time.Time
@@ -186,6 +197,33 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		st = state.State{}
 	}
 
+	// Wake and initialise the panel while the network comes up and the modules fetch.
+	prepared := make(chan struct{})
+	prep, canPrepare := o.Display.(epd.Preparer)
+	if canPrepare {
+		go func() {
+			defer close(prepared)
+			if err := prep.Prepare(); err != nil {
+				slog.Warn("panel init ahead of the refresh failed, retrying at refresh", "err", err)
+			}
+		}()
+	} else {
+		close(prepared)
+	}
+	if o.Network != nil {
+		// A cycle that died after switching the radio off (crash, failed power-off)
+		// must not leave the device unreachable: make sure it is on.
+		if err := o.Network.RadioOn(); err != nil {
+			slog.Debug("switching the radio on failed", "err", err)
+		}
+		t0 := time.Now()
+		if o.Network.Wait(ctx, networkWait) {
+			slog.Info("network up", "waited", time.Since(t0).Round(time.Millisecond))
+		} else {
+			slog.Warn("no network, modules use their cache", "waited", time.Since(t0).Round(time.Millisecond))
+		}
+	}
+
 	outcomes := runModules(ctx, o, now)
 	parts := make([]render.Part, len(outcomes), max(len(outcomes), 1))
 	for i, oc := range outcomes {
@@ -230,6 +268,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	displayDone := make(chan error, 1)
 	if res.Refreshed {
 		go func() {
+			<-prepared
 			if calibrate {
 				if err := o.Display.Clear(int(s.CalibrationCycles)); err != nil {
 					displayDone <- fmt.Errorf("calibration: %w", err)
@@ -240,7 +279,15 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		}()
 	} else {
 		slog.Info("image unchanged, skipping refresh")
-		displayDone <- nil
+		go func() {
+			<-prepared
+			if canPrepare {
+				if err := prep.Release(); err != nil {
+					slog.Warn("putting the prepared panel to sleep failed", "err", err)
+				}
+			}
+			displayDone <- nil
+		}()
 	}
 
 	// While the panel refreshes (~20 s): RTC housekeeping.
@@ -257,6 +304,17 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 			alarmOK = true
 		}
 		plugged, _ = o.PiSugar.PowerPlugged() // unsupported on old models → false
+	}
+	// Nothing needs the network any more if we power off afterwards: switch the
+	// radio off for the refresh (~50 s on the 12.48"), it costs battery for nothing.
+	radioOff := false
+	if o.Network != nil && shouldPowerOff(s, o.PiSugar != nil, alarmOK, o.System.Maintenance(), plugged) {
+		if err := o.Network.RadioOff(); err != nil {
+			slog.Warn("switching the radio off failed", "err", err)
+		} else {
+			slog.Info("radio off for the refresh, powering off afterwards")
+		}
+		radioOff = true
 	}
 
 	displayErr := <-displayDone
@@ -287,6 +345,11 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	}
 
 	res.PowerOff = shouldPowerOff(s, o.PiSugar != nil, alarmOK, o.System.Maintenance(), plugged)
+	if radioOff && !res.PowerOff { // staying on after all: keep the device reachable
+		if err := o.Network.RadioOn(); err != nil {
+			slog.Error("switching the radio back on failed", "err", err)
+		}
+	}
 	res.Timings.Total = time.Since(start)
 	t := res.Timings
 	slog.Info("cycle done", "boot", t.Boot, "modules", t.Modules, "render", t.Render, "display", t.Display,

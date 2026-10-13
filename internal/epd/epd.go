@@ -17,6 +17,14 @@ type Display interface {
 	Clear(cycles int) error    // calibration: black, colour, white per cycle
 }
 
+// Preparer is a Display that can wake and initialise the panel ahead of Show or Clear,
+// overlapping the module fetch. Release puts a prepared panel back to sleep when
+// nothing is shown. Calls must not overlap.
+type Preparer interface {
+	Prepare() error
+	Release() error
+}
+
 // SettingsPath is the settings.json the app loaded; drivers with panel-specific
 // keys (IT8951 "vcom") read it. Empty means the default search.
 var SettingsPath string
