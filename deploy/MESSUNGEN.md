@@ -37,3 +37,15 @@ Aus dem Journal und `Inkycal/logs` der alten Karte, Zyklus 12.10.2026 12:00.
 | Stufe 2 (Dienste, Bluetooth, Grafik aus) | 23,7 s | 24,8 s |
 | Stufe 3 (networkd + wpa_supplicant) | 12,6 s | 13,4 s |
 | Stufe 4 (ohne initramfs, ohne Swap-Generator) | 9,5 s | 10,3 s (einmal 14,8 s: DHCP-Wiederholung) |
+
+## Echter Zyklus Aus → RTC-Wecker → An (13.10.2026, 07:07)
+
+| Abschnitt | Zeit |
+|---|---|
+| Herunterfahren bis Dateisysteme ausgehängt | 1,3 s |
+| `pisugar-poweroff` (Countdown 3 s) bis Strom aus | ≈ 3 s + 1,8 s |
+| Wecker 07:11:21 → SSH erreichbar | 17 s (Firmware + 9,7 s Boot) |
+| WLAN + DHCP nach Kernelstart | 10,6 s |
+
+Ohne `pisugar-poweroff` (fehlte im ersten Image) hätte der Pi angehalten weiter Strom gezogen
+und der Wecker hätte ihn nicht neu starten können.
