@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/color"
 	"image/png"
 	"io"
 	"io/fs"
@@ -73,16 +74,35 @@ type Server struct {
 func New(cfg Config) (*Server, error) {
 	s := &Server{cfg: cfg, token: cfg.Token}
 	if s.token == "" {
-		b := make([]byte, 16)
-		if _, err := rand.Read(b); err != nil {
+		tok, err := loadToken(filepath.Join(cfg.StateDir, "builder-token"))
+		if err != nil {
 			return nil, err
 		}
-		s.token = hex.EncodeToString(b)
+		s.token = tok
 	}
 	cache := filepath.Join(cfg.StateDir, "http")
 	s.cached, s.live = fetch.New(cache), fetch.New(cache)
 	s.cached.FreshFor = freshFor
 	return s, nil
+}
+
+// loadToken reuses the token of an earlier run, so the address printed at start stays
+// the same; the first run creates it (owner-only, it guards settings with API keys).
+func loadToken(path string) (string, error) {
+	if data, err := os.ReadFile(path); err == nil {
+		if tok := string(bytes.TrimSpace(data)); len(tok) == 32 {
+			return tok, nil
+		}
+	}
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	tok := hex.EncodeToString(b)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", err
+	}
+	return tok, os.WriteFile(path, []byte(tok+"\n"), 0o600)
 }
 
 // Token must accompany every API request (header X-Inkycal-Token).
@@ -101,6 +121,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/settings", s.getSettings)
 	mux.HandleFunc("PUT /api/settings", s.putSettings)
 	mux.HandleFunc("POST /api/preview", s.preview)
+	mux.HandleFunc("GET /api/fonts", s.listFonts)
+	mux.HandleFunc("PUT /api/fonts/{name}", s.putFont)
 	return s.auth(mux)
 }
 
@@ -122,9 +144,19 @@ func writeJSON(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+type panel struct {
+	Inks     string  `json:"inks"`
+	Diagonal float64 `json:"diagonal"`
+}
+
 func (s *Server) catalog(w http.ResponseWriter, _ *http.Request) {
+	panels := map[string]panel{}
+	for m := range epd.Models {
+		panels[m] = panel{Inks: epd.Inks(m), Diagonal: epd.Diagonal(m)}
+	}
 	writeJSON(w, map[string]any{
 		"models":    epd.Models,
+		"panels":    panels,
 		"modules":   s.cfg.Catalog,
 		"grid":      layout.Default,
 		"font_rule": map[string]int{"h_div": 9, "w_div": 40, "min": 12, "max": 32}, // modules.AutoFontSize
@@ -147,7 +179,7 @@ func (s *Server) getSettings(w http.ResponseWriter, _ *http.Request) {
 
 // readSettings reads and validates a request body; the JSON is kept verbatim so keys
 // this program does not know survive a save.
-func readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *config.Settings, bool) {
+func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *config.Settings, bool) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBody))
 	if err != nil {
 		var tooBig *http.MaxBytesError
@@ -163,6 +195,7 @@ func readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *config.Setti
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return nil, nil, false
 	}
+	st.SetDir(filepath.Dir(s.cfg.SettingsPath)) // custom fonts are relative to settings.json
 	if _, ok := epd.Models[st.Model]; !ok {
 		http.Error(w, fmt.Sprintf("display model %q not supported", st.Model), http.StatusBadRequest)
 		return nil, nil, false
@@ -171,7 +204,7 @@ func readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *config.Setti
 }
 
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
-	body, _, ok := readSettings(w, r)
+	body, _, ok := s.readSettings(w, r)
 	if !ok {
 		return
 	}
@@ -232,6 +265,12 @@ func (d sizeDisplay) Size() (int, int)      { return d.w, d.h }
 func (sizeDisplay) Show(render.Frame) error { return nil }
 func (sizeDisplay) Clear(int) error         { return nil }
 
+// The colour layer as the panels show it (sampled from photos, not screen red).
+var (
+	colourRed    = color.RGBA{196, 22, 28, 255}
+	colourYellow = color.RGBA{230, 190, 0, 255}
+)
+
 // queryString hides API keys and tokens in URLs quoted by module errors.
 var queryString = regexp.MustCompile(`\?[^\s"']+`)
 
@@ -242,7 +281,7 @@ type moduleError struct {
 }
 
 func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
-	_, st, ok := readSettings(w, r)
+	_, st, ok := s.readSettings(w, r)
 	if !ok {
 		return
 	}
@@ -265,8 +304,12 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	colour := colourRed
+	if st.ColourInk == "yellow" {
+		colour = colourYellow
+	}
 	var img bytes.Buffer
-	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&img, composed.Canvas.Preview()); err != nil {
+	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&img, composed.Canvas.PreviewInks(epd.Inks(st.Model), colour)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

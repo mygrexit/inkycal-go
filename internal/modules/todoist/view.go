@@ -109,14 +109,18 @@ func buildRows(projects []project, tasks []task, filter []string, showPriority b
 }
 
 // drawRows sets the tasks in two columns, each line a checkbox, the task and its
-// due date on the right. What does not fit is counted in the last line.
+// due date on the right; one full-width column when they fit in one or the tile is
+// narrow. What does not fit is counted in the last line.
 func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 	name := render.Style{Font: render.FontDefault, Size: body}
 	small := render.Style{Font: render.FontRegular, Size: body * 5 / 6}
 	rowH := body * 8 / 5
 	perCol := max(1, c.H/rowH)
 	colGap := body * 2
-	colW := (c.W - colGap) / 2
+	cols, colW := 2, (c.W-colGap)/2
+	if len(rows) <= perCol || colW < body*12 {
+		cols, colW = 1, c.W
+	}
 	capH := c.CapHeight(name)
 	box := capH + capH/4
 
@@ -125,7 +129,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 		c.Text(0, (rowH+capH)/2, msg, name, render.InkBlack)
 		return
 	}
-	capacity := 2 * perCol
+	capacity := cols * perCol
 	shown := rows
 	if len(rows) > capacity {
 		shown = rows[:capacity-1]

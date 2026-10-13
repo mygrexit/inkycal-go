@@ -76,7 +76,7 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 	if grid {
 		placed := make([]render.Placed, len(outcomes))
 		for i, oc := range outcomes {
-			placed[i] = render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H}
+			placed[i] = render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H, Inks: oc.part.Inks}
 		}
 		return Composed{Canvas: render.AssembleGrid(pageW, pageH, placed, look), Modules: statuses, Took: took}, nil
 	}
@@ -101,9 +101,14 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 	ctx, cancel := context.WithTimeout(ctx, moduleTimeout)
 	defer cancel()
 	out := make([]moduleOutcome, len(o.Settings.Modules))
+	inks := make([]*render.InkMap, len(o.Settings.Modules))
 	var wg sync.WaitGroup
 	for i, entry := range o.Settings.Modules {
 		common, err := config.ParseCommon(entry.Config)
+		style := config.Effective(o.Settings.Theme, common.Style)
+		common.FontSize = scaled(common.FontSize, style.Scale)
+		theme := themeFor(style, o.Settings.Dir())
+		inks[i] = inksFor(style)
 		if rects != nil {
 			out[i].rect = rects[i]
 			if err == nil {
@@ -114,7 +119,7 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 		w, h := common.InnerSize()
 		// A failed module keeps its section blank, so it needs a canvas even with a broken size.
 		out[i].part = render.Part{
-			Img:      render.NewCanvas(max(w, 1), max(h, 1), render.FontDefault, 14),
+			Img:      render.NewThemedCanvas(max(w, 1), max(h, 1), render.FontDefault, 14, theme),
 			SectionW: common.Size[0], SectionH: common.Size[1],
 		}
 		if err != nil {
@@ -122,7 +127,7 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 			if rects != nil {
 				// On a grid a shrinking cell can outgrow the padding without the module
 				// being touched: say so across the whole cell instead of leaving it blank.
-				out[i].part.Img = render.NewCanvas(rects[i].W, rects[i].H, render.FontDefault, 14)
+				out[i].part.Img = render.NewThemedCanvas(rects[i].W, rects[i].H, render.FontDefault, 14, theme)
 				drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 			}
 			continue
@@ -134,14 +139,14 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 			continue
 		}
 		wg.Add(1)
-		go func(i int, entry config.ModuleEntry, common config.Common) {
+		go func(i int, entry config.ModuleEntry, common config.Common, theme *render.Theme) {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
 					out[i].err = fmt.Errorf("%s panicked: %v", entry.Name, r)
 					// The module may have panicked mid-drawing: hint on a fresh canvas.
 					img := out[i].part.Img
-					out[i].part.Img = render.NewCanvas(img.W, img.H, render.FontDefault, 14)
+					out[i].part.Img = render.NewThemedCanvas(img.W, img.H, render.FontDefault, 14, theme)
 					drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 				}
 			}()
@@ -151,7 +156,7 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
 				return
 			}
-			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch}
+			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: theme}
 			cv, err := m.Generate(ctx, env)
 			if err != nil {
 				out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
@@ -160,9 +165,16 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 			}
 			out[i].part.Img = cv
 			out[i].stale = env.Stale
-		}(i, entry, common)
+		}(i, entry, common, theme)
 	}
 	wg.Wait()
+	// Own colours are applied to the finished image, so modules need not know them.
+	for i := range out {
+		if inks[i] != nil {
+			out[i].part.Img.Recolor(*inks[i])
+			out[i].part.Inks = inks[i]
+		}
+	}
 	return out
 }
 

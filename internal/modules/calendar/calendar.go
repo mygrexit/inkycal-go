@@ -80,7 +80,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	now := env.Now
 	w, h := m.common.InnerSize()
-	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
+	c := env.Canvas(w, h, render.FontDefault, int(m.common.FontSize))
 	weeks := monthGrid(now.Year(), now.Month(), m.weekStart)
 	l := computeLayout(w, h, int(m.common.FontSize), m.showEvents, len(weeks))
 
@@ -100,7 +100,9 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 		events = evs
 	}
 
-	m.drawGrid(c, l, weeks, now, events)
+	if l.Grid {
+		m.drawGrid(c, l, weeks, now, events)
+	}
 	if m.showEvents {
 		m.drawEvents(c, l, now, events)
 	}

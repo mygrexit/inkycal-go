@@ -2,6 +2,7 @@
 import { cellRect, fits, minSpans, bestFree, fromLegacy, moveCell, resizeCell, autoFont } from "./grid.js";
 import { coerce, display, visible, missing } from "./form.js";
 import { toPaper } from "./paper.js";
+import { presetsFor, inkOptions, effective, matchPreset, cleanStyle, fontChoice, applyFont } from "./style.js";
 
 const $ = sel => document.querySelector(sel);
 const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
@@ -17,6 +18,7 @@ const state = {
   saved: "",
   errors: {}, // module index → error text
   view: "paper",
+  fonts: [], // uploaded custom fonts
   zoom: "fit",
   scale: 1,
   lastImage: null,
@@ -158,6 +160,7 @@ function showImage(src) {
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
     toPaper(data.data, canvas.width, canvas.height);
     ctx.putImageData(data, 0, 0);
+    updateTileView();
   };
   img.src = src;
 }
@@ -490,6 +493,11 @@ function renderInspector() {
   err.id = "module-error";
   box.append(err);
   renderModuleError();
+  const view = document.createElement("canvas");
+  view.id = "tile-view";
+  view.setAttribute("aria-label", "This tile as the panel shows it");
+  box.append(view);
+  updateTileView();
 
   const values = entry.config;
   const absent = meta ? missing(meta, values) : [];
@@ -553,6 +561,7 @@ function renderInspector() {
   info.textContent = `Cell: column ${c + 1}, row ${r + 1}, ${cs} × ${rs} · inner ${iw} × ${ih} px`;
   layout.append(info);
   box.append(layout);
+  box.append(styleEditor(values, "style", "Style of this tile", state.settings.theme));
 
   const actions = document.createElement("div");
   actions.className = "actions";
@@ -642,6 +651,7 @@ function renderPageSettings(box) {
     }));
   }
   box.append(look);
+  box.append(styleEditor(s, "theme", "Theme (all tiles)", null));
 
   const adv = document.createElement("fieldset");
   const legend2 = document.createElement("legend");
@@ -658,6 +668,181 @@ function renderPageSettings(box) {
     });
   adv.append(gridField("columns", "Grid columns"), gridField("rows", "Grid rows"));
   box.append(adv);
+}
+
+// ---------- styles ----------
+
+const panelInks = () => (state.catalog.panels && state.catalog.panels[state.settings.model] || {}).inks || "bwr";
+
+// inkCss is how an ink looks on e-paper, for swatches.
+function inkCss(ink) {
+  if (ink === "white") return "#e8e5dc";
+  if (ink === "black" || (ink === "colour" && panelInks() === "bw")) return "#1d1d1b";
+  if (panelInks() === "gray16") return "#5c5b57";
+  return state.settings.colour_ink === "yellow" ? "#d6ac1e" : "#a3262a";
+}
+
+const INK_LABEL = { white: "White", black: "Black", colour: "Colour" };
+
+// styleEditor edits owner[key] (a tile's "style" or the page "theme"); parent is the
+// look the tile inherits (the page theme), null for the theme itself.
+function styleEditor(owner, key, title, parent) {
+  const set = fn => {
+    const next = cleanStyle(fn({ ...(owner[key] || {}), colors: { ...((owner[key] || {}).colors || {}) } }));
+    if (next) owner[key] = next;
+    else delete owner[key];
+    commit();
+  };
+  const own = owner[key] || {};
+  const eff = effective(parent, own);
+  const fs = document.createElement("fieldset");
+  const legend = document.createElement("legend");
+  legend.textContent = title;
+  fs.append(legend);
+
+  // colour presets as little tiles in the panel's inks
+  const presets = document.createElement("div");
+  presets.className = "presets";
+  const current = matchPreset(eff.colors);
+  for (const p of presetsFor(panelInks())) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "preset";
+    b.title = p.label;
+    b.setAttribute("aria-pressed", String(current === p.id));
+    b.style.background = inkCss(p.colors.paper);
+    b.style.color = inkCss(p.colors.ink);
+    b.textContent = "Aa";
+    const dot = document.createElement("span");
+    dot.style.background = inkCss(p.colors.accent);
+    b.append(dot);
+    b.addEventListener("click", () => set(st => ({ ...st, colors: { ...p.colors } })));
+    presets.append(b);
+  }
+  fs.append(presets);
+
+  const inks = inkOptions(panelInks());
+  const inherit = parent ? "(theme)" : "(default)";
+  const row = document.createElement("div");
+  row.className = "row";
+  for (const part of ["paper", "ink", "accent"]) {
+    const label = { paper: "Paper", ink: "Text", accent: "Accent" }[part];
+    row.append(fieldInput({ key: part, label, kind: "select", options: inks }, (own.colors || {})[part] || "", (v, record) => {
+      if (record) set(st => ({ ...st, colors: { ...st.colors, [part]: v } }));
+    }));
+  }
+  for (const sel of row.querySelectorAll("select")) {
+    sel.options[0].textContent = inherit;
+    for (const o of sel.options) if (INK_LABEL[o.value]) o.textContent = INK_LABEL[o.value];
+  }
+  fs.append(row);
+
+  // font: pairs and uploaded files
+  const fontWrap = document.createElement("label");
+  fontWrap.className = "field";
+  const ft = document.createElement("span");
+  ft.textContent = "Font";
+  const sel = document.createElement("select");
+  sel.append(new Option(parent ? "(theme)" : "Sans (default)", ""));
+  for (const [v, l] of [["sans", "Sans"], ["serif", "Serif"], ["mono", "Mono"]]) sel.append(new Option(l, v));
+  for (const f of state.fonts) {
+    const gaps = ["german", "greek"].filter(k => !f.coverage[k]);
+    sel.append(new Option(f.name + (gaps.length ? ` (no ${gaps.join(", ")} — falls back)` : ""), f.path));
+  }
+  sel.value = fontChoice(own);
+  sel.addEventListener("change", () => set(st => applyFont(st, sel.value)));
+  fontWrap.append(ft, sel);
+  fs.append(fontWrap);
+
+  // size factor
+  const sizeWrap = document.createElement("label");
+  sizeWrap.className = "field";
+  const sz = document.createElement("span");
+  const pct = Math.round((own.scale || eff.scale || 1) * 100);
+  sz.textContent = `Text size ${pct} %` + (own.scale ? "" : ` ${inherit}`);
+  const range = document.createElement("input");
+  range.type = "range";
+  range.min = "50";
+  range.max = "200";
+  range.step = "5";
+  range.value = String(pct);
+  range.addEventListener("input", () => (sz.textContent = `Text size ${range.value} %`));
+  range.addEventListener("change", () => set(st => ({ ...st, scale: Number(range.value) / 100 === 1 && !parent ? 0 : Number(range.value) / 100 })));
+  sizeWrap.append(sz, range);
+  fs.append(sizeWrap);
+
+  if (Object.keys(own).length) {
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.textContent = parent ? "Use the theme" : "Reset theme";
+    reset.addEventListener("click", () => set(() => ({})));
+    fs.append(reset);
+  }
+
+  if (!parent) {
+    if (panelInks() === "bwr") {
+      fs.append(fieldInput({ key: "colour_ink", label: "Your panel's colour", kind: "select", options: ["red", "yellow"], required: true },
+        state.settings.colour_ink || "red", (v, record) => {
+          if (!record) return;
+          state.settings.colour_ink = v;
+          commit();
+        }));
+    }
+    const up = document.createElement("label");
+    up.className = "field";
+    const ut = document.createElement("span");
+    ut.textContent = "Upload a font (.ttf, .otf)";
+    const file = document.createElement("input");
+    file.type = "file";
+    file.accept = ".ttf,.otf";
+    file.addEventListener("change", () => file.files[0] && uploadFont(file.files[0]));
+    up.append(ut, file);
+    fs.append(up);
+  }
+  return fs;
+}
+
+async function loadFonts() {
+  try {
+    state.fonts = await (await api("GET", "/api/fonts")).json();
+  } catch {
+    state.fonts = [];
+  }
+}
+
+async function uploadFont(file) {
+  const name = file.name.replace(/[^A-Za-z0-9._-]/g, "-").replace(/^[.]+/, "");
+  try {
+    const res = await fetch("/api/fonts/" + encodeURIComponent(name), { method: "PUT", headers: { "X-Inkycal-Token": token }, body: file });
+    if (!res.ok) throw new Error((await res.text()).trim());
+    await loadFonts();
+    setStatus(`font ${name} uploaded`);
+    renderInspector();
+  } catch (err) {
+    setStatus("font not uploaded: " + err.message, "error");
+  }
+}
+
+// updateTileView shows the selected tile alone, cut from the latest preview.
+function updateTileView() {
+  if (!state.settings) return;
+  const view = $("#tile-view");
+  const entry = modules()[state.selected];
+  if (!view || !entry || !entry.config.cell) return;
+  const src = state.view === "paper" ? $("#paper") : $("#pixels");
+  const p = page();
+  const r = cellRect(grid(), entry.config.cell, p.pageW, p.areaH);
+  const width = Math.min(r.w, $("#inspector").clientWidth - 30);
+  const scale = width / r.w;
+  view.width = Math.max(1, Math.round(r.w * scale));
+  view.height = Math.max(1, Math.round(r.h * scale));
+  const ctx = view.getContext("2d");
+  ctx.imageSmoothingEnabled = state.view === "paper";
+  try {
+    ctx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, view.width, view.height);
+  } catch {
+    // the preview has not loaded yet
+  }
 }
 
 // reflow keeps every module inside the (possibly changed) page and grid.
@@ -742,6 +927,7 @@ async function load() {
   }
   try {
     state.catalog = await (await api("GET", "/api/catalog")).json();
+    await loadFonts();
     const res = await api("GET", "/api/settings");
     const isNew = res.headers.get("X-Inkycal-New") === "1";
     state.settings = await res.json();
@@ -766,6 +952,7 @@ async function load() {
 
 function setView(view) {
   state.view = view;
+  updateTileView();
   document.body.classList.toggle("paper", view === "paper");
   document.body.classList.toggle("pixels", view === "pixels");
   $("#view-paper").setAttribute("aria-pressed", String(view === "paper"));
@@ -773,6 +960,8 @@ function setView(view) {
 }
 
 function wire() {
+  // a new address with another token: the page must start over with it
+  window.addEventListener("hashchange", () => location.reload());
   setView("paper");
   $("#view-paper").addEventListener("click", () => setView("paper"));
   $("#view-pixels").addEventListener("click", () => setView("pixels"));

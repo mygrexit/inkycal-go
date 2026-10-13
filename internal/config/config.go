@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"inkycal/internal/layout"
@@ -30,9 +31,19 @@ type Settings struct {
 	ImageHash           FlexBool      `json:"image_hash"`
 	UsePiSugar          FlexBool      `json:"use_pi_sugar"`
 	ShutdownAfterRun    FlexBool      `json:"shutdown_after_run"`
-	Grid                *layout.Grid  `json:"grid"` // grid layouts: cells per module instead of stacking
+	Grid                *layout.Grid  `json:"grid"`       // grid layouts: cells per module instead of stacking
+	ColourInk           string        `json:"colour_ink"` // "red" or "yellow": what the colour layer looks like (builder preview)
+	Theme               *Style        `json:"theme"`      // page look; modules may override it with "style"
 	Modules             []ModuleEntry `json:"modules"`
+
+	dir string // directory of the loaded file, for relative font paths
 }
+
+// Dir is the directory settings.json was loaded from ("" when parsed from memory).
+func (s *Settings) Dir() string { return s.dir }
+
+// SetDir sets the directory relative font paths start from (for settings parsed from memory).
+func (s *Settings) SetDir(dir string) { s.dir = dir }
 
 type ModuleEntry struct {
 	Position int             `json:"position"`
@@ -47,7 +58,8 @@ type Common struct {
 	PaddingY FlexInt      `json:"padding_y"`
 	FontSize FlexInt      `json:"fontsize"`
 	Language string       `json:"language"`
-	Cell     *layout.Cell `json:"cell"` // grid layouts: [col, row, colSpan, rowSpan]; size then comes from the cell
+	Cell     *layout.Cell `json:"cell"`  // grid layouts: [col, row, colSpan, rowSpan]; size then comes from the cell
+	Style    *Style       `json:"style"` // the module's own look over the page theme
 }
 
 // InnerSize is the drawable area: size minus padding on both sides.
@@ -93,7 +105,12 @@ func Load(path string) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Parse(data, path)
+	s, err := Parse(data, path)
+	if err != nil {
+		return nil, err
+	}
+	s.dir = filepath.Dir(path)
+	return s, nil
 }
 
 // Parse defaults and validates settings.json content; name appears in messages.
@@ -122,6 +139,9 @@ func Parse(data []byte, name string) (*Settings, error) {
 	}
 	sort.SliceStable(s.Modules, func(i, j int) bool { return s.Modules[i].Position < s.Modules[j].Position })
 	if _, _, _, err := GridCells(&s); err != nil {
+		return nil, err
+	}
+	if err := validateStyles(&s); err != nil {
 		return nil, err
 	}
 	return &s, nil

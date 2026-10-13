@@ -172,6 +172,40 @@ counted from 0, and optionally the grid size (default 12 × 16):
 The grid covers the panel above the info line. Either every module has a cell or none (then they
 stack as in upstream). On a grid `size` is ignored; keep it for upstream Inkycal.
 
+### Builder
+
+A visual editor for settings.json, built into the same binary:
+
+```bash
+inkycal --mode builder --settings settings.json            # on your computer
+inkycal --mode builder --listen 0.0.0.0:8080               # on the Pi (keep it on USB power)
+```
+
+It prints an address with an access token. Drag modules onto the grid, resize them, edit their
+settings, and watch a live preview rendered by the same code that draws the panel, either in
+e-paper tones or as exact panel pixels. Saving writes settings.json and keeps the previous
+version as `settings.json.bak`.
+
+### Themes and tile styles
+
+`"theme"` sets the look of the whole page; `"style"` in a module's config overrides it for that
+tile. Both take the same keys:
+
+```json
+"theme": {"font": "serif", "scale": 1.1, "colors": {"accent": "colour"}},
+"modules": [{"name": "Greek", "config": {"style": {"colors": {"paper": "black", "ink": "white"}}, …}}]
+```
+
+- `font`: `sans` (default), `serif`, `mono`, or `custom` with `custom_fonts` per role
+  (`text`, `strong`, `bold`, `display`) pointing to `.ttf`/`.otf` files next to settings.json.
+  Characters a custom font lacks (umlauts, Greek, …) come from the default font.
+- `scale`: text size factor, 0.5 to 2.
+- `colors`: `paper`, `ink` and `accent`, each `white`, `black` or `colour`. Only the inks the
+  panel has are possible: on a black/white panel `colour` prints black. `"colour_ink": "yellow"`
+  tells the builder preview that your colour layer is yellow.
+
+Serif and Mono are Noto fonts (SIL OFL), included in the binary.
+
 ### Build from source
 
 ```bash

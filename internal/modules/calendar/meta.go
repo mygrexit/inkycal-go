@@ -4,7 +4,7 @@ import "inkycal/internal/modules"
 
 var Meta = modules.Meta{
 	Name: "Calendar", Title: "Calendar", Description: "Month grid with event dots and the coming events grouped by day.",
-	MinW: 70, MinH: 100,
+	MinW: 150, MinH: 100,
 	Fields: []modules.Field{
 		{Key: "ical_urls", Label: "Calendar URLs (iCal)", Kind: modules.KindURLList},
 		{Key: "ical_files", Label: "Calendar files", Kind: modules.KindTextList},

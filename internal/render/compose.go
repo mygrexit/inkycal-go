@@ -4,6 +4,7 @@ package render
 type Part struct {
 	Img                *Canvas
 	SectionW, SectionH int
+	Inks               *InkMap // own colours: the section gets its paper, the image is pasted opaque
 }
 
 // Layout holds the page-level options of Assemble.
@@ -25,7 +26,7 @@ func Assemble(w, h int, parts []Part, l Layout) *Canvas {
 		}
 		x := (p.SectionW - p.Img.W) / 2
 		y := cursor + (p.SectionH-p.Img.H)/2
-		out.Paste(p.Img, x, y)
+		paste(out, p.Img, x, y, 0, cursor, p.SectionW, p.SectionH, p.Inks)
 		if l.Dividers && i > 0 {
 			out.HLine(x, x+p.Img.W-1, cursor, InkBlack)
 		}
@@ -39,6 +40,7 @@ func Assemble(w, h int, parts []Part, l Layout) *Canvas {
 type Placed struct {
 	Img        *Canvas
 	X, Y, W, H int
+	Inks       *InkMap // as in Part
 }
 
 // AssembleGrid centres each image in its rectangle. Dividers run along the top and left
@@ -51,7 +53,7 @@ func AssembleGrid(w, h int, parts []Placed, l Layout) *Canvas {
 		}
 		x := p.X + (p.W-p.Img.W)/2
 		y := p.Y + (p.H-p.Img.H)/2
-		out.Paste(p.Img, x, y)
+		paste(out, p.Img, x, y, p.X, p.Y, p.W, p.H, p.Inks)
 		if l.Dividers {
 			if p.Y > 0 {
 				out.HLine(x, x+p.Img.W-1, p.Y, InkBlack)
@@ -63,6 +65,17 @@ func AssembleGrid(w, h int, parts []Placed, l Layout) *Canvas {
 	}
 	writeInfo(out, w, h, l)
 	return out
+}
+
+// paste places a module image; with its own inks the section is filled with its paper
+// first and the image copied with its paper, so white ink stays visible.
+func paste(out, img *Canvas, x, y, sx, sy, sw, sh int, inks *InkMap) {
+	if inks == nil || *inks == DefaultInks {
+		out.Paste(img, x, y)
+		return
+	}
+	out.fillSection(sx, sy, sw, sh, inks)
+	out.PasteOpaque(img, x, y)
 }
 
 // writeInfo sets the info line into the bottom InfoHeight pixels.

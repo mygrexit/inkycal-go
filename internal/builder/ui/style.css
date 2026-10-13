@@ -199,10 +199,27 @@ body.dragging #gridlines, #stage:hover #gridlines { opacity: 1; }
 .field.missing input, .field.missing textarea { border-color: var(--panel-red); }
 .field .err { color: var(--panel-red); font-size: 12px; }
 .row { display: flex; gap: 8px; align-items: center; }
-.row > * { flex: 1; }
+.row > * { flex: 1; min-width: 0; }
 .secret { display: flex; gap: 6px; }
 .secret input { flex: 1; }
 fieldset { border: 0; border-top: 1px solid var(--line); margin: 14px 0 0; padding: 8px 0 0; }
 legend { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-right: 6px; }
 .module-error { background: #fdecec; color: var(--panel-red); border-radius: 6px; padding: 6px 8px; font-size: 12px; word-break: break-word; }
 .actions { display: flex; gap: 8px; margin-top: 16px; }
+
+/* styles */
+.presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.preset {
+  position: relative;
+  width: 46px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: 600 14px var(--font);
+}
+.preset span { position: absolute; right: 5px; top: 5px; width: 7px; height: 7px; border-radius: 50%; }
+.preset[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+#tile-view { display: block; margin: 8px 0; max-width: 100%; outline: 1px solid var(--line); }
+.row .field { margin: 6px 0; }
+input[type="range"] { width: 100%; }

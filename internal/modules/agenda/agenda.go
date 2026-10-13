@@ -133,7 +133,7 @@ func layout(items []item, cv *render.Canvas, lh, colH, cols, titleWidth int) []r
 func (a *Agenda) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	w, h := a.common.InnerSize()
 	lang := a.common.Language
-	cv := render.NewCanvas(w, h, render.FontDefault, int(a.common.FontSize))
+	cv := env.Canvas(w, h, render.FontDefault, int(a.common.FontSize))
 	lh := cv.LineHeight() + 1
 	cols := int(a.s.Columns)
 	gutter := 0

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 	_ "time/tzdata"
+
+	"inkycal/internal/render"
 )
 
 func berlin(t *testing.T) *time.Location {
@@ -85,4 +87,25 @@ func TestBuildRowsFilter(t *testing.T) {
 	if _, err := buildRows(testProjects, testTasks, []string{"Nope"}, true, now, "de"); err == nil {
 		t.Error("filter without matching project accepted")
 	}
+}
+
+// A narrow tile with few tasks uses one full-width column instead of two cramped ones.
+func TestDrawRowsOneColumnWhenNarrowOrShort(t *testing.T) {
+	rows := []row{{Name: "Milch und Brot", Due: "heute", Urgent: true}, {Name: "Fahrradschloss"}}
+	c := render.NewCanvas(240, 400, render.FontDefault, 16)
+	drawRows(c, rows, 16, "de")
+	// the due label sits at the right edge of the tile, not of a half-width column
+	if _, col := inkInRect(c, 200, 0, 240, 30); !col {
+		t.Error("due label not at the right edge: still two columns")
+	}
+}
+
+func inkInRect(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			b, col := c.InkAt(x, y)
+			black, colour = black || b, colour || col
+		}
+	}
+	return
 }

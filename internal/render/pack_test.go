@@ -80,7 +80,7 @@ func TestAssembleStacksAndCentres(t *testing.T) {
 	top.FillCircle(40, 10, 3, InkBlack)
 	bottom := NewCanvas(80, 20, FontDefault, 14)
 	bottom.FillCircle(40, 10, 3, InkColour)
-	out := Assemble(100, 200, []Part{{top, 100, 40}, {bottom, 100, 40}}, Layout{})
+	out := Assemble(100, 200, []Part{{Img: top, SectionW: 100, SectionH: 40}, {Img: bottom, SectionW: 100, SectionH: 40}}, Layout{})
 	if b, _ := out.InkAt(50, 20); !b { // x: (100-80)/2+40, y: (40-20)/2+10
 		t.Error("first module not centred in its section")
 	}
@@ -91,7 +91,7 @@ func TestAssembleStacksAndCentres(t *testing.T) {
 
 func TestAssembleBorderAndInfo(t *testing.T) {
 	m := NewCanvas(100, 50, FontDefault, 14)
-	out := Assemble(100, 120, []Part{{m, 100, 50}}, Layout{Border: true, Info: "Battery: 80%", InfoHeight: 30})
+	out := Assemble(100, 120, []Part{{Img: m, SectionW: 100, SectionH: 50}}, Layout{Border: true, Info: "Battery: 80%", InfoHeight: 30})
 	if b, _ := out.InkAt(50, 1); !b {
 		t.Error("border missing")
 	}
@@ -105,7 +105,7 @@ func TestAssembleBorderAndInfo(t *testing.T) {
 
 func TestAssembleDividers(t *testing.T) {
 	a, b := NewCanvas(80, 20, FontDefault, 14), NewCanvas(80, 20, FontDefault, 14)
-	out := Assemble(100, 80, []Part{{a, 100, 40}, {b, 100, 40}}, Layout{Dividers: true})
+	out := Assemble(100, 80, []Part{{Img: a, SectionW: 100, SectionH: 40}, {Img: b, SectionW: 100, SectionH: 40}}, Layout{Dividers: true})
 	if bl, _ := out.InkAt(50, 40); !bl {
 		t.Error("no divider at the section boundary")
 	}

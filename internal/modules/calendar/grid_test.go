@@ -52,7 +52,7 @@ func TestWeekStartDate(t *testing.T) {
 
 func TestComputeLayout(t *testing.T) {
 	l := computeLayout(904, 624, 24, true, 5)
-	want := layout{HeaderH: 36, CellW: 129, CellH: 46, GridX: 0, GridY: 36, EventsY: 36 + 5*46 + 24, EventsH: 624 - (36 + 5*46 + 24), NumSize: 27, Body: 24}
+	want := layout{HeaderH: 36, CellW: 129, CellH: 46, GridX: 0, GridY: 36, EventsY: 36 + 5*46 + 24, EventsH: 624 - (36 + 5*46 + 24), NumSize: 27, Body: 24, Grid: true}
 	if l != want {
 		t.Errorf("layout = %+v, want %+v", l, want)
 	}
@@ -68,5 +68,19 @@ func TestComputeLayout(t *testing.T) {
 	six := computeLayout(904, 624, 24, true, 6)
 	if six.EventsH < 7*24*3/2 {
 		t.Errorf("six weeks squeeze the event list: %+v", six)
+	}
+}
+
+// A flat band leaves the month grid unreadably small: the tile shows only the event list.
+func TestFlatBandDropsTheGrid(t *testing.T) {
+	l := computeLayout(700, 100, 12, true, 5)
+	if l.Grid || l.EventsY != 0 || l.EventsH != 100 {
+		t.Errorf("flat band: %+v", l)
+	}
+	if l := computeLayout(904, 624, 24, true, 5); !l.Grid {
+		t.Error("a normal tile lost its grid")
+	}
+	if l := computeLayout(700, 100, 12, false, 5); !l.Grid {
+		t.Error("without the event list the grid must stay")
 	}
 }

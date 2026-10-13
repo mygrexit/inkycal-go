@@ -28,7 +28,8 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	// The design is 904×250. A relatively narrower area gets the band scaled to its
 	// width and centred vertically instead of overlapping columns.
 	if w*250 < h*904 {
-		band := render.NewCanvas(w, max(1, w*250/904), render.FontDefault, 14)
+		band := c.Derive(w, max(1, w*250/904)) // same theme fonts
+		band.SetFont(render.FontDefault, 14)
 		drawDay(band, v, lang)
 		c.Paste(band, 0, (h-band.H)/2)
 		return

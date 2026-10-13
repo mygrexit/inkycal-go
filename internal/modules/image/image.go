@@ -95,7 +95,7 @@ func parsePercent(raw json.RawMessage, field string) (int, error) {
 // allowed share of the module and centre it. Only the palette decides whether
 // red ink appears, so a bw module never gets colour.
 func (l look) place(img goimage.Image, w, h int, fontSize int) *render.Canvas {
-	c := render.NewCanvas(w, h, render.FontDefault, fontSize)
+	c := render.NewCanvas(w, h, render.FontDefault, fontSize) // pictures carry no text: no theme needed
 	flip := false
 	if l.autoflip {
 		o := l.orientation

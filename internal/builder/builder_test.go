@@ -197,7 +197,7 @@ func TestPreviewRendersPageAndReportsErrors(t *testing.T) {
 	if b := img.Bounds(); b.Dx() != 480 || b.Dy() != 800 || got.Width != 480 || got.Height != 800 {
 		t.Errorf("image %v, reported %dx%d", b, got.Width, got.Height)
 	}
-	if r, g, _, _ := img.At(120, 400).RGBA(); r>>8 != 255 || g>>8 != 0 {
+	if r, g, _, _ := img.At(120, 400).RGBA(); r>>8 < 150 || g>>8 > 60 {
 		t.Error("no red dot in the left module")
 	}
 	if len(got.Errors) != 1 || got.Errors[0].Position != 2 {
@@ -233,5 +233,112 @@ func TestSaveKeepsSettingsPrivate(t *testing.T) {
 	}
 	if st, _ := os.Stat(newPath); st.Mode().Perm() != 0o600 {
 		t.Errorf("new file mode %v", st.Mode().Perm())
+	}
+}
+
+// A b/w panel prints the colour layer black: the preview must not show red there,
+// and a yellow colour ink shows yellow.
+func TestPreviewUsesThePanelsInks(t *testing.T) {
+	s, _ := newTestServer(t, gridSettings)
+	pixel := func(settings string) (r, g, b uint32) {
+		rec := do(t, s, "POST", "/api/preview", settings, true)
+		var got struct{ Image string }
+		json.Unmarshal(rec.Body.Bytes(), &got)
+		raw, _ := base64.StdEncoding.DecodeString(strings.TrimPrefix(got.Image, "data:image/png;base64,"))
+		img, err := png.Decode(bytes.NewReader(raw))
+		if err != nil {
+			t.Fatalf("%v: %s", err, rec.Body)
+		}
+		r, g, b, _ = img.At(120, 400).RGBA()
+		return r >> 8, g >> 8, b >> 8
+	}
+	if r, g, b := pixel(strings.Replace(gridSettings, "epd_7_in_5_v2_colour", "epd_7_in_5_v2", 1)); r != 0 || g != 0 || b != 0 {
+		t.Errorf("b/w panel dot = %d,%d,%d, want black", r, g, b)
+	}
+	if r, g, _ := pixel(strings.Replace(gridSettings, `"keep": "me"`, `"colour_ink": "yellow"`, 1)); r < 200 || g < 150 {
+		t.Errorf("yellow colour ink dot = %d,%d", r, g)
+	}
+	rec := do(t, s, "GET", "/api/catalog", "", true)
+	if !strings.Contains(rec.Body.String(), `"epd_7_in_5_v2":{"inks":"bw","diagonal":7.5}`) {
+		t.Errorf("catalog panels missing: %.300s", rec.Body.String())
+	}
+}
+
+func TestFontUploadAndList(t *testing.T) {
+	s, path := newTestServer(t, gridSettings)
+	font, err := os.ReadFile("../render/testdata/ascii.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec := do(t, s, "PUT", "/api/fonts/My-Font_1.ttf", string(font), true); rec.Code != http.StatusOK {
+		t.Fatalf("upload: %d %s", rec.Code, rec.Body)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(path), "fonts", "My-Font_1.ttf")); err != nil {
+		t.Fatalf("font not stored next to settings.json: %v", err)
+	}
+	rec := do(t, s, "GET", "/api/fonts", "", true)
+	var list []struct {
+		Name     string          `json:"name"`
+		Path     string          `json:"path"`
+		Coverage map[string]bool `json:"coverage"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil || len(list) != 1 {
+		t.Fatalf("list: %v %s", err, rec.Body)
+	}
+	if list[0].Path != "fonts/My-Font_1.ttf" || !list[0].Coverage["latin"] || list[0].Coverage["german"] || list[0].Coverage["greek"] {
+		t.Errorf("entry %+v", list[0])
+	}
+}
+
+func TestFontUploadRefusesBadNamesAndData(t *testing.T) {
+	s, path := newTestServer(t, gridSettings)
+	font, _ := os.ReadFile("../render/testdata/ascii.ttf")
+	for _, name := range []string{"..%2Fevil.ttf", "evil.exe", "a%2Fb.ttf", ".ttf", strings.Repeat("a", 70) + ".ttf"} {
+		if rec := do(t, s, "PUT", "/api/fonts/"+name, string(font), true); rec.Code != http.StatusBadRequest && rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d", name, rec.Code)
+		}
+	}
+	if rec := do(t, s, "PUT", "/api/fonts/notafont.ttf", "hello", true); rec.Code != http.StatusBadRequest {
+		t.Errorf("non-font: %d", rec.Code)
+	}
+	if rec := do(t, s, "PUT", "/api/fonts/huge.ttf", strings.Repeat("x", 6<<20), true); rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("huge: %d", rec.Code)
+	}
+	if rec := do(t, s, "PUT", "/api/fonts/x.ttf", string(font), false); rec.Code != http.StatusUnauthorized {
+		t.Errorf("no token: %d", rec.Code)
+	}
+	entries, _ := os.ReadDir(filepath.Dir(path))
+	for _, e := range entries {
+		if e.Name() != "settings.json" && e.Name() != "fonts" && e.Name() != "http" && e.Name() != "builder-token" {
+			t.Errorf("unexpected file %s", e.Name())
+		}
+	}
+}
+
+func TestFontUploadAcceptsUppercaseExtension(t *testing.T) {
+	s, _ := newTestServer(t, gridSettings)
+	font, _ := os.ReadFile("../render/testdata/ascii.ttf")
+	if rec := do(t, s, "PUT", "/api/fonts/ARIAL.TTF", string(font), true); rec.Code != http.StatusOK {
+		t.Errorf("ARIAL.TTF: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// The token survives a restart (same address in the browser), and stays private.
+func TestTokenIsKeptAcrossRestarts(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{SettingsPath: filepath.Join(dir, "settings.json"), StateDir: dir}
+	a, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Token() != b.Token() || len(a.Token()) != 32 {
+		t.Errorf("tokens %q and %q", a.Token(), b.Token())
+	}
+	if st, err := os.Stat(filepath.Join(dir, "builder-token")); err != nil || st.Mode().Perm() != 0o600 {
+		t.Errorf("token file: %v %v", st, err)
 	}
 }

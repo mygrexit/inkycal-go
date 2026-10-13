@@ -155,7 +155,7 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	entries = m.arrange(entries)
 
 	w, h := m.common.InnerSize()
-	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
+	c := env.Canvas(w, h, render.FontDefault, int(m.common.FontSize))
 	if len(entries) == 0 {
 		slog.Info("feeds: no entries with a summary")
 	}

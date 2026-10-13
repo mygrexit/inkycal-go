@@ -35,6 +35,7 @@ type Canvas struct {
 	fontID   FontID
 	fontSize int
 	faces    map[faceKey]font.Face
+	theme    *Theme // nil: the default fonts
 }
 
 // NewCanvas returns a white canvas using the given font as current font.
@@ -65,12 +66,20 @@ func (c *Canvas) face(id FontID, size int) font.Face {
 	if f, ok := c.faces[k]; ok {
 		return f
 	}
-	f, err := opentype.NewFace(loadFont(id), &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: font.HintingNone})
-	if err != nil {
-		panic(err) // only fails for invalid options
+	f := newFace(loadFont(id), size)
+	if tf := c.themedFont(id); tf != nil {
+		f = &fallbackFace{primary: newFace(tf, size), fallback: f, font: tf, known: map[rune]bool{}}
 	}
 	c.faces[k] = f
 	return f
+}
+
+func newFace(f *opentype.Font, size int) font.Face {
+	face, err := opentype.NewFace(f, &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: font.HintingNone})
+	if err != nil {
+		panic(err) // only fails for invalid options
+	}
+	return face
 }
 
 // layers returns the images an ink draws on and the colour to draw with.

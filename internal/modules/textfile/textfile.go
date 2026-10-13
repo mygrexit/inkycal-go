@@ -86,7 +86,7 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 		return nil, err
 	}
 	w, h := m.common.InnerSize()
-	c := render.NewCanvas(w, h, render.FontRegular, int(m.common.FontSize))
+	c := env.Canvas(w, h, render.FontRegular, int(m.common.FontSize))
 	draw(c, parse(text), int(m.common.FontSize), m.common.Language)
 	return c, nil
 }

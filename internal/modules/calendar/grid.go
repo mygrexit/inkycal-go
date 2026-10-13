@@ -39,10 +39,12 @@ type layout struct {
 	EventsY, EventsH int // event list area below the grid
 	NumSize          int // font size of the day numbers
 	Body             int // font size of the event list
+	Grid             bool
 }
 
 // computeLayout sizes the grid from the body font size: rows are about two lines
-// tall, the event list gets everything below the weeks of this month.
+// tall, the event list gets everything below the weeks of this month. When the grid
+// would come out too small to read, the tile shows only the event list.
 func computeLayout(w, h, body int, showEvents bool, weeks int) layout {
 	l := layout{Body: body, HeaderH: body * 3 / 2, CellW: w / 7, GridX: (w % 7) / 2}
 	l.GridY = l.HeaderH
@@ -53,6 +55,11 @@ func computeLayout(w, h, body int, showEvents bool, weeks int) layout {
 	}
 	l.CellH = max(l.CellH, 8)
 	l.NumSize = max(6, min(l.CellH*3/5, l.CellW/2))
+	l.Grid = true
+	if showEvents && l.NumSize < 10 {
+		// A flat band would squeeze the month into unreadable digits: list only.
+		return layout{Body: body, EventsH: h}
+	}
 	if showEvents {
 		l.EventsY = l.GridY + weeks*l.CellH + body
 		l.EventsH = max(0, h-l.EventsY)

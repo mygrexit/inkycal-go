@@ -279,7 +279,7 @@ func area(l loaded) int {
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	w, h := m.common.InnerSize()
 	body := int(m.common.FontSize)
-	c := render.NewCanvas(w, h, render.FontDefault, body)
+	c := env.Canvas(w, h, render.FontDefault, body)
 	// The comic gets at most the full module; the filter and the retina choice only
 	// need this rough box, the exact one depends on the comic's shape.
 	got, err := m.load(ctx, env, w, h-body*2)

@@ -95,7 +95,7 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	env.Stale = env.Stale || staleC || staleF
 
 	w, h := m.common.InnerSize()
-	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
+	c := env.Canvas(w, h, render.FontDefault, int(m.common.FontSize))
 	drawDay(c, buildDay(m.set, cur, points, env.Now), m.set.Lang)
 	return c, nil
 }
