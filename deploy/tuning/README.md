@@ -3,6 +3,9 @@
 Jede Stufe hat ein Anwenden- und ein Rückgängig-Skript. Riskante Stufen laufen
 unter `netguard`: Nach dem Neustart wartet der Wächter 5 Minuten; ohne
 `sudo netguard ok` führt er das Rückgängig-Skript aus und startet neu.
+`netguard arm` setzt dafür selbst die Wartungsdatei (sonst schaltet sich der Pi im
+Akku-Betrieb nach ~85 s ab, bevor der Wächter eingreifen kann) und entfernt sie bei
+`ok` bzw. nach dem Rückbau wieder – nur, wenn er sie selbst angelegt hat.
 
 ```bash
 sudo install -m0755 netguard /usr/local/sbin/ && sudo install -m0644 netguard.service /etc/systemd/system/
@@ -18,7 +21,7 @@ sudo netguard ok
 | Stufe | Inhalt | Ergebnis (Pi Zero 2 W) |
 |---|---|---|
 | 2 | Bluetooth, KMS-Grafik, Splash aus; `quiet`; Swap nur zram; 5 Dienste + 5 Nachhol-Timer aus | multi-user 29,4 s → 23,7 s |
-| 3 | NetworkManager/netplan → `wpa_supplicant@wlan0` + `systemd-networkd`, feste resolv.conf | multi-user → 12,6 s, WLAN+DHCP 30,8 s → 13,4 s |
+| 3 | NetworkManager/netplan → `wpa_supplicant@wlan0` + `systemd-networkd`, feste resolv.conf, Netz-Wartezeit max. 20 s | multi-user → 12,6 s, WLAN+DHCP 30,8 s → 13,4 s |
 | 4 | `rpi-swap-generator` maskiert (0,8 s), Boot ohne initramfs (erst per `tryboot` mit `panic=10` getestet, dann `stage4-commit.sh`) | multi-user → 9,5 s, WLAN 10,2 s |
 
 Stufe 4 ohne initramfs: Probe-Start mit

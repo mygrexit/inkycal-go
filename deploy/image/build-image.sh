@@ -65,13 +65,31 @@ password=$(openssl rand -base64 12 | tr -d '/+=' | cut -c1-12)
 hash=$(openssl passwd -6 "$password")
 keys=${SSH_KEYS:-}
 if [ -z "$keys" ]; then
-	keys=$(mktemp)
+	keys=$WORK/ssh-keys
 	cat "$HOME"/.ssh/id_*.pub >"$keys" 2>/dev/null || true
+fi
+# SSH accepts keys only (ssh_pwauth: false): an image without a key would lock us out.
+if ! grep -qE '^(ssh-|ecdsa-|sk-)' "$keys" 2>/dev/null; then
+	echo "no SSH public key found (set SSH_KEYS=file or create ~/.ssh/id_*.pub)" >&2
+	exit 1
 fi
 sed -e "s|@PASSWD_HASH@|$hash|" "$HERE/user-data.tmpl" |
 	awk -v keys="$keys" '/@SSH_KEYS@/{while((getline k <keys)>0) if(k!="") print "      - \"" k "\""; next} {print}' >user-data
-sed -e "s|DEIN-WLAN-NAME|${WIFI_SSID:-DEIN-WLAN-NAME}|" -e "s|DEIN-WLAN-PASSWORT|${WIFI_PASSWORD:-DEIN-WLAN-PASSWORT}|" \
-	"$HERE/network-config" >network-config
+[ "$keys" = "$WORK/ssh-keys" ] && rm -f "$keys"
+
+# WiFi name and password go into YAML single-quoted strings ('' escapes '), inserted with
+# index/substr so &, \, | or quotes in a password survive unchanged.
+WIFI_SSID=${WIFI_SSID:-DEIN-WLAN-NAME} WIFI_PASSWORD=${WIFI_PASSWORD:-DEIN-WLAN-PASSWORT} awk '
+	function q(s) { gsub(/\047/, "\047\047", s); return "\047" s "\047" }
+	function put(line, ph, val,   i) {
+		i = index(line, ph)
+		return i ? substr(line, 1, i - 1) val substr(line, i + length(ph)) : line
+	}
+	{
+		$0 = put($0, "\"DEIN-WLAN-NAME\"", q(ENVIRON["WIFI_SSID"]))
+		$0 = put($0, "\"DEIN-WLAN-PASSWORT\"", q(ENVIRON["WIFI_PASSWORD"]))
+		print
+	}' "$HERE/network-config" >network-config
 printf 'dsmode: local\ninstance_id: %s\n' "$NAME" >meta-data
 
 mcopy -o -i "$BOOT" ::/config.txt config.txt
@@ -92,5 +110,5 @@ rm -f user-data meta-data network-config config.txt ssh inkycal-maintenance
 xz -T0 -6 -f "$img"
 mv "$img.xz" "$OUT/"
 (cd "$OUT" && sha256sum "$NAME.img.xz" >"$NAME.img.xz.sha256")
-printf 'Benutzer: pi\nPasswort (nur Konsole/sudo, SSH geht nur per Schlüssel): %s\n' "$password" >"$OUT/$NAME-zugang.txt"
+(umask 077 && printf 'Benutzer: pi\nPasswort (nur Konsole/sudo, SSH geht nur per Schlüssel): %s\n' "$password" >"$OUT/$NAME-zugang.txt")
 echo "built $OUT/$NAME.img.xz"

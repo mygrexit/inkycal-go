@@ -11,9 +11,10 @@ profile=$(grep -l '^type=wifi' /etc/NetworkManager/system-connections/*.nmconnec
 	/run/NetworkManager/system-connections/*.nmconnection 2>/dev/null | head -n1)
 [ -n "$profile" ] || { echo "no wifi profile found" >&2; exit 1; }
 ssid=$(sed -n 's/^ssid=//p' "$profile")
+umask 077 # the passphrase file and the wpa_supplicant config are root-only
 sed -n 's/^psk=//p' "$profile" >"$BK/pass"
-[ -n "$ssid" ] && [ -s "$BK/pass" ]
-umask 077
+[ -n "$ssid" ]
+[ -s "$BK/pass" ]
 {
 	echo "ctrl_interface=DIR=/run/wpa_supplicant GROUP=netdev"
 	echo "update_config=0"
@@ -58,6 +59,15 @@ printf 'nameserver %s\nnameserver 1.1.1.1\n' "${gw:-192.168.20.1}" >/etc/resolv.
 host=$(hostname)
 sed -i "/^127\.0\.1\.1\s/d" /etc/hosts
 printf '127.0.1.1\t%s\n' "$host" >>/etc/hosts
+
+# Without WiFi the app still renders from its cache: wait at most 20 s for the network
+# instead of systemd-networkd-wait-online's default 120 s on every wake.
+mkdir -p /etc/systemd/system/systemd-networkd-wait-online.service.d
+cat >/etc/systemd/system/systemd-networkd-wait-online.service.d/timeout.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --timeout=20
+UNIT
 
 systemctl disable NetworkManager.service NetworkManager-wait-online.service \
 	NetworkManager-dispatcher.service wpa_supplicant.service

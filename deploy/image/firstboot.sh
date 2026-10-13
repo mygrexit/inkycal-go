@@ -57,10 +57,13 @@ debconf-set-selections <<EOF
 pisugar-poweroff pisugar-poweroff/model select $model
 pisugar-poweroff pisugar-poweroff/countdown select 3
 EOF
-if DEBIAN_FRONTEND=noninteractive dpkg -i "$I/pisugar-poweroff.deb"; then
-	systemctl enable pisugar-poweroff.service
+poweroff_ok=1
+if DEBIAN_FRONTEND=noninteractive dpkg -i "$I/pisugar-poweroff.deb" && systemctl enable pisugar-poweroff.service; then
+	:
 else
-	echo "ERROR: pisugar-poweroff install failed, the Pi will not cut its power"
+	# Without it a shutdown only halts the Pi: it would drain the battery and never wake.
+	echo "ERROR: pisugar-poweroff install failed, battery mode (shutdown_after_run) stays off"
+	poweroff_ok=0
 fi
 
 install -m 0755 "$I/inkycal" /usr/local/bin/inkycal
@@ -69,12 +72,12 @@ install -m 0644 "$I/inkycal-go.service" /etc/systemd/system/inkycal-go.service
 # Keep the user's settings.json, only switch on battery mode.
 if [ -f "$B/settings.json" ]; then
 	cp -n "$B/settings.json" "$B/settings.json.orig"
-	python3 - "$B/settings.json" <<'EOF' || echo "ERROR: settings.json is not valid JSON, left unchanged"
+	python3 - "$B/settings.json" "$poweroff_ok" <<'EOF' || echo "ERROR: settings.json is not valid JSON, left unchanged"
 import json, sys
 p = sys.argv[1]
 with open(p, encoding="utf-8-sig") as f:
     d = json.load(f)
-d.update(use_pi_sugar=True, shutdown_after_run=True, image_hash=True)
+d.update(use_pi_sugar=True, shutdown_after_run=sys.argv[2] == "1", image_hash=True)
 with open(p, "w", encoding="utf-8") as f:
     json.dump(d, f, indent=4, ensure_ascii=False)
     f.write("\n")
@@ -94,6 +97,9 @@ systemctl daemon-reload
 systemctl enable inkycal-go.service
 touch /etc/cloud/cloud-init.disabled
 rm -f "$I/pisugar-server.deb" "$I/pisugar-poweroff.deb"
+# cloud-init is done: the WiFi password (plain text) and the password hash have no
+# business on the world-readable FAT partition any more.
+rm -f "$B/network-config" "$B/user-data"
 echo "== done $(date -Is)"
 if [ -n "$reboot" ]; then
 	echo "rebooting for dtoverlay=spi0-0cs"
