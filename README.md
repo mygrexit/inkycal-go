@@ -152,6 +152,16 @@ Optional keys on top of upstream's:
 "dividers": true
 ```
 
+**Development build:** the newest, not yet released state lives on the `dev` branch and the
+pre-release "dev". Switch to it with
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mygrexit/inkycal-go/dev/deploy/install.sh | sudo sh -s -- --dev
+```
+
+and back to the stable release by running the normal install command again (without `--dev`).
+Your settings.json stays as it is.
+
 Logs: `journalctl -u inkycal-go -f`. Way back in after going live: put an empty file `inkycal-maintenance`
 on the boot partition from any PC, or plug USB power into the PiSugar.
 

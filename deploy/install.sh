@@ -7,6 +7,8 @@
 #   --pisugar      install pisugar-server + pisugar-poweroff and switch on battery mode
 #   --no-pisugar   skip PiSugar even if one is detected
 #   --binary PATH  use a local inkycal binary instead of downloading the release
+#   --dev          install the development build (pre-release "dev"); run again
+#                  without --dev to go back to the latest stable release
 #
 # What it does: checks settings.json (made with the Inkycal web generator), enables SPI
 # (plus the overlay the 12.48" panel needs), installs the binary and the systemd unit,
@@ -20,11 +22,13 @@ PISUGAR_VERSION=2.3.5
 
 pisugar=auto
 binary=""
+channel=stable
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--pisugar) pisugar=yes ;;
 	--no-pisugar) pisugar=no ;;
 	--binary) binary="$2"; shift ;;
+	--dev) channel=dev ;;
 	*) echo "unknown option: $1" >&2; exit 2 ;;
 	esac
 	shift
@@ -66,8 +70,12 @@ trap 'rm -rf "$tmp"' EXIT
 if [ -n "$binary" ]; then
 	cp "$binary" "$tmp/inkycal"
 else
-	say "downloading inkycal-go ($ARCH)"
-	base="https://github.com/$REPO/releases/latest/download"
+	say "downloading inkycal-go ($ARCH, $channel)"
+	if [ "$channel" = dev ]; then
+		base="https://github.com/$REPO/releases/download/dev"
+	else
+		base="https://github.com/$REPO/releases/latest/download"
+	fi
 	curl -fsSL -o "$tmp/inkycal" "$base/inkycal-linux-$ARCH"
 	curl -fsSL -o "$tmp/SHA256SUMS" "$base/SHA256SUMS"
 	(cd "$tmp" && grep " inkycal-linux-$ARCH\$" SHA256SUMS | sed "s/inkycal-linux-$ARCH\$/inkycal/" | sha256sum -c -) \
