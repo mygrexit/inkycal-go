@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(python3 -c \"import json,sys; d=json.load(sys.stdin); print((d.get('tool_response') or {}).get('filePath') or d['tool_input']['file_path'])\"); case \"$f\" in *.go) gi=$(command -v goimports || echo \"$HOME/go/bin/goimports\"); \"$gi\" -w \"$f\";; esac 2>/dev/null || true",
+            "statusMessage": "goimports"
+          }
+        ]
+      }
+    ]
+  }
+}

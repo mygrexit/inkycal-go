@@ -1,0 +1,66 @@
+# inkycal (Go)
+
+Go rewrite of Inkycal for Raspberry Pi e-paper dashboards. One static binary; the main target is a Pi Zero 2 W + PiSugar 3 that wakes, draws, and powers off again — **wake time is the metric that matters**.
+
+## Commands
+
+| Command | What |
+|---|---|
+| `make test` | `go vet ./...` + `go test ./...` (run before every commit) |
+| `make check` | `make test` + staticcheck + govulncheck + UI tests (before a release) |
+| `go test -race ./...` | also run for changes to builder, fetch, render caches |
+| `node --test internal/builder/ui/` | builder UI logic (`*.test.mjs`, no npm deps) |
+| `go run ./cmd/inkycal --mode dry-run --settings s.json --out preview.png` | render without a panel |
+| `go run ./cmd/inkycal --mode builder --settings s.json --listen 127.0.0.1:8080` | web builder; token is in `<state-dir>/builder-token` |
+| `make release` | arm64/armv7/armv6 binaries + `SHA256SUMS` in `dist/` (names match `deploy/install.sh`) |
+| `make deploy PI=pi@host ARCH=arm64` | copy binary + systemd unit to a Pi |
+
+Modes: `run | once | dry-run | clear | builder`.
+
+## Layout
+
+```
+cmd/inkycal/          flags, mode dispatch
+internal/app/         RunCycle, Compose (shared by device and builder), Registry, hints
+internal/builder/     HTTP API (catalog, settings, preview, fonts, geocode, test-calendar), explain(), templates
+internal/builder/ui/  plain ES modules; pure logic in grid/form/paper/style/panels/palette/wizard.js
+internal/config/      settings.json (upstream-compatible), grid cells, Style/theme
+internal/epd/         panel drivers, Panels() catalog, Inks(model); trace tests
+internal/render/      Canvas, fonts, Theme (font pairs, custom fonts with fallback), inks, AssembleGrid
+internal/modules/     one package per module + meta.go (Meta/Field) + modulestest
+internal/{fetch,ical,schedule,state,pisugar,sysinfo,timefmt,i18n,layout,picture}
+deploy/               install.sh, systemd unit, image/ and tuning/ notes
+tools/epdtrace/       regenerates driver byte traces from an upstream checkout
+```
+
+## Rules
+
+- **Wake time must not get worse.** Nothing new on the device path unless a setting uses it; no network-online dependency in the unit; panel init and network wait run in parallel.
+- **Upstream settings keep working.** `internal/app/testdata/upstream-generator.json` must load and every module must accept its config (`compat_test.go`). New keys are optional with old behaviour as default (e.g. Weather with `api_key` stays on OpenWeatherMap, TextToDisplay with `filepath` unchanged).
+- **Display drivers** must match upstream byte for byte: `internal/epd/testdata/trace/*.txt` via `trace_test.go`; regenerate only with `tools/epdtrace/regen.sh`.
+- **Red/yellow ink only for meaning** (today, alerts), never decoration. `colour_ink` is preview-only.
+- **No secrets** (API keys, tokens, Wi-Fi passwords) in logs, errors or API responses — use `fetch.Redact`; secret fields use `modules.KindSecret`.
+- **Builder scope:** upstream's modules done nicer, plus grid, themes/tile styles, assistant + templates, Open-Meteo, typed text, calendar help/test, plain-language hints. No custom "widget" module — it was removed on purpose.
+
+## Adding or changing a module
+
+- Register it in `internal/app/registry.go`; give it a `modules.Meta` (Group, Icon, MinW/MinH, Fields with Help).
+- Test with `modulestest.CheckMeta` and draw at every `modulestest.Shapes` size; too small → `CheckMinSize` error, not a crash.
+- Errors users can hit need a plain-language case in `builder/explain.go` and, for the panel, `app/hint.go` + `i18n` (en and de).
+- Field kinds the UI understands: text, secret, url, url_list, text_list, number, bool, select, multiline, place.
+
+## Gotchas
+
+- `deploy/install.sh` embeds the systemd unit; `install_test.go` fails if it drifts from `deploy/inkycal-go.service`.
+- Installer channels: no flag = `releases/latest`, `--dev` = the `dev` pre-release.
+- Grid cells: a settings file has cells on all modules or none (`config.GridCells`).
+- Builder writes settings atomically and keeps file mode; never loosen permissions of settings or `.bak`.
+- Font cache keys custom fonts by path+size+mtime; only regular files ≤ 20 MiB.
+- `go.mod` pins a patched `toolchain`; raise it when govulncheck reports standard-library issues — release binaries ship that stdlib.
+- `.claude/settings.json` runs `goimports -w` after every edit of a `.go` file; don't hand-format.
+- Killing a running instance: `kill $(pgrep -x inkycal)` — `pkill -f` matches your own shell.
+
+## Workflow
+
+- Work on `dev`; `main` is the released line. Small, tested commits; a failing test first for bug fixes.
+- Prefer gopls (LSP) for definitions and references over grep when renaming or removing code.
