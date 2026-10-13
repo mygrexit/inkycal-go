@@ -10,21 +10,12 @@ import (
 	"inkycal/internal/render"
 )
 
-// blackOnly75 feeds a b/w driver only the black band, like trace.py does
-// (upstream display.py hands b/w drivers no colour plane).
-type blackOnly75 struct{ Display }
-
-func (d blackOnly75) Show(f render.Frame) error {
-	f.Red = make([]byte, len(f.Red))
-	return d.Display.Show(f)
-}
-
 func init() {
-	traced["epd_7_in_5"] = func(b Bus, s func(time.Duration)) Display { return blackOnly75{NewEPD7in5(b, s)} }
-	traced["epd_7_in_5_colour"] = func(b Bus, s func(time.Duration)) Display { return NewEPD7in5Colour(b, s) }
-	traced["epd_7_in_5_v2"] = func(b Bus, s func(time.Duration)) Display { return blackOnly75{NewEPD7in5V2(b, s)} }
-	traced["epd_7_in_5_v3"] = func(b Bus, s func(time.Duration)) Display { return blackOnly75{NewEPD7in5V3(b, s)} }
-	traced["epd_7_in_5_v3_colour"] = func(b Bus, s func(time.Duration)) Display { return NewEPD7in5V3Colour(b, s) }
+	traced["epd_7_in_5"] = blackOnly(NewEPD7in5)
+	traced["epd_7_in_5_colour"] = NewEPD7in5Colour
+	traced["epd_7_in_5_v2"] = blackOnly(NewEPD7in5V2)
+	traced["epd_7_in_5_v3"] = blackOnly(NewEPD7in5V3)
+	traced["epd_7_in_5_v3_colour"] = NewEPD7in5V3Colour
 }
 
 var epd75Models = []struct {
@@ -32,11 +23,11 @@ var epd75Models = []struct {
 	colour bool
 	new    func(Bus, func(time.Duration)) Display
 }{
-	{"epd_7_in_5", false, func(b Bus, s func(time.Duration)) Display { return NewEPD7in5(b, s) }},
-	{"epd_7_in_5_colour", true, func(b Bus, s func(time.Duration)) Display { return NewEPD7in5Colour(b, s) }},
-	{"epd_7_in_5_v2", false, func(b Bus, s func(time.Duration)) Display { return NewEPD7in5V2(b, s) }},
-	{"epd_7_in_5_v3", false, func(b Bus, s func(time.Duration)) Display { return NewEPD7in5V3(b, s) }},
-	{"epd_7_in_5_v3_colour", true, func(b Bus, s func(time.Duration)) Display { return NewEPD7in5V3Colour(b, s) }},
+	{"epd_7_in_5", false, NewEPD7in5},
+	{"epd_7_in_5_colour", true, NewEPD7in5Colour},
+	{"epd_7_in_5_v2", false, NewEPD7in5V2},
+	{"epd_7_in_5_v3", false, NewEPD7in5V3},
+	{"epd_7_in_5_v3_colour", true, NewEPD7in5V3Colour},
 }
 
 func TestEPD75RejectsWrongFrame(t *testing.T) {

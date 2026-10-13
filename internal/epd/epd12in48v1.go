@@ -1,7 +1,6 @@
 package epd
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -234,49 +233,19 @@ func (e *EPD12in48) deepSleep() error {
 	return e.bus.Close()
 }
 
-func (e *EPD12in48) run(body func() error) error {
-	if err := e.init(); err != nil {
-		e.bus.Close()
-		return err
-	}
-	if err := body(); err != nil {
-		e.bus.Close()
-		return err
-	}
-	if err := e.deepSleep(); err != nil {
-		e.bus.Close()
-		return err
-	}
-	return nil
-}
-
 // Show transfers the frame and refreshes the panel; the black/white panel shows red as black.
 func (e *EPD12in48) Show(f render.Frame) error {
-	if f.W != w12 || f.H != h12 || len(f.Black) != stride12*h12 || len(f.Red) != stride12*h12 {
-		return fmt.Errorf("epd: frame %dx%d, panel is %dx%d", f.W, f.H, w12, h12)
+	if err := checkFrame(f, w12, h12); err != nil {
+		return err
 	}
+	black := f.Black
 	if !e.colour {
-		return e.run(func() error { return e.refresh(mergedBlack(f), nil) })
+		black = mergedBlack(f)
 	}
-	return e.run(func() error { return e.refresh(f.Black, f.Red) })
+	return session(e.bus.Close, e.init, func() error { return e.refresh(black, f.Red) }, e.deepSleep)
 }
 
 // Clear cycles black → white (black/white) or black → red → white (colour).
 func (e *EPD12in48) Clear(cycles int) error {
-	fill := func(b byte) []byte { return bytes.Repeat([]byte{b}, stride12*h12) }
-	allBlack, white, noRed, allRed := fill(0x00), fill(0xFF), fill(0x00), fill(0xFF)
-	steps := [][2][]byte{{allBlack, noRed}, {white, noRed}}
-	if e.colour {
-		steps = [][2][]byte{{allBlack, noRed}, {white, allRed}, {white, noRed}}
-	}
-	return e.run(func() error {
-		for i := 0; i < cycles; i++ {
-			for _, s := range steps {
-				if err := e.refresh(s[0], s[1]); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
+	return session(e.bus.Close, e.init, calibrate(stride12*h12, e.colour, cycles, e.refresh), e.deepSleep)
 }

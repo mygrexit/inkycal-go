@@ -21,7 +21,7 @@ func blackOnly(newDriver func(Bus, func(time.Duration)) Display) func(Bus, func(
 	return func(b Bus, s func(time.Duration)) Display { return ucBlackOnly{newDriver(b, s)} }
 }
 
-// ucModels are the drivers built on ucPanel, with their colour support.
+// ucModels are the UC81xx drivers built on panel, with their colour support.
 var ucModels = []struct {
 	model     string
 	newDriver func(Bus, func(time.Duration)) Display
@@ -65,7 +65,7 @@ func TestUCPanelsBusyTimeoutClosesBus(t *testing.T) {
 	for _, m := range ucModels {
 		bus := &fakeBus{alwaysBusy: true}
 		d := m.newDriver(bus, noSleep)
-		d.(*ucPanel).BusyTimeout = 50 * time.Millisecond
+		d.(*panel).BusyTimeout = 50 * time.Millisecond
 		if err := d.Show(ucFrame(m.model)); err == nil {
 			t.Fatalf("%s: expected busy timeout", m.model)
 		}
@@ -104,7 +104,7 @@ func TestUCPanelsMergeRedOnBlackWhite(t *testing.T) {
 	}{
 		{"epd_4_in_2", 0x13, func(n int) []byte { return make([]byte, n) }},
 		{"epd_5_in_83", 0x10, func(n int) []byte { return make([]byte, n*4) }},
-		{"epd_5_in_83_V2", 0x13, func(n int) []byte { return ucFilled(n, 0xFF) }},
+		{"epd_5_in_83_V2", 0x13, func(n int) []byte { return filled(n, 0xFF) }},
 		{"epd5in83b_V2", 0x10, func(n int) []byte { return make([]byte, n) }},
 	}
 	newDriver := map[string]func(Bus, func(time.Duration)) Display{}

@@ -9,18 +9,9 @@ import (
 	"inkycal/internal/render"
 )
 
-// blackOnly13in3 hands a black/white driver the frame without its red plane, as
-// trace.py gives upstream B/W drivers only the black band.
-type blackOnly13in3 struct{ Display }
-
-func (d blackOnly13in3) Show(f render.Frame) error {
-	f.Red = make([]byte, len(f.Black))
-	return d.Display.Show(f)
-}
-
 func init() {
-	traced["epd_13_in_3"] = func(b Bus, s func(time.Duration)) Display { return blackOnly13in3{NewEPD13in3(b, s)} }
-	traced["epd_13_in_3_colour"] = func(b Bus, s func(time.Duration)) Display { return NewEPD13in3b(b, s) }
+	traced["epd_13_in_3"] = blackOnly(NewEPD13in3)
+	traced["epd_13_in_3_colour"] = NewEPD13in3b
 }
 
 func TestEPD13in3RejectsWrongFrame(t *testing.T) {
@@ -57,7 +48,7 @@ func (b *busyHigh13in3) BusyLevel() (int, error) { return 1, nil }
 func TestEPD13in3BusyTimeoutClosesBus(t *testing.T) {
 	bus := &busyHigh13in3{}
 	d := NewEPD13in3b(bus, noSleep)
-	d.BusyTimeout = 50 * time.Millisecond
+	d.(*panel).BusyTimeout = 50 * time.Millisecond
 	f := render.Frame{W: 960, H: 680, Black: make([]byte, plane13in3), Red: make([]byte, plane13in3)}
 	if err := d.Show(f); err == nil {
 		t.Fatal("expected busy timeout")
@@ -69,11 +60,11 @@ func TestEPD13in3BusyTimeoutClosesBus(t *testing.T) {
 
 func TestEPD13in3ClearCycles(t *testing.T) {
 	for _, tc := range []struct {
-		d    func(Bus) *EPD13in3
+		d    func(Bus, func(time.Duration)) Display
 		want int
-	}{{func(b Bus) *EPD13in3 { return NewEPD13in3(b, noSleep) }, 4}, {func(b Bus) *EPD13in3 { return NewEPD13in3b(b, noSleep) }, 6}} {
+	}{{NewEPD13in3, 4}, {NewEPD13in3b, 6}} {
 		bus := idleBus13in3()
-		if err := tc.d(bus).Clear(2); err != nil {
+		if err := tc.d(bus, noSleep).Clear(2); err != nil {
 			t.Fatal(err)
 		}
 		ops := strings.Join(bus.ops, " ")

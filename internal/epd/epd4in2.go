@@ -40,52 +40,40 @@ var (
 
 // NewEPD4in2 drives the Waveshare 4.2" black/white panel (Python: epd_4_in_2).
 func NewEPD4in2(bus Bus, sleep func(time.Duration)) Display {
-	e := &ucPanel{bus: bus, sleep: sleep, BusyTimeout: 60 * time.Second, w: 400, h: 300,
-		poll71: true, pollStep: 100 * time.Millisecond, resetLow: 10 * time.Millisecond}
+	e := newPanel(bus, sleep, 400, 300)
+	e.poll71, e.pollStep, e.resetLow = true, 100*time.Millisecond, 10*time.Millisecond
 	e.initSeq = func() error {
-		if err := e.cmd(0x01, 0x03, 0x00, 0x2b, 0x2b); err != nil { // power setting
-			return err
-		}
-		if err := e.cmd(0x06, 0x17, 0x17, 0x17); err != nil { // booster soft start
-			return err
-		}
-		if err := e.cmd(0x04); err != nil { // power on
+		if err := e.cmds(
+			op{0x01, []byte{0x03, 0x00, 0x2b, 0x2b}}, // power setting
+			op{0x06, []byte{0x17, 0x17, 0x17}},       // booster soft start
+			op{0x04, nil},                            // power on
+		); err != nil {
 			return err
 		}
 		if err := e.waitBusy(); err != nil {
 			return err
 		}
-		for _, s := range []struct {
-			c    byte
-			data []byte
-		}{
-			{0x00, []byte{0xbf, 0x0d}},             // panel setting
-			{0x30, []byte{0x3c}},                   // PLL
-			{0x61, []byte{0x01, 0x90, 0x01, 0x2c}}, // resolution 400x300
-			{0x82, []byte{0x28}},                   // VCOM DC
-			{0x50, []byte{0x97}},                   // VCOM and data interval
+		return e.cmds(
+			op{0x00, []byte{0xbf, 0x0d}}, // panel setting
+			op{0x30, []byte{0x3c}},       // PLL
+			op{0x61, e.resolution()},     // resolution 400x300
+			op{0x82, []byte{0x28}},       // VCOM DC
+			op{0x50, []byte{0x97}},       // VCOM and data interval
 			// set_lut(): upstream writes lut_bb to 0x23 and lut_wb to 0x24 (swapped
 			// against its comments); both tables are identical, so it does not matter.
-			{0x20, lut4in2Vcom0},
-			{0x21, lut4in2WW},
-			{0x22, lut4in2WW},
-			{0x23, lut4in2BB},
-			{0x24, lut4in2BB},
-		} {
-			if err := e.cmd(s.c, s.data...); err != nil {
-				return err
-			}
-		}
-		return nil
+			op{0x20, lut4in2Vcom0},
+			op{0x21, lut4in2WW},
+			op{0x22, lut4in2WW},
+			op{0x23, lut4in2BB},
+			op{0x24, lut4in2BB},
+		)
 	}
 	e.refresh = func(black, _ []byte) error {
-		if err := e.cmd(0x10, ucFilled(len(black), 0xFF)...); err != nil { // old data: white
-			return err
-		}
-		if err := e.cmd(0x13, black...); err != nil {
-			return err
-		}
-		if err := e.cmd(0x12); err != nil {
+		if err := e.cmds(
+			op{0x10, filled(len(black), 0xFF)}, // old data: white
+			op{0x13, black},
+			op{0x12, nil},
+		); err != nil {
 			return err
 		}
 		return e.waitBusy()
@@ -95,13 +83,13 @@ func NewEPD4in2(bus Bus, sleep func(time.Duration)) Display {
 
 // NewEPD4in2Colour drives the Waveshare 4.2" black/white/red panel (Python: epd_4_in_2_colour).
 func NewEPD4in2Colour(bus Bus, sleep func(time.Duration)) Display {
-	e := &ucPanel{bus: bus, sleep: sleep, BusyTimeout: 60 * time.Second, w: 400, h: 300, colour: true,
-		pollStep: 100 * time.Millisecond, resetLow: 5 * time.Millisecond}
+	e := newPanel(bus, sleep, 400, 300)
+	e.colour, e.pollStep, e.resetLow = true, 100*time.Millisecond, 5*time.Millisecond
 	e.initSeq = func() error {
-		if err := e.cmd(0x06, 0x17, 0x17, 0x17); err != nil { // booster soft start
-			return err
-		}
-		if err := e.cmd(0x04); err != nil { // power on
+		if err := e.cmds(
+			op{0x06, []byte{0x17, 0x17, 0x17}}, // booster soft start
+			op{0x04, nil},                      // power on
+		); err != nil {
 			return err
 		}
 		if err := e.waitBusy(); err != nil {
@@ -110,13 +98,11 @@ func NewEPD4in2Colour(bus Bus, sleep func(time.Duration)) Display {
 		return e.cmd(0x00, 0x0F) // panel setting: LUT from OTP
 	}
 	e.refresh = func(black, red []byte) error {
-		if err := e.cmd(0x10, black...); err != nil {
-			return err
-		}
-		if err := e.cmd(0x13, ucInvert(red)...); err != nil { // 0 = red
-			return err
-		}
-		if err := e.cmd(0x12); err != nil {
+		if err := e.cmds(
+			op{0x10, black},
+			op{0x13, inverted(red)}, // 0 = red
+			op{0x12, nil},
+		); err != nil {
 			return err
 		}
 		return e.waitBusy()
