@@ -53,7 +53,7 @@ printf '[main]\nrc-manager=unmanaged\n' >/etc/NetworkManager/conf.d/90-resolv-un
 systemctl reload NetworkManager.service 2>/dev/null || true
 gw=$(ip -4 route show default | awk '{print $3; exit}')
 rm -f /etc/resolv.conf
-printf 'nameserver %s\nnameserver 1.1.1.1\n' "${gw:-192.168.20.1}" >/etc/resolv.conf
+printf 'nameserver %s\nnameserver 1.1.1.1\n' "${gw:-9.9.9.9}" >/etc/resolv.conf
 
 # sudo and others look up the own hostname; without NetworkManager it must be in /etc/hosts.
 host=$(hostname)
@@ -72,4 +72,4 @@ UNIT
 systemctl disable NetworkManager.service NetworkManager-wait-online.service \
 	NetworkManager-dispatcher.service wpa_supplicant.service
 systemctl enable systemd-networkd.service systemd-networkd-wait-online.service wpa_supplicant@wlan0.service
-echo "stage3 applied (ssid $ssid, dns ${gw:-192.168.20.1})"
+echo "stage3 applied (ssid $ssid, dns ${gw:-9.9.9.9})"
