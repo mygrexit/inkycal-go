@@ -1,0 +1,26 @@
+{
+    "model": "epd_7_in_5_v3_colour",
+    "update_interval": 60,
+    "orientation": 0,
+    "info_section": true,
+    "info_section_height": 70,
+    "calibration_hours": [0, 12, 18],
+    "border_around_modules": false,
+    "language": "en",
+    "modules": [
+        {"position": 1, "name": "Weather", "config": {"size": [880, 100], "api_key": "x", "location": "2643743", "round_temperature": true, "round_windspeed": true, "forecast_interval": "daily", "units": "metric", "hour_format": 24, "use_beaufort": false, "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 2, "name": "Calendar", "config": {"size": [880, 300], "week_starts_on": "Monday", "show_events": true, "ical_urls": "https://example.com/a.ics, https://example.com/b.ics", "ical_files": null, "date_format": "D MMM", "time_format": "HH:mm", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 3, "name": "Agenda", "config": {"size": [880, 200], "ical_urls": "https://example.com/a.ics", "ical_files": null, "date_format": "ddd D MMM", "time_format": "HH:mm", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 4, "name": "Feeds", "config": {"size": [880, 100], "feed_urls": "http://feeds.bbci.co.uk/news/world/rss.xml", "shuffle_feeds": true, "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 5, "name": "Todoist", "config": {"size": [880, 100], "api_key": "x", "project_filter": "", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 6, "name": "Jokes", "config": {"size": [880, 100], "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 7, "name": "Stocks", "config": {"size": [880, 100], "tickers": "TSLA, AMD, NVDA, ^GSPC", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 8, "name": "Inkyimage", "config": {"size": [880, 200], "path": "https://example.com/a.png", "palette": "bwr", "autoflip": true, "orientation": "horizontal", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 9, "name": "Slideshow", "config": {"size": [880, 200], "path": "/home/pi/images", "palette": "bw", "autoflip": false, "orientation": "vertical", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 10, "name": "Inkyserver", "config": {"size": [880, 200], "path": "https://example.com/render?w={width}&h={height}", "palette": "bwr", "path_body": "", "dither": false, "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 11, "name": "Xkcd", "config": {"size": [880, 200], "mode": "latest", "palette": "bw", "alt": "no", "filter": "no", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 12, "name": "TextToDisplay", "config": {"size": [880, 100], "filepath": "/home/pi/text.txt", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 13, "name": "Fullweather", "config": {"size": [880, 600], "api_key": "x", "latitude": "51.5", "longitude": "-0.12", "api_version": "2.5", "orientation": "horizontal", "temp_unit": "celsius", "wind_unit": "meters_sec", "wind_gusts": true, "keep_history": false, "min_max_annotations": true, "locale": "en_GB.UTF-8", "font": "NotoSans", "chart_title": "Temperature and precipitation", "weekly_title": "Weekly forecast", "icon_outline": true, "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}},
+        {"position": 14, "name": "Webshot", "config": {"size": [880, 200], "url": "https://example.com", "palette": "bw", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "en"}}
+    ]
+}

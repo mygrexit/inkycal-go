@@ -60,12 +60,15 @@ func Flatten(img image.Image) *image.RGBA {
 // Autoflip turns img by 90° when its shape does not match orientation
 // ("horizontal" wants landscape, "vertical" portrait). Anything else leaves it as is.
 func Autoflip(img image.Image, orientation string) image.Image {
-	b := img.Bounds()
-	landscape := b.Dx() >= b.Dy()
-	if (orientation == "horizontal" && !landscape) || (orientation == "vertical" && b.Dx() > b.Dy()) {
+	if NeedsFlip(img.Bounds().Dx(), img.Bounds().Dy(), orientation) {
 		return Rotate90(img)
 	}
 	return img
+}
+
+// NeedsFlip reports whether Autoflip would turn a w×h image.
+func NeedsFlip(w, h int, orientation string) bool {
+	return (orientation == "horizontal" && h > w) || (orientation == "vertical" && w > h)
 }
 
 // Rotate90 turns img counter-clockwise by 90°, like PIL's rotate(90, expand=True).

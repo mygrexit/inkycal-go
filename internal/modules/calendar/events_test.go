@@ -79,8 +79,8 @@ func TestMergeSourcesLabelsAndDedupes(t *testing.T) {
 		{Title: "Babyschwimmen", Start: at(16), End: at(17), Source: 1},
 		{Title: "Kinderarzt", Start: at(15), End: at(16), Source: 1}, // same title, other time
 	}
-	got := mergeSources(events, []string{"Niko", "Sofia"}, true, "de")
-	want := map[string]string{"Kinderarzt@11": "beide", "Barber@10": "Niko", "Babyschwimmen@16": "Sofia", "Kinderarzt@15": "Sofia"}
+	got := mergeSources(events, []string{"Alex", "Sam"}, true, "de")
+	want := map[string]string{"Kinderarzt@11": "beide", "Barber@10": "Alex", "Babyschwimmen@16": "Sam", "Kinderarzt@15": "Sam"}
 	if len(got) != len(want) {
 		t.Fatalf("got %d events: %+v", len(got), got)
 	}
@@ -95,22 +95,22 @@ func TestMergeSourcesLabelsAndDedupes(t *testing.T) {
 func TestMergeSourcesWithoutDedupeOrLabels(t *testing.T) {
 	at := time.Date(2026, 10, 13, 11, 0, 0, 0, time.UTC)
 	events := []ical.Event{{Title: "A", Start: at, End: at, Source: 0}, {Title: "A", Start: at, End: at, Source: 1}}
-	if got := mergeSources(events, []string{"Niko", "Sofia"}, false, "de"); len(got) != 2 || got[0].Label != "Niko" || got[1].Label != "Sofia" {
+	if got := mergeSources(events, []string{"Alex", "Sam"}, false, "de"); len(got) != 2 || got[0].Label != "Alex" || got[1].Label != "Sam" {
 		t.Errorf("no dedupe: %+v", got)
 	}
 	if got := mergeSources(events, nil, true, "de"); len(got) != 1 || got[0].Label != "" {
 		t.Errorf("dedupe without labels: %+v", got)
 	}
-	if got := mergeSources(events, []string{"Niko", "Sofia"}, true, "en"); got[0].Label != "both" {
+	if got := mergeSources(events, []string{"Alex", "Sam"}, true, "en"); got[0].Label != "both" {
 		t.Errorf("english: %+v", got)
 	}
 }
 
 func TestBuildEventRowsCarriesLabel(t *testing.T) {
 	now := time.Date(2026, 10, 13, 8, 0, 0, 0, time.UTC)
-	ev := []labeledEvent{{Event: ical.Event{Title: "Barber", Start: now.Add(time.Hour), End: now.Add(2 * time.Hour)}, Label: "Niko"}}
+	ev := []labeledEvent{{Event: ical.Event{Title: "Barber", Start: now.Add(time.Hour), End: now.Add(2 * time.Hour)}, Label: "Alex"}}
 	rows := buildEventRows(ev, now, 5, "D MMM", "HH:mm", "de")
-	if len(rows) != 1 || rows[0].Label != "Niko" || rows[0].Title != "Barber" {
+	if len(rows) != 1 || rows[0].Label != "Alex" || rows[0].Title != "Barber" {
 		t.Fatalf("rows: %+v", rows)
 	}
 }

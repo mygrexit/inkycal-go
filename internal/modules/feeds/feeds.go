@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mmcdole/gofeed"
@@ -34,7 +35,11 @@ type rawConfig struct {
 	ShuffleFeeds *config.FlexBool  `json:"shuffle_feeds"`
 }
 
-var tagRe = regexp.MustCompile(`<[^<]+?>`)
+var (
+	// Block tags separate words, inline tags (<b>, <sub>) sit inside them.
+	blockTagRe = regexp.MustCompile(`(?i)</?(p|br|div|li|ul|ol|h[1-6]|tr|td|th|table|blockquote|hr)\b[^<]*?>`)
+	tagRe      = regexp.MustCompile(`<[^<]+?>`)
+)
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	var rc rawConfig
@@ -59,41 +64,58 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	return m, nil
 }
 
-// entry formats one item as "•Title: summary": tags stripped before entities
-// are decoded (escaped markup stays text), cut at the first line break.
-func entry(title, description string) string {
-	text := strings.TrimSpace(html.UnescapeString(tagRe.ReplaceAllString(description, "")))
-	e := "•" + strings.TrimSpace(title) + ": " + text
-	if i := strings.IndexByte(e, '\n'); i >= 0 {
-		e = e[:i]
+// item is one feed entry as drawn: headline, summary and the feed it came from.
+type item struct {
+	Title, Summary, Source string
+}
+
+// entry cleans one feed item: tags stripped before entities are decoded
+// (escaped markup stays text), whitespace and line breaks folded.
+func entry(title, description, source string) item {
+	text := html.UnescapeString(tagRe.ReplaceAllString(blockTagRe.ReplaceAllString(description, " "), ""))
+	return item{
+		Title:   strings.Join(strings.Fields(title), " "),
+		Summary: strings.Join(strings.Fields(text), " "),
+		Source:  strings.Join(strings.Fields(source), " "),
 	}
-	return strings.TrimRight(e, " \t\r")
 }
 
 // entriesFromFeed keeps only items with a summary, like Python's `"summary" in posts`.
-func entriesFromFeed(f *gofeed.Feed) []string {
-	var out []string
+func entriesFromFeed(f *gofeed.Feed) []item {
+	var out []item
 	for _, it := range f.Items {
 		if strings.TrimSpace(it.Description) == "" {
 			continue
 		}
-		out = append(out, entry(it.Title, it.Description))
+		out = append(out, entry(it.Title, it.Description, f.Title))
 	}
 	return out
 }
 
 // fetchEntries loads all feeds; broken feeds are logged and skipped,
 // an error is returned only if none could be loaded.
-func fetchEntries(ctx context.Context, fc *fetch.Client, urls []string) ([]string, bool, error) {
+func fetchEntries(ctx context.Context, fc *fetch.Client, urls []string) ([]item, bool, error) {
 	parser := gofeed.NewParser()
 	var (
-		out   []string
+		out   []item
 		stale bool
 		errs  []error
 		ok    int
 	)
-	for _, u := range urls {
-		res, err := fc.Get(ctx, u, nil)
+	// Fetch in parallel (a wake waits for the slowest feed, not the sum), parse in order.
+	results := make([]fetch.Result, len(urls))
+	fetchErrs := make([]error, len(urls))
+	var wg sync.WaitGroup
+	for i, u := range urls {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], fetchErrs[i] = fc.Get(ctx, u, nil)
+		}()
+	}
+	wg.Wait()
+	for i, u := range urls {
+		res, err := results[i], fetchErrs[i]
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -116,24 +138,8 @@ func fetchEntries(ctx context.Context, fc *fetch.Client, urls []string) ([]strin
 	return out, stale, nil
 }
 
-// selectLines wraps entries until the next one would not fit completely.
-func selectLines(c *render.Canvas, entries []string, width, maxLines int) []string {
-	if len(entries) > maxLines {
-		entries = entries[:maxLines]
-	}
-	var lines []string
-	for _, e := range entries {
-		wrapped := c.Wrap(e, width)
-		if len(lines)+len(wrapped) > maxLines {
-			break
-		}
-		lines = append(lines, wrapped...)
-	}
-	return lines
-}
-
 // arrange shuffles the entries in place when shuffle_feeds is on.
-func (m *Module) arrange(entries []string) []string {
+func (m *Module) arrange(entries []item) []item {
 	if m.shuffle {
 		m.rnd.Shuffle(len(entries), func(i, j int) { entries[i], entries[j] = entries[j], entries[i] })
 	}
@@ -150,16 +156,9 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 
 	w, h := m.common.InnerSize()
 	c := render.NewCanvas(w, h, render.FontDefault, int(m.common.FontSize))
-	const lineSpacing = 1
-	lh := c.LineHeight() + lineSpacing
-	maxLines := h / (lh + lineSpacing)
-	top := (h % lh) / 2
-	lines := selectLines(c, entries, w, maxLines)
-	if len(lines) == 0 {
-		slog.Info("feeds: nothing fits into the module", "entries", len(entries))
+	if len(entries) == 0 {
+		slog.Info("feeds: no entries with a summary")
 	}
-	for i, line := range lines {
-		c.Write(0, top+i*lh, w, lh, line, render.TextOpts{Align: render.AlignLeft})
-	}
+	draw(c, entries, int(m.common.FontSize), m.common.Language)
 	return c, nil
 }

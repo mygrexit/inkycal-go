@@ -196,6 +196,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		}
 	}
 	res.Timings.Modules = time.Since(start)
+	o.Fetch.Prune(14 * 24 * time.Hour)
 
 	var battery float64
 	hasBattery := false

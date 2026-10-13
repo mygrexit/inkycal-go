@@ -33,8 +33,8 @@ const previewSettings = `{
     {"position": 1, "name": "Weather", "config": {"size": [984, 290], "padding_x": 40, "padding_y": 20, "fontsize": 20, "language": "de",
       "api_key": "test", "location": "2825297", "units": "metric", "hour_format": 24}},
     {"position": 2, "name": "Calendar", "config": {"size": [984, 660], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de",
-      "week_starts_on": "Monday", "show_events": true, "ical_urls": ["{{BASE}}/niko.ics", "{{BASE}}/sofia.ics"],
-      "date_format": "DD. MMM", "time_format": "HH:mm", "dedupe_events": true, "calendar_labels": "Niko,Sofia", "weekday_prefix": true}},
+      "week_starts_on": "Monday", "show_events": true, "ical_urls": ["{{BASE}}/alex.ics", "{{BASE}}/sam.ics"],
+      "date_format": "DD. MMM", "time_format": "HH:mm", "dedupe_events": true, "calendar_labels": "Alex,Sam", "weekday_prefix": true}},
     {"position": 3, "name": "Todoist", "config": {"size": [984, 180], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de",
       "api_key": "{{TODOIST}}"}},
     {"position": 4, "name": "Greek", "config": {"size": [984, 174], "padding_x": 40, "padding_y": 18, "fontsize": 22, "language": "de"}}
@@ -89,23 +89,23 @@ func previewServer(t *testing.T, now time.Time, todoistOK bool) *httptest.Server
 	shared := []string{
 		previewEvent("kinderarzt", d(0, 11, 30), d(0, 12, 30), "Kinderarzt U7"),
 		previewEvent("kita", d(0, 13, 30), d(0, 15, 30), "Laternenbasteln Kita"),
-		previewEvent("spielplatz", d(1, 16, 0), d(1, 18, 0), "Spielplatz mit Chiara"),
+		previewEvent("spielplatz", d(1, 16, 0), d(1, 18, 0), "Spielplatz mit Mia"),
 		previewEvent("pt", d(2, 16, 0), d(2, 17, 0), "Personal Training"),
 		previewEvent("past", d(-6, 9, 0), d(-6, 10, 0), "Elternabend"),
 		previewEvent("later", d(9, 19, 0), d(9, 22, 0), "Kino"),
 	}
-	niko := append([]string{
+	alex := append([]string{
 		previewEvent("friseur", d(0, 10, 0), d(0, 11, 0), "Friseur"),
 		previewEvent("griechisch", d(0, 16, 30), d(0, 17, 30), "Griechischkurs"),
 		previewEvent("werkstatt", d(4, 8, 0), d(4, 9, 0), "Auto in die Werkstatt"),
 	}, shared...)
-	sofia := append([]string{
+	sam := append([]string{
 		previewEvent("schwimmen", d(1, 16, 15), d(1, 17, 0), "Babyschwimmen"),
 		previewEvent("sport", d(3, 14, 0), d(3, 15, 0), "Yoga"),
 		previewAllDay("oma", date(4), date(7), "Oma und Opa zu Besuch"),
 	}, shared...)
-	mux.HandleFunc("/niko.ics", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, previewICS(niko...)) })
-	mux.HandleFunc("/sofia.ics", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, previewICS(sofia...)) })
+	mux.HandleFunc("/alex.ics", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, previewICS(alex...)) })
+	mux.HandleFunc("/sam.ics", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, previewICS(sam...)) })
 	mux.HandleFunc("/api/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		if !todoistOK {
 			http.Error(w, `{"error":"Unauthorized"}`, http.StatusUnauthorized)

@@ -129,7 +129,9 @@ func (c *Client) once(ctx context.Context, url string, header http.Header) ([]by
 			req.Header.Add(k, v)
 		}
 	}
-	req.Header.Set("User-Agent", "inkycal-go")
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "inkycal-go")
+	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		var ue *neturl.Error
@@ -182,6 +184,24 @@ func (c *Client) store(key string, body []byte) {
 	}
 }
 
+// Prune deletes cached responses not refreshed within maxAge. Nothing that old is a
+// useful fallback, and URLs that change daily (xkcd random) would pile up otherwise.
+func (c *Client) Prune(maxAge time.Duration) {
+	if c == nil || c.CacheDir == "" {
+		return
+	}
+	entries, err := os.ReadDir(c.CacheDir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-maxAge)
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && info.Mode().IsRegular() && info.ModTime().Before(cutoff) {
+			os.Remove(filepath.Join(c.CacheDir, e.Name()))
+		}
+	}
+}
+
 func (c *Client) load(key string) ([]byte, time.Time, bool) {
 	if c.CacheDir == "" {
 		return nil, time.Time{}, false
@@ -198,7 +218,9 @@ func (c *Client) load(key string) ([]byte, time.Time, bool) {
 	return body, st.ModTime(), true
 }
 
-// redact drops query strings (API keys!) from URLs before logging.
+// Redact drops query strings (API keys!) from URLs before logging.
+func Redact(url string) string { return redact(url) }
+
 func redact(url string) string {
 	for i := 0; i < len(url); i++ {
 		if url[i] == '?' {

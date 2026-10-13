@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -129,4 +131,37 @@ func TestNetworkErrorDoesNotLeakKey(t *testing.T) {
 	if err == nil || strings.Contains(err.Error(), "SECRET") {
 		t.Fatalf("error leaks key or is nil: %v", err)
 	}
+}
+
+func TestUserAgentDefaultAndOverride(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.UserAgent())
+	}))
+	defer srv.Close()
+	c := New("")
+	c.Get(context.Background(), srv.URL, nil)
+	c.Get(context.Background(), srv.URL, http.Header{"User-Agent": {"custom"}})
+	if len(got) != 2 || got[0] != "inkycal-go" || got[1] != "custom" {
+		t.Errorf("user agents %q", got)
+	}
+}
+
+func TestPruneDropsOldEntriesOnly(t *testing.T) {
+	dir := t.TempDir()
+	c := New(dir)
+	c.store("old", []byte("x"))
+	c.store("new", []byte("y"))
+	past := time.Now().Add(-30 * 24 * time.Hour)
+	if err := os.Chtimes(filepath.Join(dir, "old"), past, past); err != nil {
+		t.Fatal(err)
+	}
+	c.Prune(14 * 24 * time.Hour)
+	if _, _, ok := c.load("old"); ok {
+		t.Error("old entry kept")
+	}
+	if _, _, ok := c.load("new"); !ok {
+		t.Error("fresh entry pruned")
+	}
+	New("").Prune(time.Hour) // no cache: no-op
 }
