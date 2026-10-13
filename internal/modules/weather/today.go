@@ -54,7 +54,7 @@ func windLevel(mps float64) int {
 }
 
 // severity ranks OWM conditions by how much they change the day: storm, snow,
-// rain, showers, fog, then clouds and sun.
+// shower rain (09), rain (10), fog, then clouds and sun.
 var severity = map[string]int{"11": 9, "13": 8, "09": 7, "10": 6, "50": 5, "04": 4, "03": 3, "02": 2, "01": 1}
 
 func isPrecip(code string) bool { return severity[code] >= 6 }

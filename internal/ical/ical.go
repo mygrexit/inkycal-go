@@ -4,8 +4,10 @@ package ical
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -141,14 +143,24 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 	}
 	wg.Wait()
 
+	// A dead calendar must not hide the others: keep what loaded, fail only if nothing did.
 	var all []Event
+	var errs []error
 	stale := false
 	for _, r := range results {
 		if r.err != nil {
-			return nil, false, r.err
+			errs = append(errs, r.err)
+			continue
 		}
 		all = append(all, r.events...)
 		stale = stale || r.stale
+	}
+	if len(errs) > 0 {
+		if len(errs) == len(results) && len(files) == 0 {
+			return nil, false, errors.Join(errs...)
+		}
+		slog.Warn("calendar: some sources failed, showing the others", "err", errors.Join(errs...))
+		stale = true
 	}
 	for fi, path := range files {
 		f, err := os.Open(path)

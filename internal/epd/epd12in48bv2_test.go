@@ -10,6 +10,7 @@ import (
 )
 
 type fakeBus12 struct {
+	failCmd    byte // Command returns an error for this command (0 = never)
 	ops        []string
 	lastCmd    map[Part]byte
 	data       map[string][]byte // "S2:10" → bytes
@@ -26,6 +27,9 @@ func (b *fakeBus12) SetReset(h bool) error {
 	return nil
 }
 func (b *fakeBus12) Command(p Part, c byte) error {
+	if b.failCmd != 0 && c == b.failCmd {
+		return fmt.Errorf("spi write failed")
+	}
 	if b.lastCmd == nil {
 		b.lastCmd = map[Part]byte{}
 	}
@@ -173,5 +177,27 @@ func TestEPD12in48ClearEndsWhite(t *testing.T) {
 	last := func(p []byte) []byte { return p[2*n:] }
 	if bytes.Count(last(black), []byte{0xFF}) != n || bytes.Count(last(red), []byte{0x00}) != n {
 		t.Fatal("last refresh is not white")
+	}
+}
+
+func TestEPD12in48ClosesBusWhenDeepSleepFails(t *testing.T) {
+	bus := &fakeBus12{failCmd: 0x07}
+	if err := NewEPD12in48bV2(bus, noSleep).Show(testFrame12()); err == nil {
+		t.Fatal("deep-sleep failure not reported")
+	}
+	if bus.closed != 1 {
+		t.Fatalf("bus closed %d times, want 1", bus.closed)
+	}
+}
+
+func TestEPD12in48RejectsImplausibleTemperature(t *testing.T) {
+	for raw, want := range map[byte]byte{0x7F: 0x14, 0x37: 0x14, 0x17: 0x17, 0x00: 0x14} {
+		bus := &fakeBus12{temp: raw}
+		if err := NewEPD12in48bV2(bus, noSleep).Show(testFrame12()); err != nil {
+			t.Fatal(err)
+		}
+		if got := bus.data["ALL:E5"]; len(got) != 1 || got[0] != want {
+			t.Errorf("raw %#x: sent temperature %v, want %#x", raw, got, want)
+		}
 	}
 }

@@ -95,3 +95,24 @@ func TestGenerate(t *testing.T) {
 		t.Error("Stale set although nothing came from cache")
 	}
 }
+
+// Narrow or short bands scale the whole layout instead of overlapping or being rejected.
+func TestDrawDayFitsOtherShapes(t *testing.T) {
+	loc := berlin(t)
+	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
+	v := buildDay(settings{Lang: "de"}, current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
+
+	narrow := render.NewCanvas(400, 200, render.FontDefault, 14) // width-limited: 400*250/904 ≈ 110 px tall
+	drawDay(narrow, v, "de")
+	if b, c := inkIn(narrow, 0, 0, 400, 40); b || c {
+		t.Error("narrow band not centred vertically (ink in the top 40 px)")
+	}
+	if b, c := inkIn(narrow, 0, 160, 400, 200); b || c {
+		t.Error("narrow band not centred vertically (ink in the bottom 40 px)")
+	}
+
+	common := mustCommon(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
+	if _, err := New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
+		t.Errorf("7.5\" sized band rejected: %v", err)
+	}
+}

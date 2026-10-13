@@ -127,3 +127,28 @@ func TestBuildEventRowsGermanDayCountAndWeekdayPrefix(t *testing.T) {
 		t.Error("prefix added although disabled")
 	}
 }
+
+func TestReviewFixes(t *testing.T) {
+	loc := berlin(t)
+	now := time.Date(2026, 10, 13, 6, 0, 0, 0, loc)
+	at := func(day, hour int) time.Time { return time.Date(2026, 10, day, hour, 0, 0, 0, loc) }
+	evs := []labeledEvent{
+		{Event: ical.Event{Title: "Party", Start: at(14, 20), End: at(15, 0)}},     // ends at midnight
+		{Event: ical.Event{Title: "Messe", Start: at(11, 9), End: at(15, 18)}},     // started before today
+		{Event: ical.Event{Title: "Erinnerung", Start: at(13, 9), End: at(13, 9)}}, // no DTEND
+	}
+	rows := buildEventRows(evs, now, 10, "D MMM", "HH:mm", "de")
+	byTitle := map[string]eventRow{}
+	for _, r := range rows {
+		byTitle[strings.Fields(r.Title)[0]] = r
+	}
+	if r := byTitle["Party"]; r.Title != "Party" {
+		t.Errorf("event ending at midnight: %q, want no day count", r.Title)
+	}
+	if r := byTitle["Messe"]; !r.Day.Equal(dateOnly(now)) || !r.Today {
+		t.Errorf("running event grouped under %v (today=%v), want today", r.Day, r.Today)
+	}
+	if r := byTitle["Erinnerung"]; r.Time != "09:00" {
+		t.Errorf("event without end shows %q", r.Time)
+	}
+}

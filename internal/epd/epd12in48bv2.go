@@ -194,8 +194,8 @@ func (e *EPD12in48bV2) setTemperature() error {
 	}
 	e.sleep(300 * time.Millisecond)
 	temp, err := e.bus.ReadData(M1)
-	if err != nil || temp == 0x00 || temp == 0xFF {
-		slog.Warn("epd: temperature unreadable, assuming 20 °C", "raw", temp, "err", err)
+	if err != nil || temp == 0 || temp > 50 { // °C; anything else is a misread
+		slog.Warn("epd: temperature implausible, assuming 20 °C", "raw", temp, "err", err)
 		temp = defaultTemp
 	} else {
 		slog.Debug("epd: temperature", "celsius", int8(temp))
@@ -270,7 +270,11 @@ func (e *EPD12in48bV2) run(body func() error) error {
 		e.bus.Close()
 		return err
 	}
-	return e.deepSleep()
+	if err := e.deepSleep(); err != nil {
+		e.bus.Close() // never leave the panel powered or the SPI device open
+		return err
+	}
+	return nil
 }
 
 // Show transfers the frame and refreshes the panel.

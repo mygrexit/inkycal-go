@@ -92,6 +92,7 @@ func runModules(ctx context.Context, o *Options, now time.Time) []moduleOutcome 
 		factory, ok := o.Registry[entry.Name]
 		if !ok {
 			out[i].err = fmt.Errorf("unknown module %q", entry.Name)
+			drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 			continue
 		}
 		wg.Add(1)
@@ -100,6 +101,10 @@ func runModules(ctx context.Context, o *Options, now time.Time) []moduleOutcome 
 			defer func() {
 				if r := recover(); r != nil {
 					out[i].err = fmt.Errorf("%s panicked: %v", entry.Name, r)
+					// The module may have panicked mid-drawing: hint on a fresh canvas.
+					img := out[i].part.Img
+					out[i].part.Img = render.NewCanvas(img.W, img.H, render.FontDefault, 14)
+					drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 				}
 			}()
 			m, err := factory(common, entry.Config)

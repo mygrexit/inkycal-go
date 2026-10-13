@@ -129,7 +129,11 @@ func dateFormat(base string, weekdayPrefix bool) string {
 // spanDays counts the calendar days an event covers: all-day ends are exclusive,
 // timed events count both the first and the last day.
 func spanDays(e ical.Event, loc *time.Location) int {
-	first, last := dateOnly(e.Start.In(loc)), dateOnly(e.End.In(loc))
+	end := e.End
+	if !e.AllDay && e.End.After(e.Start) {
+		end = end.Add(-time.Nanosecond) // ending at midnight does not touch the next day
+	}
+	first, last := dateOnly(e.Start.In(loc)), dateOnly(end.In(loc))
 	days := int(math.Round(last.Sub(first).Hours() / 24))
 	if !e.AllDay {
 		days++
@@ -169,10 +173,19 @@ func buildEventRows(events []labeledEvent, now time.Time, limit int, dateFmt, ti
 		if days := spanDays(e.Event, loc); days > 1 {
 			title += " " + dayCount(days, lang)
 		}
+		// An event that started on an earlier day and is still running belongs to today.
+		shown := start
+		if start.Before(todayStart) {
+			shown = todayStart
+		}
+		clock := timefmt.Format(start, timeFmt, lang)
+		if e.End.After(e.Start) {
+			clock += "–" + timefmt.Format(e.End.In(loc), timeFmt, lang)
+		}
 		rows = append(rows, eventRow{
-			Day:    dateOnly(start),
-			Date:   timefmt.Format(start, dateFmt, lang),
-			Time:   timefmt.Format(start, timeFmt, lang) + "–" + timefmt.Format(e.End.In(loc), timeFmt, lang),
+			Day:    dateOnly(shown),
+			Date:   timefmt.Format(shown, dateFmt, lang),
+			Time:   clock,
 			Title:  title,
 			Label:  e.Label,
 			AllDay: e.AllDay,

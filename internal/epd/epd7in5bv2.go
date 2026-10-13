@@ -135,7 +135,11 @@ func (e *EPD7in5bV2) run(body func() error) error {
 		e.bus.Close()
 		return err
 	}
-	return e.deepSleep()
+	if err := e.deepSleep(); err != nil {
+		e.bus.Close() // never leave the panel powered or the SPI device open
+		return err
+	}
+	return nil
 }
 
 // Show transfers the frame and refreshes the panel (~16-20 s).

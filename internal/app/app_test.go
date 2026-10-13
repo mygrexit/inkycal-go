@@ -74,8 +74,9 @@ func (failModule) Generate(context.Context, *modules.Env) (*render.Canvas, error
 }
 
 var testRegistry = map[string]modules.Factory{
-	"Dot":  func(c config.Common, _ json.RawMessage) (modules.Module, error) { return dotModule{c}, nil },
-	"Fail": func(config.Common, json.RawMessage) (modules.Module, error) { return failModule{}, nil },
+	"Dot":   func(c config.Common, _ json.RawMessage) (modules.Module, error) { return dotModule{c}, nil },
+	"Fail":  func(config.Common, json.RawMessage) (modules.Module, error) { return failModule{}, nil },
+	"Panic": func(config.Common, json.RawMessage) (modules.Module, error) { panic("broken module") },
 }
 
 func testOptions(t *testing.T, names ...string) (*Options, *fakeDisplay, *fakePiSugar, *fakeSystem) {
@@ -346,20 +347,22 @@ func TestErrorHint(t *testing.T) {
 }
 
 func TestFailedModuleShowsHint(t *testing.T) {
-	o, _, _, _ := testOptions(t, "Dot", "Fail")
+	o, _, _, _ := testOptions(t, "Dot", "Fail", "Missing", "Panic")
 	out := runModules(context.Background(), o, o.Now())
-	img := out[1].part.Img
-	inked := false
-	for y := 0; y < img.H && !inked; y++ {
-		for x := 0; x < img.W; x++ {
-			if b, _ := img.InkAt(x, y); b {
-				inked = true
-				break
+	for i := 1; i < len(out); i++ {
+		img := out[i].part.Img
+		inked := false
+		for y := 0; y < img.H && !inked; y++ {
+			for x := 0; x < img.W; x++ {
+				if b, _ := img.InkAt(x, y); b {
+					inked = true
+					break
+				}
 			}
 		}
-	}
-	if out[1].err == nil || !inked {
-		t.Errorf("failed module: err=%v, hint drawn=%v", out[1].err, inked)
+		if out[i].err == nil || !inked {
+			t.Errorf("module %d: err=%v, hint drawn=%v", i, out[i].err, inked)
+		}
 	}
 }
 

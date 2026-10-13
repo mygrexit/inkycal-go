@@ -25,6 +25,14 @@ func sizeForCap(c *render.Canvas, font render.FontID, capPx int) int {
 //	             8°   11°  14°  13°  10°   9°
 func drawDay(c *render.Canvas, v dayView, lang string) {
 	w, h := c.W, c.H
+	// The design is 904×250. A relatively narrower area gets the band scaled to its
+	// width and centred vertically instead of overlapping columns.
+	if w*250 < h*904 {
+		band := render.NewCanvas(w, max(1, w*250/904), render.FontDefault, 14)
+		drawDay(band, v, lang)
+		c.Paste(band, 0, (h-band.H)/2)
+		return
+	}
 	u := func(f float64) int { return int(f * float64(h) / 250) } // design grid is 250 px tall
 
 	// Date block.

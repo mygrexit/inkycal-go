@@ -208,3 +208,26 @@ END:VCALENDAR
 		t.Errorf("local hours: %v (want Quoted 8, Custom 9)", got)
 	}
 }
+
+func TestLoadKeepsWorkingCalendarsWhenOneFails(t *testing.T) {
+	loc := berlin(t)
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(testICS)) }))
+	defer good.Close()
+	bad := httptest.NewServer(http.NotFoundHandler())
+	bad.Close()
+	fc := fetch.New("")
+	fc.Attempts = 1
+	from := time.Date(2026, 10, 12, 0, 0, 0, 0, loc)
+	ev, stale, err := Load(context.Background(), fc, []string{bad.URL, good.URL}, nil, from, from.AddDate(0, 0, 1), loc)
+	if err != nil || len(ev) == 0 {
+		t.Fatalf("one dead calendar broke the others: err=%v events=%d", err, len(ev))
+	}
+	if !stale {
+		t.Error("partial result must be marked stale")
+	}
+	for _, e := range ev {
+		if e.Source != 1 {
+			t.Errorf("%s: source %d, want 1 (index kept for labels)", e.Title, e.Source)
+		}
+	}
+}
