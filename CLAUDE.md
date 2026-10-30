@@ -14,7 +14,7 @@ Go rewrite of Inkycal for Raspberry Pi e-paper dashboards. One static binary; th
 | `make wakebench [BASE=v0.1.2]` | cold-start dry run of the working tree vs. the latest release (offline fixtures); ±5 % is noise |
 | `go run ./cmd/inkycal --mode dry-run --settings s.json --out preview.png` | render without a panel |
 | `go run ./cmd/inkycal --mode builder --settings s.json --listen 127.0.0.1:8080` | web builder; token is in `<state-dir>/builder-token` |
-| `make release` | arm64/armv7/armv6 binaries + `SHA256SUMS` in `dist/` (names match `deploy/install.sh`) |
+| `make release` | arm64/armv7/armv6 binaries + `SHA256SUMS` in `dist/` (names match `deploy/install.sh`); used by CI, see Releases |
 | `make deploy PI=pi@host ARCH=arm64` | copy binary + systemd unit to a Pi |
 
 Modes: `run | once | dry-run | clear | builder`.
@@ -34,7 +34,7 @@ internal/{fetch,ical,schedule,state,pisugar,sysinfo,timefmt,i18n,layout,picture}
 deploy/               install.sh, systemd unit, image/ and tuning/ notes
 tools/epdtrace/       regenerates driver byte traces from an upstream checkout
 tools/wakebench/      cold-start comparison against a release
-.github/workflows/    CI: make check, -race, benchmark smoke run, release builds
+.github/workflows/    ci.yml (checks on push/PR), dev-build.yml (pre-release dev-build), release.yml (vX.Y.Z)
 ```
 
 ## Rules
@@ -63,6 +63,11 @@ tools/wakebench/      cold-start comparison against a release
 - `go.mod` pins a patched `toolchain`; raise it when govulncheck reports standard-library issues — release binaries ship that stdlib.
 - `.claude/settings.json` runs `goimports -w` after every edit of a `.go` file; don't hand-format.
 - Killing a running instance: `kill $(pgrep -x inkycal)` — `pkill -f` matches your own shell.
+
+## Releases
+
+- Binaries come only from CI, never from a local build: every push to `dev` replaces the pre-release `dev-build` (`dev-build.yml`); an annotated tag `vX.Y.Z` on `main` publishes the stable release with the tag message as notes (`release.yml`).
+- Order: CI green → owner tests `install.sh --dev` on a Pi (wake time, builder) → PR `dev` → `main`, owner merges → tag. Workflow files are owner-managed (the agent token lacks `workflow` scope).
 
 ## Workflow
 
