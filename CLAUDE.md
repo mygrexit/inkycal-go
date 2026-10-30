@@ -58,6 +58,7 @@ tools/wakebench/      cold-start comparison against a release
 - `deploy/install.sh` embeds the systemd unit; `install_test.go` fails if it drifts from `deploy/inkycal-go.service`.
 - Installer channels: no flag = `releases/latest`, `--dev` = the `dev-build` pre-release (tag `dev-build`, so `git push origin dev` stays unambiguous).
 - Grid cells: a settings file has cells on all modules or none (`config.GridCells`).
+- `config.Load` (device) is lenient: a bad style or cell marks only that module (`ModuleEntry.Err`, `config.ErrCell`) and a bad theme falls back to the default; `config.Parse` (builder) rejects them, so the builder never saves one.
 - Builder writes settings atomically and keeps file mode; never loosen permissions of settings or `.bak`.
 - Font cache keys custom fonts by path+size+mtime; only regular files ≤ 20 MiB.
 - `go.mod` pins a patched `toolchain`; raise it when govulncheck reports standard-library issues — release binaries ship that stdlib.
