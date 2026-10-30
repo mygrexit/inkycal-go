@@ -68,17 +68,23 @@ func serveBuilder(ctx context.Context, settingsPath, stateDir, listen string, ou
 		fmt.Fprintf(out, "  open http://%s/#token=%s\n", net.JoinHostPort(host, fmt.Sprint(addr.Port)), srv.Token())
 	}
 	fmt.Fprintln(out, "Ctrl+C to stop.")
-	hs := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	return serve(ctx, &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}, ln)
+}
+
+// serve runs hs until ctx ends, then gives running requests (a save, a preview) up to
+// 5 s to finish before it returns.
+func serve(ctx context.Context, hs *http.Server, ln net.Listener) error {
+	shutdown := make(chan error, 1)
 	go func() {
 		<-ctx.Done()
 		shut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		hs.Shutdown(shut)
+		shutdown <- hs.Shutdown(shut)
 	}()
 	if err := hs.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	return nil
+	return <-shutdown
 }
 
 // hosts lists the addresses to print: the bound one, or every IPv4 address when
