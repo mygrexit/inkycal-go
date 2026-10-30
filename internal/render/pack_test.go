@@ -116,3 +116,14 @@ func TestAssembleDividers(t *testing.T) {
 		t.Error("divider above the first section")
 	}
 }
+
+func BenchmarkPack(b *testing.B) {
+	c := NewCanvas(984, 1304, FontDefault, 20)
+	c.Text(40, 200, "Benchmark", Style{Font: FontDisplay, Size: 120}, InkColour)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := Pack(c, 1304, 984, 0); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

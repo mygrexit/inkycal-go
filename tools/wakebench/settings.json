@@ -1,0 +1,16 @@
+{
+  "model": "epd_7_in_5_v3_colour",
+  "update_interval": 60,
+  "orientation": 0,
+  "info_section": true,
+  "info_section_height": 70,
+  "calibration_hours": [],
+  "border_around_modules": false,
+  "image_hash": false,
+  "modules": [
+    {"position": 1, "name": "Greek", "config": {"size": [480, 150], "padding_x": 10, "padding_y": 10, "fontsize": 14, "language": "de"}},
+    {"position": 2, "name": "Calendar", "config": {"size": [480, 300], "week_starts_on": "Monday", "show_events": true, "ical_urls": [], "ical_files": ["tools/wakebench/events.ics"], "date_format": "D MMM", "time_format": "HH:mm", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de"}},
+    {"position": 3, "name": "Agenda", "config": {"size": [480, 160], "ical_urls": [], "ical_files": ["tools/wakebench/events.ics"], "date_format": "ddd D MMM", "time_format": "HH:mm", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de"}},
+    {"position": 4, "name": "TextToDisplay", "config": {"size": [480, 100], "filepath": "tools/wakebench/text.txt", "padding_x": 10, "padding_y": 10, "fontsize": 12, "language": "de"}}
+  ]
+}

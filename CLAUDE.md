@@ -10,6 +10,8 @@ Go rewrite of Inkycal for Raspberry Pi e-paper dashboards. One static binary; th
 | `make check` | `make test` + staticcheck + govulncheck + UI tests (before a release) |
 | `go test -race ./...` | also run for changes to builder, fetch, render caches |
 | `node --test internal/builder/ui/*.test.mjs` | builder UI logic (`*.test.mjs`, no npm deps) |
+| `make bench` | in-process benchmarks of the wake path (`BenchmarkRunCycle`, `BenchmarkPack`); compare runs with benchstat |
+| `make wakebench [BASE=v0.1.2]` | cold-start dry run of the working tree vs. the latest release (offline fixtures); ±5 % is noise |
 | `go run ./cmd/inkycal --mode dry-run --settings s.json --out preview.png` | render without a panel |
 | `go run ./cmd/inkycal --mode builder --settings s.json --listen 127.0.0.1:8080` | web builder; token is in `<state-dir>/builder-token` |
 | `make release` | arm64/armv7/armv6 binaries + `SHA256SUMS` in `dist/` (names match `deploy/install.sh`) |
@@ -31,11 +33,13 @@ internal/modules/     one package per module + meta.go (Meta/Field) + modulestes
 internal/{fetch,ical,schedule,state,pisugar,sysinfo,timefmt,i18n,layout,picture}
 deploy/               install.sh, systemd unit, image/ and tuning/ notes
 tools/epdtrace/       regenerates driver byte traces from an upstream checkout
+tools/wakebench/      cold-start comparison against a release
+.github/workflows/    CI: make check, -race, benchmark smoke run, release builds
 ```
 
 ## Rules
 
-- **Wake time must not get worse.** Nothing new on the device path unless a setting uses it; no network-online dependency in the unit; panel init and network wait run in parallel.
+- **Wake time must not get worse.** Check with `make bench` / `make wakebench` before a release. Nothing new on the device path unless a setting uses it; no network-online dependency in the unit; panel init and network wait run in parallel.
 - **Upstream settings keep working.** `internal/app/testdata/upstream-generator.json` must load and every module must accept its config (`compat_test.go`). New keys are optional with old behaviour as default (e.g. Weather with `api_key` stays on OpenWeatherMap, TextToDisplay with `filepath` unchanged).
 - **Display drivers** must match upstream byte for byte: `internal/epd/testdata/trace/*.txt` via `trace_test.go`; regenerate only with `tools/epdtrace/regen.sh`.
 - **Red/yellow ink only for meaning** (today, alerts), never decoration. `colour_ink` is preview-only.

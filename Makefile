@@ -3,7 +3,7 @@ LDFLAGS := -s -w
 PI      ?= pi@inkycal.local
 ARCH    ?= arm64
 
-.PHONY: test check build-arm64 build-armv7 build-armv6 release deploy
+.PHONY: test check bench wakebench build-arm64 build-armv7 build-armv6 release deploy
 
 test:
 	go vet ./...
@@ -14,6 +14,14 @@ check: test
 	go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
 	go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 	node --test internal/builder/ui/*.test.mjs
+
+# In-process benchmarks of the wake path; compare two runs with benchstat.
+bench:
+	go test -run '^$$' -bench . -benchmem -count 6 ./internal/app ./internal/render
+
+# Cold start of the working tree against the latest release (BASE=v0.1.2 to pick one).
+wakebench:
+	go run ./tools/wakebench $(if $(BASE),-base $(BASE)) -n 30
 
 build-arm64:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BIN)-arm64 ./cmd/inkycal

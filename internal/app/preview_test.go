@@ -53,7 +53,7 @@ func previewAllDay(uid, start, end, title string) string {
 	return fmt.Sprintf("BEGIN:VEVENT\r\nUID:%s\r\nDTSTAMP:20261001T000000Z\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\nSUMMARY:%s\r\nEND:VEVENT\r\n", uid, start, end, title)
 }
 
-func previewServer(t *testing.T, now time.Time, todoistOK bool) *httptest.Server {
+func previewServer(t testing.TB, now time.Time, todoistOK bool) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 	day := func(h int) int64 {
@@ -132,7 +132,8 @@ func previewServer(t *testing.T, now time.Time, todoistOK bool) *httptest.Server
 	return srv
 }
 
-func renderPreview(t *testing.T, name string, now time.Time, todoistOK bool) Result {
+// previewOptions sets up the kitchen dashboard against a local fixture server.
+func previewOptions(t testing.TB, now time.Time, todoistOK bool, display epd.Display) *Options {
 	t.Helper()
 	srv := previewServer(t, now, todoistOK)
 	target, err := url.Parse(srv.URL)
@@ -152,20 +153,25 @@ func renderPreview(t *testing.T, name string, now time.Time, todoistOK bool) Res
 	fc := fetch.New(filepath.Join(dir, "http"))
 	fc.HTTP = &http.Client{Transport: p2Rewrite{target: target}, Timeout: 10 * time.Second}
 	fc.Attempts = 1
-	out := filepath.Join(dir, name+".png")
-	if keep := os.Getenv("INKYCAL_PREVIEW_DIR"); keep != "" {
-		out = filepath.Join(keep, name+".png")
-	}
-	res, err := RunCycle(context.Background(), &Options{
+	return &Options{
 		Settings: settings,
 		StateDir: dir,
-		Display:  epd.NewPNG(out, 1304, 984),
+		Display:  display,
 		System:   &p2System{},
 		Fetch:    fc,
 		Loc:      now.Location(),
 		Now:      func() time.Time { return now },
 		Registry: Registry,
-	})
+	}
+}
+
+func renderPreview(t *testing.T, name string, now time.Time, todoistOK bool) Result {
+	t.Helper()
+	out := filepath.Join(t.TempDir(), name+".png")
+	if keep := os.Getenv("INKYCAL_PREVIEW_DIR"); keep != "" {
+		out = filepath.Join(keep, name+".png")
+	}
+	res, err := RunCycle(context.Background(), previewOptions(t, now, todoistOK, epd.NewPNG(out, 1304, 984)))
 	if err != nil {
 		t.Fatal(err)
 	}
