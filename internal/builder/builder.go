@@ -223,7 +223,11 @@ func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *
 	}
 	st, err := config.Parse(body, "settings")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		msg, hint := userError(err)
+		if hint != "" {
+			msg += " – " + hint
+		}
+		http.Error(w, msg, http.StatusBadRequest)
 		return nil, nil, false
 	}
 	st.SetDir(filepath.Dir(s.cfg.SettingsPath)) // custom fonts are relative to settings.json
@@ -325,7 +329,7 @@ var (
 // userError is an error as the builder shows it: secrets in URLs hidden, plus advice.
 func userError(err error) (msg, hint string) {
 	msg = fetch.RedactText(err.Error())
-	return msg, explain(msg)
+	return msg, explain(err)
 }
 
 type moduleError struct {

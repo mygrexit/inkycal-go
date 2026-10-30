@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image/png"
 	"io"
 	"net/http"
@@ -19,8 +20,10 @@ import (
 	"inkycal/internal/app"
 	"inkycal/internal/config"
 	"inkycal/internal/epd"
+	"inkycal/internal/fetch"
 	"inkycal/internal/layout"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -148,6 +151,9 @@ func TestSettingsRejectsInvalid(t *testing.T) {
 		rec := do(t, s, "PUT", "/api/settings", body, true)
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d", name, rec.Code)
+		}
+		if name == "overlap" && !strings.Contains(rec.Body.String(), "move or resize") {
+			t.Errorf("overlap: no advice in %q", rec.Body.String())
 		}
 	}
 	if rec := do(t, s, "PUT", "/api/settings", "{"+strings.Repeat(" ", 2<<20)+"}", true); rec.Code != http.StatusRequestEntityTooLarge {
@@ -363,22 +369,17 @@ func TestCatalogFormatExamples(t *testing.T) {
 }
 
 func TestExplainErrors(t *testing.T) {
-	cases := map[string]string{
-		"weather: GET https://x?…: HTTP 401: invalid key":                "key",
-		"calendar: GET https://x/cal.ics: HTTP 404: Not Found":           "address",
-		"dial tcp: lookup api.example.com: no such host":                 "connection",
-		"context deadline exceeded":                                      "too long",
-		"calendar: https://x: not an iCalendar file (got HTML)":          "login page",
-		"todoist: api_key is missing":                                    "fill in",
-		"weather: latitude and longitude are missing (search the place)": "fill in",
-		`unknown module "Widget"`:                                        "remove the tile",
-		"weird":                                                          "",
-	}
-	for msg, want := range cases {
-		got := explain(msg)
-		if want == "" && got != "" || want != "" && !strings.Contains(got, want) {
-			t.Errorf("explain(%q) = %q, want mention of %q", msg, got, want)
+	for kind := problem.UnknownModule; kind <= problem.BadResponse; kind++ {
+		if explain(problem.Mark(kind, errors.New("x"))) == "" {
+			t.Errorf("%v: no advice", kind)
 		}
+	}
+	if got := explain(errors.New("weird")); got != "" {
+		t.Errorf("unknown error got advice %q", got)
+	}
+	msg, hint := userError(fmt.Errorf("weather: %w", &fetch.StatusError{URL: "https://x/w?appid=SECRET", Code: 401}))
+	if strings.Contains(msg, "SECRET") || !strings.Contains(hint, "key") {
+		t.Errorf("userError: %q / %q", msg, hint)
 	}
 }
 

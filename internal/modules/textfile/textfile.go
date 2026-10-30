@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"inkycal/internal/problem"
 	"io"
 	"os"
 	"regexp"
@@ -51,14 +52,14 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	m := &Module{common: c, onePerDay: bool(rc.OnePerDay)}
 	if rc.Source == "text" || (rc.Source == "" && rc.Text != "") {
 		if strings.TrimSpace(rc.Text) == "" {
-			return nil, errors.New("textfile: text is missing")
+			return nil, problem.Mark(problem.Missing, errors.New("textfile: text is missing"))
 		}
 		m.text = rc.Text
 		return m, nil
 	}
 	p := strings.TrimSpace(rc.Filepath)
 	if p == "" {
-		return nil, errors.New("textfile: filepath is missing")
+		return nil, problem.Mark(problem.Missing, errors.New("textfile: filepath is missing"))
 	}
 	lower := strings.ToLower(p)
 	m.path = p

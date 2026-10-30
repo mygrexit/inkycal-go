@@ -1,6 +1,9 @@
 package i18n
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestT(t *testing.T) {
 	cases := []struct{ lang, key, want string }{
@@ -32,3 +35,12 @@ func TestEnglishCoversGerman(t *testing.T) {
 }
 
 func isModuleName(k string) bool { return k != "" && k[0] >= 'A' && k[0] <= 'Z' }
+
+// The panel hints show in the module's language: each one needs a German text too.
+func TestGermanCoversHints(t *testing.T) {
+	for k := range words["en"] {
+		if _, ok := words["de"][k]; !ok && strings.HasPrefix(k, "hint.") {
+			t.Errorf("no German text for %q", k)
+		}
+	}
+}

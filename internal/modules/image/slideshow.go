@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"inkycal/internal/problem"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,7 +46,7 @@ func NewSlideshow(c config.Common, raw json.RawMessage) (modules.Module, error) 
 		return nil, fmt.Errorf("slideshow: %w", err)
 	}
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, fmt.Errorf("slideshow: config is missing path")
+		return nil, problem.Mark(problem.Missing, fmt.Errorf("slideshow: config is missing path"))
 	}
 	if cfg.Interval < 0 || cfg.Interval > 1440 {
 		return nil, fmt.Errorf("slideshow: interval %d: want 1–1440 minutes", cfg.Interval)

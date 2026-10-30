@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"inkycal/internal/problem"
 	"strings"
 	"sync"
 
@@ -33,7 +34,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("todoist: config: %w", err)
 	}
 	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, errors.New("todoist: api_key is missing")
+		return nil, problem.Mark(problem.Missing, errors.New("todoist: api_key is missing"))
 	}
 	if err := modules.CheckMinSize(c, Meta); err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	goimage "image"
+	"inkycal/internal/problem"
 	"strconv"
 	"strings"
 
@@ -144,7 +145,7 @@ func NewImage(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("image: %w", err)
 	}
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, fmt.Errorf("image: config is missing path")
+		return nil, problem.Mark(problem.Missing, fmt.Errorf("image: config is missing path"))
 	}
 	if err := modules.CheckMinSize(c, ImageMeta); err != nil {
 		return nil, err

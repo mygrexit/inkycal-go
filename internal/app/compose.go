@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"inkycal/internal/problem"
 	"log/slog"
 	"math"
 	"strings"
@@ -154,13 +155,13 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 				// On a grid a shrinking cell can outgrow the padding without the module
 				// being touched: say so across the whole cell instead of leaving it blank.
 				out[i].part.Img = render.NewThemedCanvas(rects[i].W, rects[i].H, render.FontDefault, 14, theme)
-				drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 			}
+			drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
 			continue
 		}
 		factory, ok := o.Registry[entry.Name]
 		if !ok {
-			out[i].fail(fmt.Errorf("unknown module %q", entry.Name), entry.Name, common.Language)
+			out[i].fail(problem.Mark(problem.UnknownModule, fmt.Errorf("unknown module %q", entry.Name)), entry.Name, common.Language)
 			continue
 		}
 		wg.Add(1)

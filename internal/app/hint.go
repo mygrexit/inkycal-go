@@ -1,34 +1,36 @@
 package app
 
 import (
-	"strings"
-
 	"inkycal/internal/i18n"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
+// hintKeys are the panel texts for each kind; kinds missing here get "hint.error".
+// Placement has none: a tile without a place on the page has nowhere to show a hint.
+var hintKeys = map[problem.Kind]string{
+	problem.UnknownModule: "hint.unknown",
+	problem.Missing:       "hint.setup",
+	problem.BadSetting:    "hint.badsetting",
+	problem.Style:         "hint.style",
+	problem.TooSmall:      "hint.small",
+	problem.Padding:       "hint.padding",
+	problem.Denied:        "hint.denied",
+	problem.NotFound:      "hint.notfound",
+	problem.Unavailable:   "hint.unavailable",
+	problem.Offline:       "hint.offline",
+	problem.Timeout:       "hint.timeout",
+	problem.NotCalendar:   "hint.notcal",
+	problem.BadResponse:   "hint.badresponse",
+}
+
 // errorHint says in one line what went wrong with a module and what to do about it.
 func errorHint(module string, err error, lang string) string {
-	msg := err.Error()
-	name := i18n.T(lang, module)
-	switch {
-	case strings.HasPrefix(msg, "unknown module"):
-		return i18n.T(lang, "hint.unknown", name)
-	case strings.Contains(msg, " is missing") || strings.Contains(msg, " are missing"):
-		return i18n.T(lang, "hint.setup", name)
-	case strings.Contains(msg, "HTTP 401") || strings.Contains(msg, "HTTP 403"):
-		return i18n.T(lang, "hint.denied", name)
-	case strings.Contains(msg, "no such host") || strings.Contains(msg, "connection refused") ||
-		strings.Contains(msg, "network is unreachable") || strings.Contains(msg, "i/o timeout"):
-		return i18n.T(lang, "hint.offline", name)
-	case strings.Contains(msg, "not an iCalendar file (got HTML)"):
-		return i18n.T(lang, "hint.notcal", name)
-	case strings.Contains(msg, "too small"):
-		return i18n.T(lang, "hint.small", name)
-	case strings.Contains(msg, ": style: "):
-		return i18n.T(lang, "hint.style", name)
+	key, ok := hintKeys[problem.Classify(err)]
+	if !ok {
+		key = "hint.error"
 	}
-	return i18n.T(lang, "hint.error", name)
+	return i18n.T(lang, key, i18n.T(lang, module))
 }
 
 // drawHint writes the hint left-aligned and vertically centred into a failed module's area.

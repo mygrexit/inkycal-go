@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"inkycal/internal/problem"
 	"log/slog"
 
 	"inkycal/internal/config"
@@ -32,7 +33,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		}
 	}
 	if len(rc.Tickers) == 0 {
-		return nil, errors.New("stocks: tickers is missing")
+		return nil, problem.Mark(problem.Missing, errors.New("stocks: tickers is missing"))
 	}
 	if err := modules.CheckMinSize(c, Meta); err != nil {
 		return nil, err

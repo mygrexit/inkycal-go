@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"inkycal/internal/problem"
 	"log/slog"
 	"math/rand/v2"
 	"regexp"
@@ -47,7 +48,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("feeds: config: %w", err)
 	}
 	if len(rc.FeedURLs) == 0 {
-		return nil, errors.New("feeds: feed_urls is missing")
+		return nil, problem.Mark(problem.Missing, errors.New("feeds: feed_urls is missing"))
 	}
 	if err := modules.CheckMinSize(c, Meta); err != nil {
 		return nil, err

@@ -93,10 +93,16 @@ func (c *Client) GetJSON(ctx context.Context, url string, header http.Header, v 
 		return false, err
 	}
 	if err := json.Unmarshal(res.Body, v); err != nil {
-		return res.Stale, fmt.Errorf("GET %s: invalid JSON: %w", redact(url), err)
+		return res.Stale, fmt.Errorf("GET %s: %w", redact(url), &BadResponseError{Err: err})
 	}
 	return res.Stale, nil
 }
+
+// BadResponseError is a response the caller cannot read (not the JSON it expects).
+type BadResponseError struct{ Err error }
+
+func (e *BadResponseError) Error() string { return "invalid JSON: " + e.Err.Error() }
+func (e *BadResponseError) Unwrap() error { return e.Err }
 
 func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]byte, error) {
 	attempts := max(c.Attempts, 1)
