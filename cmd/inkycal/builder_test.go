@@ -149,3 +149,33 @@ func TestServeWaitsForRunningRequests(t *testing.T) {
 		t.Errorf("serve: %v", err)
 	}
 }
+
+// A request that outlasts the grace period is cut off; Ctrl+C still ends cleanly.
+func TestServeStopsCleanlyAfterGracePeriod(t *testing.T) {
+	saved := shutdownGrace
+	shutdownGrace = 50 * time.Millisecond
+	t.Cleanup(func() { shutdownGrace = saved })
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	hs := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-r.Context().Done()
+	})}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- serve(ctx, hs, ln) }()
+	go http.Get("http://" + ln.Addr().String())
+	<-started
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("serve: %v, want a clean stop", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("serve did not return")
+	}
+}

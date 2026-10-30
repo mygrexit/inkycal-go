@@ -71,15 +71,22 @@ func serveBuilder(ctx context.Context, settingsPath, stateDir, listen string, ou
 	return serve(ctx, &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}, ln)
 }
 
-// serve runs hs until ctx ends, then gives running requests (a save, a preview) up to
-// 5 s to finish before it returns.
+// shutdownGrace is how long running requests (a save, a preview) get after Ctrl+C.
+var shutdownGrace = 5 * time.Second
+
+// serve runs hs until ctx ends, then lets running requests finish within shutdownGrace
+// and cuts off what is still running after that.
 func serve(ctx context.Context, hs *http.Server, ln net.Listener) error {
 	shutdown := make(chan error, 1)
 	go func() {
 		<-ctx.Done()
-		shut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shut, cancel := context.WithTimeout(context.Background(), shutdownGrace)
 		defer cancel()
-		shutdown <- hs.Shutdown(shut)
+		err := hs.Shutdown(shut)
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = hs.Close()
+		}
+		shutdown <- err
 	}()
 	if err := hs.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
