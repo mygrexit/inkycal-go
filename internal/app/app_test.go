@@ -517,3 +517,29 @@ func TestRunCycleReleasesPreparedPanelOnError(t *testing.T) {
 		t.Errorf("driver calls %q, want prepare,release", got)
 	}
 }
+
+// A tile Load could not use fails on its own: the rest of the page is still shown.
+func TestBrokenTileDoesNotStopThePanel(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "settings.json")
+	os.WriteFile(p, []byte(`{"model":"epd_7_in_5_v2_colour","modules":[
+		{"position":1,"name":"Dot","config":{"cell":[0,0,12,4],"padding_x":10,"padding_y":10}},
+		{"position":2,"name":"Dot","config":{"cell":[0,4,12,4],"padding_x":10,"padding_y":10,"style":{"scale":3}}},
+		{"position":3,"name":"Dot","config":{"cell":[0,2,12,4],"padding_x":10,"padding_y":10}}]}`), 0o600)
+	s, err := config.Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, d, _, _ := testOptions(t)
+	o.Settings = s
+	res, err := RunCycle(context.Background(), o)
+	if err != nil {
+		t.Fatalf("cycle failed: %v", err)
+	}
+	if d.shows != 1 || len(res.ModuleErrors) != 2 {
+		t.Fatalf("shows %d, module errors %q", d.shows, res.ModuleErrors)
+	}
+	if !strings.Contains(res.ModuleErrors[0], "style") || !strings.Contains(res.ModuleErrors[1], "overlaps") {
+		t.Errorf("module errors %q", res.ModuleErrors)
+	}
+}

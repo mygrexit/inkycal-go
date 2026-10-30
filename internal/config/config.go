@@ -36,6 +36,9 @@ type Settings struct {
 	Theme               *Style        `json:"theme"`      // page look; modules may override it with "style"
 	Modules             []ModuleEntry `json:"modules"`
 
+	// Warnings are problems Load worked around for the whole page (a broken theme).
+	Warnings []string `json:"-"`
+
 	dir string // directory of the loaded file, for relative font paths
 }
 
@@ -49,6 +52,10 @@ type ModuleEntry struct {
 	Position int             `json:"position"`
 	Name     string          `json:"name"`
 	Config   json.RawMessage `json:"config"`
+
+	// Err is set by Load when the module cannot run as configured (a bad style or cell):
+	// the panel shows the other modules. Parse rejects such settings instead.
+	Err error `json:"-"`
 }
 
 // Common holds the keys every module config shares.
@@ -99,22 +106,41 @@ func (c Common) checkSize() error {
 	return nil
 }
 
-// Load reads, defaults and validates a settings file.
+// Load reads and defaults a settings file for the panel. A broken module (style or
+// cell) gets ModuleEntry.Err instead of failing the whole file, and a broken theme
+// falls back to the default look: one bad tile must not stop the panel refreshing.
 func Load(path string) (*Settings, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	s, err := Parse(data, path)
+	s, err := decode(data, path)
 	if err != nil {
 		return nil, err
 	}
+	tolerate(s)
 	s.dir = filepath.Dir(path)
 	return s, nil
 }
 
-// Parse defaults and validates settings.json content; name appears in messages.
+// Parse defaults and validates settings.json content; name appears in messages. Unlike
+// Load it rejects any broken module, so the builder never saves one.
 func Parse(data []byte, name string) (*Settings, error) {
+	s, err := decode(data, name)
+	if err != nil {
+		return nil, err
+	}
+	if _, _, _, err := GridCells(s); err != nil {
+		return nil, err
+	}
+	if err := validateStyles(s); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// decode reads settings.json content, fills in defaults and checks the page-wide keys.
+func decode(data []byte, name string) (*Settings, error) {
 	var s Settings
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
@@ -138,20 +164,73 @@ func Parse(data []byte, name string) (*Settings, error) {
 		return nil, err
 	}
 	sort.SliceStable(s.Modules, func(i, j int) bool { return s.Modules[i].Position < s.Modules[j].Position })
-	if _, _, _, err := GridCells(&s); err != nil {
-		return nil, err
-	}
-	if err := validateStyles(&s); err != nil {
-		return nil, err
-	}
 	return &s, nil
+}
+
+// ErrCell marks a module Load could not place on the grid; it has no section.
+var ErrCell = errors.New("grid layout")
+
+// tolerate turns what Parse rejects per module into ModuleEntry.Err.
+func tolerate(s *Settings) {
+	if err := s.Theme.validate(); err != nil {
+		s.Warnings = append(s.Warnings, fmt.Sprintf("theme: %v – using the default look", err))
+		s.Theme = nil
+	}
+	cells := make([]*layout.Cell, len(s.Modules))
+	anyCell := false
+	for i, m := range s.Modules {
+		var c struct {
+			Style *Style       `json:"style"`
+			Cell  *layout.Cell `json:"cell"`
+		}
+		if json.Unmarshal(m.Config, &c) != nil {
+			continue // reported per module when it runs
+		}
+		if err := c.Style.validate(); err != nil {
+			s.Modules[i].Err = fmt.Errorf("style: %w", err)
+		}
+		cells[i], anyCell = c.Cell, anyCell || c.Cell != nil
+	}
+	g := layout.Default
+	if s.Grid != nil {
+		g = *s.Grid
+	}
+	if !anyCell || g.Validate(nil) != nil {
+		return // no grid, or a broken one: GridCells reports that for the whole page
+	}
+	var placed []int
+	for i, c := range cells {
+		switch {
+		case c == nil:
+			s.Modules[i].Err = fmt.Errorf("%w: no cell", ErrCell)
+			continue
+		case g.Validate([]layout.Cell{*c}) != nil:
+			s.Modules[i].Err = fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows)
+			continue
+		}
+		for _, j := range placed {
+			if layout.Overlaps(*cells[j], *c) {
+				s.Modules[i].Err = fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1)
+				break
+			}
+		}
+		if !errors.Is(s.Modules[i].Err, ErrCell) {
+			placed = append(placed, i)
+		}
+	}
 }
 
 // GridCells returns the grid and each module's cell, in module order. grid is false
 // when no module has a cell (stacked layout); either all modules have one or none.
+// Modules Load could not place (Err wraps ErrCell) get a zero cell and are not checked.
 func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err error) {
-	var missing []int
+	var missing, unplaced []int
 	for i, m := range s.Modules {
+		if errors.Is(m.Err, ErrCell) {
+			unplaced = append(unplaced, i)
+			cells = append(cells, layout.Cell{})
+			continue
+		}
 		var c struct {
 			Cell *layout.Cell `json:"cell"`
 		}
@@ -162,7 +241,7 @@ func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err 
 		}
 		cells = append(cells, *c.Cell)
 	}
-	if len(missing) == len(s.Modules) {
+	if len(missing)+len(unplaced) == len(s.Modules) {
 		return g, nil, false, nil
 	}
 	if len(missing) > 0 {
@@ -173,7 +252,16 @@ func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err 
 	if s.Grid != nil {
 		g = *s.Grid
 	}
-	if err := g.Validate(cells); err != nil {
+	check := cells
+	if len(unplaced) > 0 {
+		check = nil
+		for i, c := range cells {
+			if !errors.Is(s.Modules[i].Err, ErrCell) {
+				check = append(check, c)
+			}
+		}
+	}
+	if err := g.Validate(check); err != nil {
 		return g, nil, false, fmt.Errorf("grid layout: %w", err)
 	}
 	return g, cells, true, nil

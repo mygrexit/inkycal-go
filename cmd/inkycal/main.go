@@ -107,6 +107,9 @@ func runMode(mode, settingsPath, out, stateDir, pisugarAddr string) error {
 	if err != nil {
 		return err
 	}
+	for _, w := range s.Warnings {
+		slog.Warn("settings.json", "problem", w)
+	}
 	size, ok := epd.Models[s.Model]
 	if !ok {
 		return fmt.Errorf("display model %q not supported", s.Model)

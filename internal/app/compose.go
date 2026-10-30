@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -74,9 +75,12 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 	}
 	look := render.Layout{Border: bool(s.BorderAroundModules), Dividers: bool(s.Dividers), Info: info, InfoHeight: infoHeight}
 	if grid {
-		placed := make([]render.Placed, len(outcomes))
+		placed := make([]render.Placed, 0, len(outcomes))
 		for i, oc := range outcomes {
-			placed[i] = render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H, Inks: oc.part.Inks}
+			if errors.Is(s.Modules[i].Err, config.ErrCell) {
+				continue
+			}
+			placed = append(placed, render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H, Inks: oc.part.Inks})
 		}
 		return Composed{Canvas: render.AssembleGrid(pageW, pageH, placed, look), Modules: statuses, Took: took}, nil
 	}
@@ -110,7 +114,16 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 	inks := make([]*render.InkMap, len(o.Settings.Modules))
 	var wg sync.WaitGroup
 	for i, entry := range o.Settings.Modules {
+		if errors.Is(entry.Err, config.ErrCell) {
+			// No section on the page: nothing to draw, only the error to report.
+			out[i].err = fmt.Errorf("%s: %w", entry.Name, entry.Err)
+			out[i].part.Img = render.NewCanvas(1, 1, render.FontDefault, 14)
+			continue
+		}
 		common, err := config.ParseCommon(entry.Config)
+		if err == nil && entry.Err != nil {
+			err = entry.Err // Load found it broken (its style): show why in its section
+		}
 		style := config.Effective(o.Settings.Theme, common.Style)
 		common.FontSize = scaled(common.FontSize, style.Scale)
 		theme := themeFor(style, o.Settings.Dir())
