@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -17,9 +18,17 @@ import (
 	"inkycal/internal/config"
 )
 
-// runBuilder serves the visual editor until Ctrl+C. Without --settings it edits the
-// settings.json the panel would use, else ./settings.json (created on the first save).
+// runBuilder serves the visual editor until Ctrl+C.
 func runBuilder(settingsPath, stateDir, listen string) error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	return serveBuilder(ctx, settingsPath, stateDir, listen, os.Stdout)
+}
+
+// builderPaths fills in the defaults: without --settings the builder edits the
+// settings.json the panel would use, else ./settings.json (created on the first save);
+// its state lives in the user cache directory.
+func builderPaths(settingsPath, stateDir string) (string, string) {
 	if settingsPath == "" {
 		if p, err := config.FindSettings(""); err == nil {
 			settingsPath = p
@@ -37,6 +46,12 @@ func runBuilder(settingsPath, stateDir, listen string) error {
 		}
 		stateDir = filepath.Join(dir, "inkycal-builder")
 	}
+	return settingsPath, stateDir
+}
+
+// serveBuilder serves until ctx ends and prints the addresses to open on out.
+func serveBuilder(ctx context.Context, settingsPath, stateDir, listen string, out io.Writer) error {
+	settingsPath, stateDir = builderPaths(settingsPath, stateDir)
 	srv, err := builder.New(builder.Config{
 		SettingsPath: settingsPath, StateDir: stateDir, Registry: app.Registry, Catalog: app.Catalog,
 	})
@@ -47,14 +62,13 @@ func runBuilder(settingsPath, stateDir, listen string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("inkycal builder — editing %s\n", settingsPath)
-	for _, host := range hosts(ln.Addr().(*net.TCPAddr)) {
-		fmt.Printf("  open http://%s/#token=%s\n", net.JoinHostPort(host, fmt.Sprint(ln.Addr().(*net.TCPAddr).Port)), srv.Token())
+	addr := ln.Addr().(*net.TCPAddr)
+	fmt.Fprintf(out, "inkycal builder — editing %s\n", settingsPath)
+	for _, host := range hosts(addr) {
+		fmt.Fprintf(out, "  open http://%s/#token=%s\n", net.JoinHostPort(host, fmt.Sprint(addr.Port)), srv.Token())
 	}
-	fmt.Println("Ctrl+C to stop.")
+	fmt.Fprintln(out, "Ctrl+C to stop.")
 	hs := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 	go func() {
 		<-ctx.Done()
 		shut, cancel := context.WithTimeout(context.Background(), 5*time.Second)

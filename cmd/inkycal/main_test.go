@@ -84,3 +84,33 @@ func TestBuilderModeFailsOnBadListenAddress(t *testing.T) {
 		t.Errorf("exit code %d, want 1", code)
 	}
 }
+
+// The state dir decides where state.json and the HTTP cache live on the device.
+func TestResolveStateDir(t *testing.T) {
+	t.Setenv("STATE_DIRECTORY", "")
+	cases := []struct {
+		flag, env, mode, want string
+	}{
+		{"/flag", "/systemd", "run", "/flag"},
+		{"", "/systemd", "run", "/systemd"},
+		{"", "", "dry-run", filepath.Join(os.TempDir(), "inkycal-dry-run")},
+		{"", "", "run", "/var/lib/inkycal"},
+		{"", "", "once", "/var/lib/inkycal"},
+	}
+	for _, c := range cases {
+		t.Setenv("STATE_DIRECTORY", c.env)
+		if got := resolveStateDir(c.flag, c.mode); got != c.want {
+			t.Errorf("flag %q env %q mode %s: %s, want %s", c.flag, c.env, c.mode, got, c.want)
+		}
+	}
+}
+
+func TestUnknownModelFails(t *testing.T) {
+	dir := t.TempDir()
+	sp := filepath.Join(dir, "settings.json")
+	os.WriteFile(sp, []byte(`{"model":"no_such_panel","modules":[]}`), 0o600)
+	err := runMode("dry-run", sp, filepath.Join(dir, "out.png"), dir, "")
+	if err == nil || !strings.Contains(err.Error(), "no_such_panel") {
+		t.Errorf("err = %v, want unsupported model", err)
+	}
+}
