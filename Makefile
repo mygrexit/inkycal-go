@@ -13,7 +13,7 @@ test:
 check: test
 	go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
 	go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
-	node --test internal/builder/ui/
+	node --test internal/builder/ui/*.test.mjs
 
 build-arm64:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o dist/$(BIN)-arm64 ./cmd/inkycal

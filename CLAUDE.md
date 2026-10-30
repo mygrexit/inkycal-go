@@ -9,7 +9,7 @@ Go rewrite of Inkycal for Raspberry Pi e-paper dashboards. One static binary; th
 | `make test` | `go vet ./...` + `go test ./...` (run before every commit) |
 | `make check` | `make test` + staticcheck + govulncheck + UI tests (before a release) |
 | `go test -race ./...` | also run for changes to builder, fetch, render caches |
-| `node --test internal/builder/ui/` | builder UI logic (`*.test.mjs`, no npm deps) |
+| `node --test internal/builder/ui/*.test.mjs` | builder UI logic (`*.test.mjs`, no npm deps) |
 | `go run ./cmd/inkycal --mode dry-run --settings s.json --out preview.png` | render without a panel |
 | `go run ./cmd/inkycal --mode builder --settings s.json --listen 127.0.0.1:8080` | web builder; token is in `<state-dir>/builder-token` |
 | `make release` | arm64/armv7/armv6 binaries + `SHA256SUMS` in `dist/` (names match `deploy/install.sh`) |
