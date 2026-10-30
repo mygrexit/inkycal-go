@@ -47,7 +47,7 @@ func styledOptions(t *testing.T, theme string, styles ...string) *Options {
 
 func compose(t *testing.T, o *Options) *render.Canvas {
 	t.Helper()
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

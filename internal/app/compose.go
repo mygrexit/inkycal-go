@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"inkycal/internal/config"
+	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/problem"
 	"inkycal/internal/render"
@@ -28,11 +30,32 @@ type Composed struct {
 	Took    time.Duration // modules only
 }
 
+// ComposeOptions is what Compose draws a page from; the device takes it from Options
+// (composeOptions), the builder fills it in for a preview.
+type ComposeOptions struct {
+	Settings       *config.Settings
+	PanelW, PanelH int // the panel's pixels, landscape like epd.Display.Size
+	Fetch          *fetch.Client
+	Loc            *time.Location
+	Registry       map[string]modules.Factory
+	Battery        func() (float64, error) // for the info line; nil shows none
+}
+
+// composeOptions returns o as Compose needs it.
+func (o *Options) composeOptions() ComposeOptions {
+	w, h := o.Display.Size()
+	c := ComposeOptions{Settings: o.Settings, PanelW: w, PanelH: h, Fetch: o.Fetch, Loc: o.Loc, Registry: o.Registry}
+	if o.PiSugar != nil {
+		c.Battery = o.PiSugar.Battery
+	}
+	return c
+}
+
 // Compose runs the modules and lays out the page (portrait canvas: panel height × width),
-// including the info line. The battery level comes from o.PiSugar when set.
-func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
+// including the info line.
+func Compose(ctx context.Context, o ComposeOptions, now time.Time) (Composed, error) {
 	s := o.Settings
-	panelW, panelH := o.Display.Size()
+	panelW, panelH := o.PanelW, o.PanelH
 	pageW, pageH := panelH, panelW // portrait page, as Assemble lays it out
 	infoHeight := 0
 	if s.InfoSection {
@@ -53,8 +76,8 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 	}
 	var battery float64
 	hasBattery := false
-	if o.PiSugar != nil {
-		if b, err := o.PiSugar.Battery(); err == nil {
+	if o.Battery != nil {
+		if b, err := o.Battery(); err == nil {
 			battery, hasBattery = b, true
 		} else {
 			slog.Warn("battery level unavailable", "err", err)
@@ -100,7 +123,7 @@ func (oc *moduleOutcome) fail(err error, t tile) {
 }
 
 // runModules runs the tiles' modules concurrently; a tile that cannot run shows its hint.
-func runModules(ctx context.Context, o *Options, now time.Time, tiles []tile) []moduleOutcome {
+func runModules(ctx context.Context, o ComposeOptions, now time.Time, tiles []tile) []moduleOutcome {
 	ctx, cancel := context.WithTimeout(ctx, moduleTimeout)
 	defer cancel()
 	out := make([]moduleOutcome, len(tiles))

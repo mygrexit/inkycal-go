@@ -29,7 +29,6 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/layout"
 	"inkycal/internal/modules"
-	"inkycal/internal/render"
 	"inkycal/internal/timefmt"
 )
 
@@ -309,13 +308,6 @@ func replaceFile(path, pattern string, data []byte, mode os.FileMode) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-// sizeDisplay only tells Compose the panel size.
-type sizeDisplay struct{ w, h int }
-
-func (d sizeDisplay) Size() (int, int)      { return d.w, d.h }
-func (sizeDisplay) Show(render.Frame) error { return nil }
-func (sizeDisplay) Clear(int) error         { return nil }
-
 // The colour layer as the panels show it (sampled from photos, not screen red).
 var (
 	colourRed    = color.RGBA{196, 22, 28, 255}
@@ -359,9 +351,8 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), previewTimeout)
 	defer cancel()
 	start := time.Now()
-	o := &app.Options{
-		Settings: st, Display: sizeDisplay{size[0], size[1]}, Fetch: client,
-		Loc: time.Local, Now: time.Now, Registry: s.cfg.Registry,
+	o := app.ComposeOptions{
+		Settings: st, PanelW: size[0], PanelH: size[1], Fetch: client, Loc: time.Local, Registry: s.cfg.Registry,
 	}
 	composed, err := app.Compose(ctx, o, time.Now())
 	if err != nil {

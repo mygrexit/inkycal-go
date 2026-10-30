@@ -11,7 +11,7 @@ import (
 
 func TestComposeWithoutCycle(t *testing.T) {
 	o, d, p, _ := testOptions(t, "Dot", "Fail")
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestComposeWithoutCycle(t *testing.T) {
 func TestComposeIsLenientForSettingsInMemory(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Dot", "Dot")
 	o.Settings.Modules[1].Config = json.RawMessage(`{"size":[480,200],"padding_x":10,"padding_y":10,"style":{"scale":3}}`)
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -402,7 +402,7 @@ func TestHintKeysHaveTexts(t *testing.T) {
 
 func TestFailedModuleShowsHint(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Dot", "Fail", "Missing", "Panic")
-	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
+	out := runModules(context.Background(), o.composeOptions(), o.Now(), pageTiles(t, o))
 	for i := 1; i < len(out); i++ {
 		img := out[i].part.Img
 		inked := false
@@ -579,7 +579,7 @@ func TestNoPlaceableTileShowsHint(t *testing.T) {
 	}
 	o, _, _, _ := testOptions(t)
 	o.Settings = s
-	c, err := Compose(context.Background(), o, o.Now())
+	c, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +600,7 @@ func TestBrokenStyleIsNotApplied(t *testing.T) {
 	}
 	o, _, _, _ := testOptions(t)
 	o.Settings = s
-	c, err := Compose(context.Background(), o, o.Now())
+	c, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -641,7 +641,7 @@ func TestStackedBrokenTileShowsHint(t *testing.T) {
 	}
 	o, _, _, _ := testOptions(t)
 	o.Settings = s
-	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
+	out := runModules(context.Background(), o.composeOptions(), o.Now(), pageTiles(t, o))
 	if out[0].err == nil {
 		t.Fatal("want the style error")
 	}
@@ -655,7 +655,7 @@ func TestRunModulesErrorKinds(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Widget", "Wait")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // stands in for the 60 s module limit
 	defer cancel()
-	out := runModules(ctx, o, o.Now(), pageTiles(t, o))
+	out := runModules(ctx, o.composeOptions(), o.Now(), pageTiles(t, o))
 	if got := problem.Classify(out[0].err); got != problem.UnknownModule {
 		t.Errorf("unknown module: %v (%v)", got, out[0].err)
 	}
@@ -668,7 +668,7 @@ func TestRunModulesErrorKinds(t *testing.T) {
 func TestStackedPaddingErrorShowsHint(t *testing.T) {
 	o, _, _, _ := testOptions(t)
 	o.Settings.Modules = []config.ModuleEntry{{Position: 1, Name: "Dot", Config: json.RawMessage(`{"size":[480,60],"padding_x":250,"padding_y":40}`)}}
-	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
+	out := runModules(context.Background(), o.composeOptions(), o.Now(), pageTiles(t, o))
 	if problem.Classify(out[0].err) != problem.Padding {
 		t.Fatalf("err %v", out[0].err)
 	}
