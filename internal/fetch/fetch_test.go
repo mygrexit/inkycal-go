@@ -169,12 +169,12 @@ func TestPruneDropsOldEntriesOnly(t *testing.T) {
 // Private calendar addresses carry their secret in the path, not the query.
 func TestRedactHidesPathTokens(t *testing.T) {
 	cases := map[string]string{
-		"https://calendar.google.com/calendar/ical/me%40gmail.com/private-0a1b2c3d4e5f6a7b8c9d/basic.ics": "https://calendar.google.com/calendar/ical/me%40gmail.com/private-…/basic.ics",
-		"webcal://p52-caldav.icloud.com/published/2/MTIzNDU2Nzg5MDEyMzQ1Njc4OTBhYmNkZWZn":                  "webcal://p52-caldav.icloud.com/published/2/…",
+		"https://calendar.google.com/calendar/ical/me%40gmail.com/private-0a1b2c3d4e5f6a7b8c9d/basic.ics":   "https://calendar.google.com/calendar/ical/me%40gmail.com/private-…/basic.ics",
+		"webcal://p52-caldav.icloud.com/published/2/MTIzNDU2Nzg5MDEyMzQ1Njc4OTBhYmNkZWZn":                   "webcal://p52-caldav.icloud.com/published/2/…",
 		"https://outlook.office365.com/owa/calendar/abc@x.de/8f2e9c71d4a54b6f9e3a1c0d2b7e8f90/calendar.ics": "https://outlook.office365.com/owa/calendar/abc@x.de/…/calendar.ics",
-		"https://api.x/weather?appid=SECRET":                                                               "https://api.x/weather?…",
-		"https://api.open-meteo.com/v1/forecast":                                                           "https://api.open-meteo.com/v1/forecast",
-		"https://example.com/family/calendar.ics":                                                          "https://example.com/family/calendar.ics",
+		"https://api.x/weather?appid=SECRET":      "https://api.x/weather?…",
+		"https://api.open-meteo.com/v1/forecast":  "https://api.open-meteo.com/v1/forecast",
+		"https://example.com/family/calendar.ics": "https://example.com/family/calendar.ics",
 	}
 	for in, want := range cases {
 		if got := Redact(in); got != want {
