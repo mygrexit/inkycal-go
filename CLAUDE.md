@@ -51,7 +51,7 @@ tools/wakebench/      cold-start comparison against a release
 
 - Register it in `internal/app/registry.go`; give it a `modules.Meta` (Group, Icon, MinW/MinH, Fields with Help).
 - Test with `modulestest.CheckMeta` and draw at every `modulestest.Shapes` size; too small → `CheckMinSize` error, not a crash.
-- Errors users can hit get a kind: mark them where they arise with `problem.Mark(problem.<Kind>, err)` (network, HTTP status, missing files and JSON types are recognised by type). A new kind goes into `internal/problem`, with advice in `builder/explain.go`, a hint key in `app/hint.go` + `i18n` (en and de), and a real-producer case in `problem_test.go`. Never match error text.
+- Errors users can hit get a kind: mark them where they arise with `problem.Mark(problem.<Kind>, err)` (network, HTTP status, missing files and JSON types are recognised by type). A new kind goes into `internal/problem`, with advice in `builder/explain.go`, a hint key in `app/hint.go` + `i18n` (en and de) — except `Placement`: an unplaced tile has nowhere to show one — and a test that takes the error from its real producer (`problem_test.go`, or the producer's own package when it is internal, e.g. `app`). Never match error text.
 - Field kinds the UI understands: text, secret, url, url_list, text_list, number, bool, select, multiline, place.
 
 ## Gotchas

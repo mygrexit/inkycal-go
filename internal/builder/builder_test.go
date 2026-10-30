@@ -155,6 +155,9 @@ func TestSettingsRejectsInvalid(t *testing.T) {
 		if name == "overlap" && !strings.Contains(rec.Body.String(), "move or resize") {
 			t.Errorf("overlap: no advice in %q", rec.Body.String())
 		}
+		if name == "json" && (strings.Contains(rec.Body.String(), "address") || !strings.Contains(rec.Body.String(), "format")) {
+			t.Errorf("broken JSON: wrong advice in %q", rec.Body.String())
+		}
 	}
 	if rec := do(t, s, "PUT", "/api/settings", "{"+strings.Repeat(" ", 2<<20)+"}", true); rec.Code != http.StatusRequestEntityTooLarge {
 		t.Errorf("huge body: %d", rec.Code)
@@ -369,7 +372,7 @@ func TestCatalogFormatExamples(t *testing.T) {
 }
 
 func TestExplainErrors(t *testing.T) {
-	for kind := problem.UnknownModule; kind <= problem.BadResponse; kind++ {
+	for kind := problem.UnknownModule; kind.String() != "unknown"; kind++ {
 		if explain(problem.Mark(kind, errors.New("x"))) == "" {
 			t.Errorf("%v: no advice", kind)
 		}

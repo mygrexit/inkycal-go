@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/weather"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

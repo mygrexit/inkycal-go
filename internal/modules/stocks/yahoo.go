@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"math"
 	"net/url"
 
 	"inkycal/internal/fetch"
+	"inkycal/internal/problem"
 )
 
 // yahooBaseURL is a variable so tests can point it at an httptest server.

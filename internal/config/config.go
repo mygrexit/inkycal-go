@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"inkycal/internal/layout"
+	"inkycal/internal/problem"
 	"inkycal/internal/schedule"
 )
 
@@ -144,7 +144,7 @@ func Parse(data []byte, name string) (*Settings, error) {
 func decode(data []byte, name string) (*Settings, error) {
 	var s Settings
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, problem.Mark(problem.BadSetting, fmt.Errorf("%s: %w", name, err))
 	}
 	if s.UpdateInterval <= 0 {
 		s.UpdateInterval = 60
@@ -159,7 +159,7 @@ func decode(data []byte, name string) (*Settings, error) {
 		return nil, fmt.Errorf("orientation must be 0 or 180, got %d", s.Orientation)
 	}
 	if s.Model == "" {
-		return nil, problem.Mark(problem.Missing, errors.New("model is missing"))
+		return nil, errors.New("model is missing") // page-wide: no tile advice fits
 	}
 	if _, err := schedule.ParseTimes(s.UpdateTimes); err != nil {
 		return nil, err

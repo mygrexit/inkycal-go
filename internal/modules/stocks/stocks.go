@@ -7,11 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"log/slog"
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

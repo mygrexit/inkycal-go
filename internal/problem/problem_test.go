@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +17,7 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/ical"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/fullweather"
 	"inkycal/internal/modules/textfile"
 	"inkycal/internal/modules/todoist"
 	"inkycal/internal/modules/weather"
@@ -155,6 +158,39 @@ func TestClassifyRealProducers(t *testing.T) {
 			_, err := config.Parse([]byte(grid+`{"position":2,"name":"B","config":{}}]}`), "settings")
 			return err
 		}, problem.Placement},
+		{"two calendars: 401 first, a web page second", func(t *testing.T) error {
+			denied := server(t, status(401, "Unauthorized"))
+			page := server(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("<!doctype html><html></html>")) })
+			now := time.Now()
+			_, _, err := ical.Load(context.Background(), client(), []string{denied.URL, page.URL}, nil, now, now.AddDate(0, 1, 0), time.UTC)
+			return err
+		}, problem.Denied},
+		{"calendar address returns plain text", func(t *testing.T) error {
+			srv := server(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("hello")) })
+			now := time.Now()
+			_, _, err := ical.Load(context.Background(), client(), []string{srv.URL}, nil, now, now.AddDate(0, 1, 0), time.UTC)
+			return err
+		}, problem.BadResponse},
+		{"Fullweather without a place", func(t *testing.T) error {
+			_, err := fullweather.New(small, json.RawMessage(`{"api_key":"k"}`))
+			return err
+		}, problem.Missing},
+		{"setting of a flexible type with a wrong value", func(t *testing.T) error {
+			_, err := config.ParseCommon(json.RawMessage(`{"size":[480,200],"padding_x":"wide"}`))
+			return err
+		}, problem.BadSetting},
+		{"settings file that is not JSON (builder)", func(t *testing.T) error {
+			_, err := config.Parse([]byte(`{"model": `), "settings")
+			return err
+		}, problem.BadSetting},
+		{"broken theme (builder)", func(t *testing.T) error {
+			_, err := config.Parse([]byte(`{"model":"m","theme":{"font":"comic"},"modules":[]}`), "settings")
+			return err
+		}, problem.Style},
+		{"page without a display model: no tile advice", func(t *testing.T) error {
+			_, err := config.Parse([]byte(`{"modules":[]}`), "settings")
+			return err
+		}, problem.Unknown},
 		{"anything else", func(t *testing.T) error { return errors.New("boom") }, problem.Unknown},
 	}
 	for _, c := range cases {
@@ -180,3 +216,22 @@ func TestMarkKeepsTheText(t *testing.T) {
 		t.Error("Mark(nil) must stay nil")
 	}
 }
+
+// A dial that times out means the Pi has no way out (no route, captive Wi-Fi), not a
+// slow service: that is "offline". Only answers that never come are "timeout".
+func TestDialTimeoutIsOffline(t *testing.T) {
+	dial := &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}
+	if got := problem.Classify(fmt.Errorf("GET x: %w", dial)); got != problem.Offline {
+		t.Errorf("dial timeout: %v, want offline", got)
+	}
+	read := &net.OpError{Op: "read", Net: "tcp", Err: timeoutError{}}
+	if got := problem.Classify(fmt.Errorf("GET x: %w", read)); got != problem.Timeout {
+		t.Errorf("read timeout: %v, want timeout", got)
+	}
+}
+
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }

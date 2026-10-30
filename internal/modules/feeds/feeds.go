@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"inkycal/internal/problem"
 	"log/slog"
 	"math/rand/v2"
 	"regexp"
@@ -21,6 +20,7 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

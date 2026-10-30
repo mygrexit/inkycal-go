@@ -7,6 +7,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"inkycal/internal/problem"
 )
 
 // FlexInt accepts 5, "5" and null (→ 0). The Python web UI is not strict about types.
@@ -30,7 +32,7 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 		}
 		n, err := strconv.Atoi(s)
 		if err != nil {
-			return fmt.Errorf("not an integer: %q", s)
+			return problem.Mark(problem.BadSetting, fmt.Errorf("not an integer: %q", s))
 		}
 		*f = FlexInt(n)
 		return nil
@@ -56,11 +58,11 @@ func (f *FlexFloat) UnmarshalJSON(b []byte) error {
 		}
 		n, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
 		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
-			return fmt.Errorf("want a number, got %q", s)
+			return problem.Mark(problem.BadSetting, fmt.Errorf("want a number, got %q", s))
 		}
 		v = n
 	} else if err := json.Unmarshal(b, &v); err != nil {
-		return fmt.Errorf("want a number, got %s", b)
+		return problem.Mark(problem.BadSetting, fmt.Errorf("want a number, got %s", b))
 	}
 	*f = FlexFloat(v)
 	return nil
@@ -78,7 +80,7 @@ func (f *FlexString) UnmarshalJSON(b []byte) error {
 	}
 	var n json.Number
 	if err := json.Unmarshal(b, &n); err != nil {
-		return fmt.Errorf("want string or number, got %s", b)
+		return problem.Mark(problem.BadSetting, fmt.Errorf("want string or number, got %s", b))
 	}
 	*f = FlexString(n.String())
 	return nil
@@ -95,7 +97,7 @@ func (f *FlexBool) UnmarshalJSON(b []byte) error {
 	case "false", "null", "":
 		*f = false
 	default:
-		return fmt.Errorf("not a boolean: %s", b)
+		return problem.Mark(problem.BadSetting, fmt.Errorf("not a boolean: %s", b))
 	}
 	return nil
 }

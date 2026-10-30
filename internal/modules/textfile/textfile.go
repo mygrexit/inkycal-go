@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"io"
 	"os"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/i18n"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

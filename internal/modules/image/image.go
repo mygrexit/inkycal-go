@@ -11,13 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 	goimage "image"
-	"inkycal/internal/problem"
 	"strconv"
 	"strings"
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

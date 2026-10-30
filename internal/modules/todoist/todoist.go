@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"inkycal/internal/problem"
 	"strings"
 	"sync"
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

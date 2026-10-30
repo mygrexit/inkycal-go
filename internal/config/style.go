@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+
 	"inkycal/internal/problem"
 )
 

@@ -9,7 +9,6 @@ package problem
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io/fs"
 	"net"
 	"net/http"
@@ -37,6 +36,8 @@ const (
 	Timeout                   // the service or the module took too long
 	NotCalendar               // a calendar address returns a web page or other non-iCal content
 	BadResponse               // the service answered with data the module cannot read
+
+	numKinds // keep last
 )
 
 var names = [...]string{"unknown", "unknown-module", "missing", "bad-setting", "style", "placement",
@@ -78,42 +79,65 @@ func ForStatus(code int) Kind {
 	return Unknown
 }
 
-// Classify returns the kind of err. A mark wins over the type of what it wraps, so a
-// module can say "missing" about an error that happens to contain a JSON error.
+// Classify returns the kind of err. It walks the error tree in order and takes the first
+// error with a kind, so with errors.Join (several calendars, two weather requests) the
+// first failure decides. A mark wins over the error it wraps, so a module can say
+// "missing" about an error that happens to contain a JSON error.
 func Classify(err error) Kind {
 	if err == nil {
 		return Unknown
 	}
-	if m, ok := errors.AsType[*marked](err); ok {
-		return m.kind
+	if k := kindOf(err); k != Unknown {
+		return k
 	}
-	if se, ok := errors.AsType[*fetch.StatusError](err); ok {
-		return ForStatus(se.Code)
+	switch u := err.(type) {
+	case interface{ Unwrap() []error }:
+		for _, e := range u.Unwrap() {
+			if k := Classify(e); k != Unknown {
+				return k
+			}
+		}
+	case interface{ Unwrap() error }:
+		return Classify(u.Unwrap())
 	}
-	if _, ok := errors.AsType[*fetch.BadResponseError](err); ok {
+	return Unknown
+}
+
+// kindOf is the kind of err itself, not of what it wraps.
+func kindOf(err error) Kind {
+	switch e := err.(type) {
+	case *marked:
+		return e.kind
+	case *fetch.StatusError:
+		return ForStatus(e.Code)
+	case *fetch.BadResponseError:
 		return BadResponse
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return Timeout
-	}
-	if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() {
-		return Timeout
-	}
-	if _, ok := errors.AsType[*net.DNSError](err); ok {
+	case *net.DNSError:
 		return Offline
+	case *net.OpError:
+		if e.Op == "dial" && e.Timeout() {
+			return Offline // no way out (no route, captive Wi-Fi), not a slow service
+		}
+	case *json.UnmarshalTypeError:
+		return BadSetting // responses decode through fetch, which marks them
+	case *json.SyntaxError:
+		return BadResponse // settings.json errors are marked by config
+	case syscall.Errno:
+		switch e {
+		case syscall.ECONNREFUSED, syscall.ENETUNREACH, syscall.EHOSTUNREACH, syscall.ECONNRESET:
+			return Offline
+		case syscall.ENOENT:
+			return NotFound
+		}
 	}
-	if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ENETUNREACH) ||
-		errors.Is(err, syscall.EHOSTUNREACH) || errors.Is(err, syscall.ECONNRESET) {
-		return Offline
-	}
-	if errors.Is(err, fs.ErrNotExist) {
+	switch {
+	case err == context.DeadlineExceeded:
+		return Timeout
+	case err == fs.ErrNotExist:
 		return NotFound
 	}
-	if _, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
-		return BadSetting // responses decode through fetch, which marks them
-	}
-	if _, ok := errors.AsType[*json.SyntaxError](err); ok {
-		return BadResponse // settings.json is read before any module runs: this came from a service
+	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		return Timeout
 	}
 	return Unknown
 }

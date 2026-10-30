@@ -82,6 +82,15 @@ var testRegistry = map[string]modules.Factory{
 	"Dot":   func(c config.Common, _ json.RawMessage) (modules.Module, error) { return dotModule{c}, nil },
 	"Fail":  func(config.Common, json.RawMessage) (modules.Module, error) { return failModule{}, nil },
 	"Panic": func(config.Common, json.RawMessage) (modules.Module, error) { panic("broken module") },
+	"Wait":  func(config.Common, json.RawMessage) (modules.Module, error) { return waitModule{}, nil },
+}
+
+// waitModule waits for its data until the cycle gives up, like a fetch that never answers.
+type waitModule struct{}
+
+func (waitModule) Generate(ctx context.Context, _ *modules.Env) (*render.Canvas, error) {
+	<-ctx.Done()
+	return nil, fmt.Errorf("wait: GET https://slow.example: %w", ctx.Err())
 }
 
 func testOptions(t *testing.T, names ...string) (*Options, *fakeDisplay, *fakePiSugar, *fakeSystem) {
@@ -384,8 +393,8 @@ func TestErrorHint(t *testing.T) {
 // Every kind with a panel hint has its text; a missing key would print the key itself.
 func TestHintKeysHaveTexts(t *testing.T) {
 	for kind, key := range hintKeys {
-		if i18n.T("en", key, "X") == key || i18n.T("de", key, "X") == i18n.T("en", key, "X") {
-			t.Errorf("%v: %s lacks an English or a German text", kind, key)
+		if i18n.T("en", key, "X") == key { // German: TestGermanCoversHints in i18n
+			t.Errorf("%v: %s has no text", kind, key)
 		}
 	}
 }
@@ -626,5 +635,32 @@ func TestStackedBrokenTileShowsHint(t *testing.T) {
 	}
 	if b, _ := modulestestInk(out[0].part.Img); !b {
 		t.Error("blank tile: want the hint")
+	}
+}
+
+// The kinds runModules itself produces, from the real code path.
+func TestRunModulesErrorKinds(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Widget", "Wait")
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // stands in for the 60 s module limit
+	defer cancel()
+	out := runModules(ctx, o, o.Now(), nil)
+	if got := problem.Classify(out[0].err); got != problem.UnknownModule {
+		t.Errorf("unknown module: %v (%v)", got, out[0].err)
+	}
+	if got := problem.Classify(out[1].err); got != problem.Timeout {
+		t.Errorf("module limit: %v (%v)", got, out[1].err)
+	}
+}
+
+// Padding larger than the tile leaves no inner area: the hint uses the whole section.
+func TestStackedPaddingErrorShowsHint(t *testing.T) {
+	o, _, _, _ := testOptions(t)
+	o.Settings.Modules = []config.ModuleEntry{{Position: 1, Name: "Dot", Config: json.RawMessage(`{"size":[480,60],"padding_x":250,"padding_y":40}`)}}
+	out := runModules(context.Background(), o, o.Now(), nil)
+	if problem.Classify(out[0].err) != problem.Padding {
+		t.Fatalf("err %v", out[0].err)
+	}
+	if b, _ := modulestestInk(out[0].part.Img); !b {
+		t.Error("blank section: want the padding hint")
 	}
 }

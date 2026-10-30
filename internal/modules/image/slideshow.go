@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"inkycal/internal/problem"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 

@@ -223,11 +223,7 @@ func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *
 	}
 	st, err := config.Parse(body, "settings")
 	if err != nil {
-		msg, hint := userError(err)
-		if hint != "" {
-			msg += " – " + hint
-		}
-		http.Error(w, msg, http.StatusBadRequest)
+		http.Error(w, userMessage(err), http.StatusBadRequest)
 		return nil, nil, false
 	}
 	st.SetDir(filepath.Dir(s.cfg.SettingsPath)) // custom fonts are relative to settings.json
@@ -326,6 +322,15 @@ var (
 	colourYellow = color.RGBA{230, 190, 0, 255}
 )
 
+// userMessage is userError as one line for a plain-text error response.
+func userMessage(err error) string {
+	msg, hint := userError(err)
+	if hint != "" {
+		msg += " – " + hint
+	}
+	return msg
+}
+
 // userError is an error as the builder shows it: secrets in URLs hidden, plus advice.
 func userError(err error) (msg, hint string) {
 	msg = fetch.RedactText(err.Error())
@@ -360,7 +365,7 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	}
 	composed, err := app.Compose(ctx, o, time.Now())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, userMessage(err), http.StatusBadRequest)
 		return
 	}
 	colour := colourRed

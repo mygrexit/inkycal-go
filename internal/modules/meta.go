@@ -2,10 +2,10 @@ package modules
 
 import (
 	"fmt"
-	"inkycal/internal/problem"
 	"strings"
 
 	"inkycal/internal/config"
+	"inkycal/internal/problem"
 )
 
 // FieldKind tells the builder which input to show for a setting.

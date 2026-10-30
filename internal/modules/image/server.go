@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	goimage "image"
-	"inkycal/internal/problem"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,6 +17,7 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
