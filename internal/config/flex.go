@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -39,6 +40,47 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	*f = FlexInt(int(n))
+	return nil
+}
+
+// FlexFloat accepts 51.5 and "51.5"; the web UI stores numbers as strings.
+type FlexFloat float64
+
+func (f *FlexFloat) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	var v float64
+	if len(b) > 0 && b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		n, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
+			return fmt.Errorf("want a number, got %q", s)
+		}
+		v = n
+	} else if err := json.Unmarshal(b, &v); err != nil {
+		return fmt.Errorf("want a number, got %s", b)
+	}
+	*f = FlexFloat(v)
+	return nil
+}
+
+// FlexString accepts a JSON string or number; the web UI stores city IDs and API
+// versions as numbers.
+type FlexString string
+
+func (f *FlexString) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err == nil {
+		*f = FlexString(s)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("want string or number, got %s", b)
+	}
+	*f = FlexString(n.String())
 	return nil
 }
 

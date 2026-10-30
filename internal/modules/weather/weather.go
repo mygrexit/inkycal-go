@@ -2,7 +2,6 @@
 package weather
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,34 +24,17 @@ type Module struct {
 }
 
 type rawConfig struct {
-	Provider         string          `json:"provider"` // "" = OpenWeatherMap with an api_key, else Open-Meteo
-	Latitude         *flexFloat      `json:"latitude"`
-	Longitude        *flexFloat      `json:"longitude"`
-	APIKey           string          `json:"api_key"`
-	Location         flexString      `json:"location"`
-	RoundTemperature config.FlexBool `json:"round_temperature"`
-	RoundWindspeed   config.FlexBool `json:"round_windspeed"`
-	ForecastInterval string          `json:"forecast_interval"`
-	Units            string          `json:"units"`
-	HourFormat       config.FlexInt  `json:"hour_format"`
-	UseBeaufort      config.FlexBool `json:"use_beaufort"`
-}
-
-// flexString accepts a JSON string or number; the web UI stores city IDs as numbers.
-type flexString string
-
-func (f *flexString) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err == nil {
-		*f = flexString(s)
-		return nil
-	}
-	var n json.Number
-	if err := json.Unmarshal(b, &n); err != nil {
-		return fmt.Errorf("want string or number, got %s", b)
-	}
-	*f = flexString(n.String())
-	return nil
+	Provider         string            `json:"provider"` // "" = OpenWeatherMap with an api_key, else Open-Meteo
+	Latitude         *config.FlexFloat `json:"latitude"`
+	Longitude        *config.FlexFloat `json:"longitude"`
+	APIKey           string            `json:"api_key"`
+	Location         config.FlexString `json:"location"`
+	RoundTemperature config.FlexBool   `json:"round_temperature"`
+	RoundWindspeed   config.FlexBool   `json:"round_windspeed"`
+	ForecastInterval string            `json:"forecast_interval"`
+	Units            string            `json:"units"`
+	HourFormat       config.FlexInt    `json:"hour_format"`
+	UseBeaufort      config.FlexBool   `json:"use_beaufort"`
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
@@ -94,19 +76,6 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	}
 	m.set = s
 	return m, nil
-}
-
-// flexFloat accepts a JSON number or a numeric string.
-type flexFloat float64
-
-func (f *flexFloat) UnmarshalJSON(b []byte) error {
-	var n json.Number
-	if err := json.Unmarshal(bytes.Trim(b, `"`), &n); err != nil {
-		return fmt.Errorf("want a number, got %s", b)
-	}
-	v, err := n.Float64()
-	*f = flexFloat(v)
-	return err
 }
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {

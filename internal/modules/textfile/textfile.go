@@ -122,8 +122,7 @@ func lineOfDay(text string, now time.Time) string {
 	if len(lines) == 0 {
 		return strings.TrimSpace(text)
 	}
-	y, mo, d := now.Date()
-	day := time.Date(y, mo, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+	day := modules.DayNumber(now)
 	return lines[int(day%int64(len(lines)))]
 }
 

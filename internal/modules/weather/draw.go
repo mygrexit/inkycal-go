@@ -5,15 +5,6 @@ import (
 	"inkycal/internal/timefmt"
 )
 
-// sizeForCap returns the font size whose capitals are about capPx tall.
-func sizeForCap(c *render.Canvas, font render.FontID, capPx int) int {
-	size := 8
-	for size < 600 && c.CapHeight(render.Style{Font: font, Size: size + 1}) <= capPx {
-		size++
-	}
-	return size
-}
-
 // drawDay lays out the today band like a tear-off calendar leaf: the day's date
 // on the left, the day's weather in pictograms on the right, a timeline below it.
 //
@@ -37,7 +28,7 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	u := func(f float64) int { return int(f * float64(h) / 250) } // design grid is 250 px tall
 
 	// Date block.
-	num := render.Style{Font: render.FontDisplay, Size: sizeForCap(c, render.FontDisplay, u(118))}
+	num := render.Style{Font: render.FontDisplay, Size: c.SizeForCap(render.FontDisplay, u(118))}
 	c.Text(-u(4), u(118), timefmt.Format(v.Date, "D", lang), num, render.InkColour)
 	weekday := render.Style{Font: render.FontDisplay, Size: u(38)}
 	c.Text(0, u(178), timefmt.Format(v.Date, "dddd", lang), weekday, render.InkBlack)
@@ -49,14 +40,14 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	right := w
 	c.Icon(x0, 0, u(124), u(124), iconGlyph(v.Icon), render.FontWeather, render.InkBlack, 0.95)
 
-	hi := render.Style{Font: render.FontBold, Size: sizeForCap(c, render.FontBold, u(50))}
-	lo := render.Style{Font: render.FontRegular, Size: sizeForCap(c, render.FontRegular, u(30))}
+	hi := render.Style{Font: render.FontBold, Size: c.SizeForCap(render.FontBold, u(50))}
+	lo := render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, u(30))}
 	xt := x0 + u(146)
 	c.Text(xt, u(62), v.Hi, hi, render.InkBlack)
 	c.Text(xt, u(112), v.Lo, lo, render.InkBlack)
 
 	// Wind gauge and sun times, right-aligned column.
-	small := render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, u(20))}
+	small := render.Style{Font: render.FontDefault, Size: c.SizeForCap(render.FontDefault, u(20))}
 	colX := right - u(170)
 	iconW := u(44)
 	drawWind(c, colX, u(6), iconW, u(36), v.Wind)
@@ -66,8 +57,8 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
 
 	// Timeline: the observation plus the coming 3-hour slots of today.
-	label := render.Style{Font: render.FontRegular, Size: sizeForCap(c, render.FontRegular, u(15))}
-	temp := render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, u(19))}
+	label := render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, u(15))}
+	temp := render.Style{Font: render.FontDefault, Size: c.SizeForCap(render.FontDefault, u(19))}
 	colW := (right - x0) / maxSlots
 	for i, s := range v.Slots {
 		cx := x0 + i*colW + colW/2

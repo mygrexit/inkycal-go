@@ -4,7 +4,6 @@
 package fullweather
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,58 +38,16 @@ type Module struct {
 // rawConfig mirrors the upstream keys. orientation, keep_history, font, chart_title,
 // weekly_title and icon_outline are accepted and ignored (see the package report).
 type rawConfig struct {
-	APIKey            string           `json:"api_key"`
-	Latitude          *flexFloat       `json:"latitude"`
-	Longitude         *flexFloat       `json:"longitude"`
-	APIVersion        flexString       `json:"api_version"`
-	TempUnit          string           `json:"temp_unit"`
-	WindUnit          string           `json:"wind_unit"`
-	WindGusts         *config.FlexBool `json:"wind_gusts"`
-	MinMaxAnnotations config.FlexBool  `json:"min_max_annotations"`
-	Locale            string           `json:"locale"`
-	HourFormat        config.FlexInt   `json:"hour_format"`
-}
-
-// flexFloat accepts 51.5 and "51.5"; the web UI stores numbers as strings.
-type flexFloat float64
-
-func (f *flexFloat) UnmarshalJSON(b []byte) error {
-	b = bytes.TrimSpace(b)
-	if len(b) > 0 && b[0] == '"' {
-		var s string
-		if err := json.Unmarshal(b, &s); err != nil {
-			return err
-		}
-		v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-		if err != nil {
-			return fmt.Errorf("want a number, got %q", s)
-		}
-		*f = flexFloat(v)
-		return nil
-	}
-	var v float64
-	if err := json.Unmarshal(b, &v); err != nil {
-		return fmt.Errorf("want a number, got %s", b)
-	}
-	*f = flexFloat(v)
-	return nil
-}
-
-// flexString accepts "3.0" and 3.0.
-type flexString string
-
-func (f *flexString) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err == nil {
-		*f = flexString(strings.TrimSpace(s))
-		return nil
-	}
-	var n json.Number
-	if err := json.Unmarshal(b, &n); err != nil {
-		return fmt.Errorf("want string or number, got %s", b)
-	}
-	*f = flexString(n.String())
-	return nil
+	APIKey            string            `json:"api_key"`
+	Latitude          *config.FlexFloat `json:"latitude"`
+	Longitude         *config.FlexFloat `json:"longitude"`
+	APIVersion        config.FlexString `json:"api_version"`
+	TempUnit          string            `json:"temp_unit"`
+	WindUnit          string            `json:"wind_unit"`
+	WindGusts         *config.FlexBool  `json:"wind_gusts"`
+	MinMaxAnnotations config.FlexBool   `json:"min_max_annotations"`
+	Locale            string            `json:"locale"`
+	HourFormat        config.FlexInt    `json:"hour_format"`
 }
 
 func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
@@ -116,7 +73,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	if parts := strings.FieldsFunc(rc.Locale, func(r rune) bool { return r == '_' || r == '-' || r == '.' || r == ' ' }); len(parts) > 0 {
 		lang = strings.ToLower(parts[0])
 	}
-	v, _ := strconv.ParseFloat(string(rc.APIVersion), 64)
+	v, _ := strconv.ParseFloat(strings.TrimSpace(string(rc.APIVersion)), 64)
 	s := settings{
 		Fahrenheit: strings.EqualFold(strings.TrimSpace(rc.TempUnit), "fahrenheit"),
 		Wind:       parseWindUnit(rc.WindUnit),

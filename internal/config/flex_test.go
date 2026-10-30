@@ -23,6 +23,29 @@ func TestFlexInt(t *testing.T) {
 	}
 }
 
+func TestFlexFloatAndString(t *testing.T) {
+	floats := map[string]FlexFloat{`51.5`: 51.5, `" -0.25 "`: -0.25, `13`: 13}
+	for in, want := range floats {
+		var got FlexFloat
+		if err := json.Unmarshal([]byte(in), &got); err != nil || got != want {
+			t.Errorf("%s: got %v, %v want %v", in, got, err, want)
+		}
+	}
+	for _, in := range []string{`"abc"`, `""`, `"NaN"`, `true`} {
+		var bad FlexFloat
+		if json.Unmarshal([]byte(in), &bad) == nil {
+			t.Errorf("%s: want an error", in)
+		}
+	}
+	strs := map[string]FlexString{`"Berlin,DE"`: "Berlin,DE", `2950159`: "2950159", `3.0`: "3.0"}
+	for in, want := range strs {
+		var got FlexString
+		if err := json.Unmarshal([]byte(in), &got); err != nil || got != want {
+			t.Errorf("%s: got %q, %v want %q", in, got, err, want)
+		}
+	}
+}
+
 func TestFlexBool(t *testing.T) {
 	cases := map[string]FlexBool{`true`: true, `false`: false, `"True"`: true, `"false"`: false, `null`: false}
 	for in, want := range cases {

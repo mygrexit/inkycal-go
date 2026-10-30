@@ -33,3 +33,10 @@ type Module interface {
 
 // Factory builds a module from the shared keys and its raw JSON config.
 type Factory func(c config.Common, raw json.RawMessage) (Module, error)
+
+// DayNumber counts the days from 1970-01-01 to t's calendar date in t's location, so
+// "of the day" picks change at local midnight.
+func DayNumber(t time.Time) int64 {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+}

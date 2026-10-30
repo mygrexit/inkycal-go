@@ -192,8 +192,7 @@ func splitmix64(x uint64) uint64 {
 // the day does not change the pick (the newest ones are what "latest" shows anyway).
 // Comic 404 does not exist.
 func pick(now time.Time, latest, attempt int) int {
-	y, m, d := now.Date()
-	day := time.Date(y, m, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+	day := modules.DayNumber(now)
 	bound := latest / 100 * 100
 	if bound < 1 {
 		bound = latest

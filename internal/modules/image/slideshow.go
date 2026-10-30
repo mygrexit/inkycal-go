@@ -89,8 +89,7 @@ func slideFiles(dir string) ([]string, error) {
 // wake a few seconds early never shows the previous slot's image again.
 func slot(now time.Time, interval int) int64 {
 	now = now.Add(time.Duration(min(interval/2, 30)) * time.Minute)
-	y, m, d := now.Date()
-	day := time.Date(y, m, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+	day := modules.DayNumber(now)
 	perDay := int64((1440 + interval - 1) / interval)
 	minute := now.Hour()*60 + now.Minute()
 	return day*perDay + int64(minute/interval)

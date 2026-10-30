@@ -31,6 +31,15 @@ func (c *Canvas) CapHeight(st Style) int {
 	return (b.Max.Y - b.Min.Y).Ceil()
 }
 
+// SizeForCap returns the font size whose capitals are about capPx tall (8–600).
+func (c *Canvas) SizeForCap(id FontID, capPx int) int {
+	size := 8
+	for size < 600 && c.CapHeight(Style{Font: id, Size: size + 1}) <= capPx {
+		size++
+	}
+	return size
+}
+
 // Text sets s with its baseline at y, starting at x, and returns the advance width.
 func (c *Canvas) Text(x, y int, s string, st Style, ink Ink) int {
 	face := c.face(st.Font, st.Size)

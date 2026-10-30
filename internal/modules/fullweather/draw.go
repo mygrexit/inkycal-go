@@ -83,7 +83,7 @@ func px(f, s float64) int { return int(math.Round(f * s)) }
 func clamp(v, lo, hi int) int { return max(lo, min(v, hi)) }
 
 func capStyle(c *render.Canvas, font render.FontID, capPx int) render.Style {
-	return render.Style{Font: font, Size: weather.SizeForCap(c, font, max(capPx, 4))}
+	return render.Style{Font: font, Size: c.SizeForCap(font, max(capPx, 4))}
 }
 
 // drawHeader draws the tear-off date like the weather band, the current conditions

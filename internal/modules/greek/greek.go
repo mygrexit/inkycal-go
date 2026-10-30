@@ -60,8 +60,7 @@ func New(c config.Common, _ json.RawMessage) (modules.Module, error) {
 
 // pick returns the word of now's calendar day; consecutive days walk through the list.
 func pick(ws []word, now time.Time) word {
-	y, m, d := now.Date()
-	day := time.Date(y, m, d, 12, 0, 0, 0, time.UTC).Unix() / 86400
+	day := modules.DayNumber(now)
 	return ws[int(day%int64(len(ws)))]
 }
 
@@ -73,14 +72,6 @@ func splitArticle(el string) (article, rest string) {
 		}
 	}
 	return "", el
-}
-
-func sizeForCap(c *render.Canvas, font render.FontID, capPx int) int {
-	size := 8
-	for size < 400 && c.CapHeight(render.Style{Font: font, Size: size + 1}) <= capPx {
-		size++
-	}
-	return size
 }
 
 // swatches: the three colours the panel can show are drawn instead of named.
@@ -154,9 +145,9 @@ func plan(c *render.Canvas, wd word, meaning string) layout {
 }
 
 func styles(c *render.Canvas, capGreek, capTr, capMeaning int) (greek, tr, mean render.Style) {
-	return render.Style{Font: render.FontDisplay, Size: sizeForCap(c, render.FontDisplay, capGreek)},
-		render.Style{Font: render.FontRegular, Size: sizeForCap(c, render.FontRegular, capTr)},
-		render.Style{Font: render.FontDefault, Size: sizeForCap(c, render.FontDefault, capMeaning)}
+	return render.Style{Font: render.FontDisplay, Size: c.SizeForCap(render.FontDisplay, capGreek)},
+		render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, capTr)},
+		render.Style{Font: render.FontDefault, Size: c.SizeForCap(render.FontDefault, capMeaning)}
 }
 
 func wordWidth(c *render.Canvas, article, rest string, st render.Style) int {

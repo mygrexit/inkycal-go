@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"inkycal/internal/fetch"
-	"inkycal/internal/render"
 )
 
 // Current is the parsed /weather response (metric units).
@@ -46,11 +45,6 @@ func FetchForecast(ctx context.Context, fc *fetch.Client, u string, loc *time.Lo
 
 // IconGlyph returns the Weather Icons glyph for an OWM icon code ("n/a" if unknown).
 func IconGlyph(code string) string { return iconGlyph(code) }
-
-// SizeForCap returns the font size whose capitals are about capPx tall.
-func SizeForCap(c *render.Canvas, font render.FontID, capPx int) int {
-	return sizeForCap(c, font, capPx)
-}
 
 // ToFahrenheit converts °C to °F.
 func ToFahrenheit(c float64) float64 { return toFahrenheit(c) }
