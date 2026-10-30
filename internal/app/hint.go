@@ -21,6 +21,10 @@ func errorHint(module string, err error, lang string) string {
 	case strings.Contains(msg, "no such host") || strings.Contains(msg, "connection refused") ||
 		strings.Contains(msg, "network is unreachable") || strings.Contains(msg, "i/o timeout"):
 		return i18n.T(lang, "hint.offline", name)
+	case strings.Contains(msg, "not an iCalendar file (got HTML)"):
+		return i18n.T(lang, "hint.notcal", name)
+	case strings.Contains(msg, "too small"):
+		return i18n.T(lang, "hint.small", name)
 	}
 	return i18n.T(lang, "hint.error", name)
 }

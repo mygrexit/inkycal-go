@@ -367,6 +367,10 @@ func TestErrorHint(t *testing.T) {
 		{"Weather", "weather: latitude and longitude are missing (search the place)", "de", "Wetter: noch nicht eingerichtet – im Builder ausfüllen"},
 		{"Agenda", "agenda: ical_urls is missing", "en", "Agenda: not set up yet – fill it in with the builder"},
 		{"Widget", `unknown module "Widget"`, "de", "Widget: dieses Modul gibt es nicht mehr – Kachel entfernen"},
+		{"Calendar", "calendar: https://x/basic.ics: not an iCalendar file (got HTML)", "de", "Kalender: Adresse liefert eine Webseite statt eines Kalenders – iCal-Adresse verwenden"},
+		{"Calendar", "calendar: https://x/basic.ics: not an iCalendar file (got HTML)", "en", "Calendar: the address shows a web page, not a calendar – use the iCal address"},
+		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "de", "Wetter: Kachel zu klein – im Builder vergrößern"},
+		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "en", "Weather: tile too small – make it bigger in the builder"},
 	} {
 		if got := errorHint(c.name, errors.New(c.err), c.lang); got != c.want {
 			t.Errorf("%s %q:\n got %q\nwant %q", c.name, c.err, got, c.want)

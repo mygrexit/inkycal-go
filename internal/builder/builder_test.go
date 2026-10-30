@@ -364,14 +364,15 @@ func TestCatalogFormatExamples(t *testing.T) {
 
 func TestExplainErrors(t *testing.T) {
 	cases := map[string]string{
-		"weather: GET https://x?…: HTTP 401: invalid key":       "key",
-		"calendar: GET https://x/cal.ics: HTTP 404: Not Found":  "address",
-		"dial tcp: lookup api.example.com: no such host":        "connection",
-		"context deadline exceeded":                             "too long",
-		"calendar: https://x: not an iCalendar file (got HTML)": "login page",
-		"todoist: api_key is missing":                           "fill in",
-		`unknown module "Widget"`:                               "remove the tile",
-		"weird":                                                 "",
+		"weather: GET https://x?…: HTTP 401: invalid key":                "key",
+		"calendar: GET https://x/cal.ics: HTTP 404: Not Found":           "address",
+		"dial tcp: lookup api.example.com: no such host":                 "connection",
+		"context deadline exceeded":                                      "too long",
+		"calendar: https://x: not an iCalendar file (got HTML)":          "login page",
+		"todoist: api_key is missing":                                    "fill in",
+		"weather: latitude and longitude are missing (search the place)": "fill in",
+		`unknown module "Widget"`:                                        "remove the tile",
+		"weird":                                                          "",
 	}
 	for msg, want := range cases {
 		got := explain(msg)

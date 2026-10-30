@@ -9,7 +9,7 @@ func explain(msg string) string {
 	switch {
 	case strings.Contains(m, "unknown module"):
 		return "This module does not exist (any more): remove the tile."
-	case strings.Contains(m, "is missing") || strings.Contains(m, "are required"):
+	case strings.Contains(m, "is missing") || strings.Contains(m, "are missing") || strings.Contains(m, "are required"):
 		return "Please fill in the marked fields of this tile."
 	case strings.Contains(m, "http 401") || strings.Contains(m, "http 403"):
 		return "Access denied: check the key or token you entered (copy it again, without spaces)."
