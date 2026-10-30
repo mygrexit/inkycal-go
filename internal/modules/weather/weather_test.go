@@ -15,18 +15,18 @@ import (
 
 func TestNewValidation(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":14,"language":"en"}`)
-	if _, err := New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
+	if _, err := Def.New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
 		t.Error("missing api_key accepted")
 	}
-	if _, err := New(common, json.RawMessage(`{"api_key":"k"}`)); err == nil {
+	if _, err := Def.New(common, json.RawMessage(`{"api_key":"k"}`)); err == nil {
 		t.Error("missing location accepted")
 	}
 	tiny := modulestest.Common(t, `{"size":[60,30],"padding_x":0,"padding_y":0,"fontsize":14}`)
-	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
+	if _, err := Def.New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
 		t.Error("60x30 accepted, too small for the today band")
 	}
 
-	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"imperial","use_beaufort":"True","hour_format":"12","forecast_interval":"daily","round_windspeed":true}`))
+	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"imperial","use_beaufort":"True","hour_format":"12","forecast_interval":"daily","round_windspeed":true}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestGenerate(t *testing.T) {
 	serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), forecast)
 
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
+	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestDrawDayFitsOtherShapes(t *testing.T) {
 	}
 
 	common := modulestest.Common(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
-	if _, err := New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
+	if _, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
 		t.Errorf("7.5\" sized band rejected: %v", err)
 	}
 }

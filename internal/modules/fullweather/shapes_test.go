@@ -20,7 +20,7 @@ func TestShapes(t *testing.T) {
 	var hits atomic.Int32
 	serveOWM(t, now, &hits)
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"api_key":"k","latitude":50.94,"longitude":6.96}`))
+		m, err := Def.New(c, json.RawMessage(`{"api_key":"k","latitude":50.94,"longitude":6.96}`))
 		if err != nil {
 			return nil, err
 		}

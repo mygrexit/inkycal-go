@@ -13,7 +13,7 @@ import (
 // BenchmarkGenerateTall lays out the word on a tall tile, where the fitting loops run longest.
 func BenchmarkGenerateTall(b *testing.B) {
 	common := modulestest.Common(&testing.T{}, `{"size":[480,480],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{}`))
+	m, err := Def.New(common, json.RawMessage(`{}`))
 	if err != nil {
 		b.Fatal(err)
 	}

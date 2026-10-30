@@ -153,7 +153,7 @@ func runModules(ctx context.Context, o ComposeOptions, now time.Time, tiles []ti
 			}()
 			m, err := factory(t.common, t.config)
 			if err != nil {
-				out[i].fail(err, t)
+				out[i].fail(fmt.Errorf("%s: %w", t.name, err), t)
 				return
 			}
 			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: t.theme}

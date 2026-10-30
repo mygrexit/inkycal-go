@@ -49,8 +49,8 @@ tools/wakebench/      cold-start comparison against a release
 
 ## Adding or changing a module
 
-- Register it in `internal/app/registry.go`; give it a `modules.Meta` (Group, Icon, MinW/MinH, Fields with Help).
-- Test with `modulestest.CheckMeta` and draw at every `modulestest.Shapes` size; too small → `CheckMinSize` error, not a crash.
+- Write it as `var Def = modules.Define(Meta, build)` and add `Def` to `Defs` in `internal/app/registry.go`; give it a `modules.Meta` (Group, Icon, MinW/MinH, Fields with Help). `Define` decodes the config, then `build` checks settings (`modules.Missing`, `modules.Bad`), then the minimum size: never check size or decode by hand, never put the module's name in an error (the caller adds the tile's).
+- Test with `modulestest.CheckMeta(t, Def)` (it also checks every Required field is enforced) and draw at every `modulestest.Shapes` size.
 - Errors users can hit get a kind: mark them where they arise with `problem.Mark(problem.<Kind>, err)` (network, HTTP status, missing files and JSON types are recognised by type). A new kind goes into `internal/problem`, with advice in `builder/explain.go`, a hint key in `app/hint.go` + `i18n` (en and de) — except `Placement`: an unplaced tile has nowhere to show one — and a test that takes the error from its real producer (`problem_test.go`, or the producer's own package when it is internal, e.g. `app`). Never match error text.
 - Field kinds the UI understands: text, secret, url, url_list, text_list, number, bool, select, multiline, place.
 

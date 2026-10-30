@@ -124,23 +124,23 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.NotCalendar},
 		{"Open-Meteo without a place", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"provider":"open-meteo"}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"provider":"open-meteo"}`))
 			return err
 		}, problem.Missing},
 		{"OpenWeatherMap without a location", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"api_key":"k"}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"api_key":"k"}`))
 			return err
 		}, problem.Missing},
 		{"Todoist without a key", func(t *testing.T) error {
-			_, err := todoist.New(small, json.RawMessage(`{}`))
+			_, err := todoist.Def.New(small, json.RawMessage(`{}`))
 			return err
 		}, problem.Missing},
 		{"setting of the wrong type", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"units":5}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"units":5}`))
 			return err
 		}, problem.BadSetting},
 		{"local file does not exist", func(t *testing.T) error {
-			m, err := textfile.New(small, json.RawMessage(`{"filepath":"/no/such/file.txt"}`))
+			m, err := textfile.Def.New(small, json.RawMessage(`{"filepath":"/no/such/file.txt"}`))
 			if err != nil {
 				return err
 			}
@@ -182,7 +182,7 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.BadResponse},
 		{"Fullweather without a place", func(t *testing.T) error {
-			_, err := fullweather.New(small, json.RawMessage(`{"api_key":"k"}`))
+			_, err := fullweather.Def.New(small, json.RawMessage(`{"api_key":"k"}`))
 			return err
 		}, problem.Missing},
 		{"setting of a flexible type with a wrong value", func(t *testing.T) error {

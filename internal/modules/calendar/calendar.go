@@ -3,8 +3,6 @@ package calendar
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -42,14 +40,7 @@ type rawConfig struct {
 	WeekdayPrefix config.FlexBool   `json:"weekday_prefix"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		return nil, fmt.Errorf("calendar: config: %w", err)
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	m := &Module{
 		common:        c,
 		weekStart:     time.Monday,
@@ -75,7 +66,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		m.timeFormat = rc.TimeFormat
 	}
 	return m, nil
-}
+})
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	now := env.Now
@@ -94,7 +85,7 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 		}
 		evs, stale, err := ical.Load(ctx, env.Fetch, m.urls, m.files, from, to, env.Loc)
 		if err != nil {
-			return nil, fmt.Errorf("calendar: %w", err)
+			return nil, err
 		}
 		env.Stale = env.Stale || stale
 		events = evs

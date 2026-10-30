@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"strings"
 
 	"inkycal/internal/config"
 	"inkycal/internal/problem"
@@ -71,7 +70,7 @@ func (m Meta) Defaults() map[string]any {
 // CheckMinSize refuses a module smaller than its Meta minimum (inner pixels).
 func CheckMinSize(c config.Common, m Meta) error {
 	if w, h := c.InnerSize(); w < m.MinW || h < m.MinH {
-		return problem.Mark(problem.TooSmall, fmt.Errorf("%s: inner size %dx%d too small (min %dx%d)", strings.ToLower(m.Name), w, h, m.MinW, m.MinH))
+		return problem.Mark(problem.TooSmall, fmt.Errorf("inner size %dx%d too small (min %dx%d)", w, h, m.MinW, m.MinH))
 	}
 	return nil
 }

@@ -14,7 +14,7 @@ func TestCheckMinSize(t *testing.T) {
 		t.Errorf("exact minimum refused: %v", err)
 	}
 	small := config.Common{Size: [2]int{69, 40}, PaddingX: 10, PaddingY: 10}
-	if err := CheckMinSize(small, m); err == nil || !strings.Contains(err.Error(), "todoist: inner size 49x20 too small (min 50x20)") {
+	if err := CheckMinSize(small, m); err == nil || !strings.Contains(err.Error(), "inner size 49x20 too small (min 50x20)") {
 		t.Errorf("err = %v", err)
 	}
 }

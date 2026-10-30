@@ -46,17 +46,17 @@ func TestNewUpstreamKeys(t *testing.T) {
 		"bad latitude": `{"api_key":"k","latitude":"north","longitude":1}`,
 		"out of range": `{"api_key":"k","latitude":95,"longitude":1}`,
 	} {
-		if _, err := New(common, json.RawMessage(raw)); err == nil {
+		if _, err := Def.New(common, json.RawMessage(raw)); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
 	tiny := modulestest.Common(t, `{"size":[300,60],"padding_x":0,"padding_y":0}`)
-	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1}`)); err == nil {
+	if _, err := Def.New(tiny, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1}`)); err == nil {
 		t.Error("300x60 accepted")
 	}
 
 	// Every upstream key, with the loose types the web UI writes.
-	m, err := New(common, json.RawMessage(`{"api_key":"k","latitude":"51.51","longitude":"-0.13","api_version":"3.0",
+	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","latitude":"51.51","longitude":"-0.13","api_version":"3.0",
 		"orientation":"vertical","temp_unit":"fahrenheit","wind_unit":"km_hour","wind_gusts":"False","keep_history":true,
 		"min_max_annotations":"True","locale":"de_DE.UTF-8","font":"Roboto","chart_title":"Temperatur und Niederschlag",
 		"weekly_title":"Tageswerte","icon_outline":true}`))
@@ -73,7 +73,7 @@ func TestNewUpstreamKeys(t *testing.T) {
 	}
 
 	// Defaults: celsius, m/s, gusts on, 2.5 API, language from the common keys.
-	m, err = New(common, json.RawMessage(`{"api_key":"k","latitude":51.5,"longitude":-0.13,"api_version":2.5}`))
+	m, err = Def.New(common, json.RawMessage(`{"api_key":"k","latitude":51.5,"longitude":-0.13,"api_version":2.5}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestNewUpstreamKeys(t *testing.T) {
 	if want := (settings{Wind: windMPS, Gusts: true, Lang: "en"}); mod.set != want || mod.oneCall {
 		t.Errorf("defaults = %+v oneCall=%v", mod.set, mod.oneCall)
 	}
-	if m, _ := New(common, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1,"api_version":3}`)); !m.(*Module).oneCall {
+	if m, _ := Def.New(common, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1,"api_version":3}`)); !m.(*Module).oneCall {
 		t.Error("numeric api_version 3 not recognised")
 	}
 }
@@ -263,7 +263,7 @@ func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
 
 func generate(t *testing.T, common, raw string, now time.Time) *render.Canvas {
 	t.Helper()
-	m, err := New(modulestest.Common(t, common), json.RawMessage(raw))
+	m, err := Def.New(modulestest.Common(t, common), json.RawMessage(raw))
 	if err != nil {
 		t.Fatal(err)
 	}

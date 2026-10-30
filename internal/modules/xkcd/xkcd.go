@@ -6,7 +6,6 @@ package xkcd
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -67,31 +66,22 @@ type Module struct {
 	filter  bool
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
-	var s settings
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &s); err != nil {
-			return nil, fmt.Errorf("xkcd: %w", err)
-		}
-	}
+var Def = modules.Define(Meta, func(c config.Common, s settings) (modules.Module, error) {
 	m := &Module{common: c, alt: bool(s.Alt), filter: bool(s.Filter)}
 	switch strings.ToLower(strings.TrimSpace(s.Mode)) {
 	case "", "latest":
 	case "random":
 		m.random = true
 	default:
-		return nil, fmt.Errorf("xkcd: mode %q: want latest or random", s.Mode)
+		return nil, modules.Bad("mode %q: want latest or random", s.Mode)
 	}
 	p, err := picture.ParsePalette(strings.ToLower(strings.TrimSpace(s.Palette)))
 	if err != nil {
-		return nil, fmt.Errorf("xkcd: %w", err)
+		return nil, modules.Bad("%w", err)
 	}
 	m.palette = p
 	return m, nil
-}
+})
 
 // comic is the part of xkcd's info.0.json the module uses.
 type comic struct {
@@ -137,10 +127,10 @@ func getComic(ctx context.Context, f *fetch.Client, num int) (comic, bool, error
 	var c comic
 	stale, err := f.GetJSON(ctx, url, nil, &c)
 	if err != nil {
-		return comic{}, false, fmt.Errorf("xkcd: %w", err)
+		return comic{}, false, err
 	}
 	if c.Num <= 0 {
-		return comic{}, stale, fmt.Errorf("xkcd: %s: no comic number", url)
+		return comic{}, stale, fmt.Errorf("%s: no comic number", url)
 	}
 	return c, stale, nil
 }

@@ -3,9 +3,7 @@ package weather
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -38,11 +36,7 @@ type rawConfig struct {
 	UseBeaufort      config.FlexBool   `json:"use_beaufort"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		return nil, fmt.Errorf("weather: config: %w", err)
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	provider := rc.Provider
 	if provider == "" {
 		provider = "open-meteo"
@@ -54,21 +48,18 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	switch provider {
 	case "openweathermap":
 		if strings.TrimSpace(rc.APIKey) == "" {
-			return nil, problem.Mark(problem.Missing, errors.New("weather: api_key is missing"))
+			return nil, modules.Missing("api_key")
 		}
 		if strings.TrimSpace(string(rc.Location)) == "" {
-			return nil, problem.Mark(problem.Missing, errors.New("weather: location is missing"))
+			return nil, modules.Missing("location")
 		}
 	case "open-meteo":
 		if rc.Latitude == nil || rc.Longitude == nil {
-			return nil, problem.Mark(problem.Missing, errors.New("weather: latitude and longitude are missing (search the place)"))
+			return nil, problem.Mark(problem.Missing, errors.New("latitude and longitude are missing (search the place)"))
 		}
 		m.lat, m.lon = float64(*rc.Latitude), float64(*rc.Longitude)
 	default:
-		return nil, fmt.Errorf("weather: provider %q: want open-meteo or openweathermap", provider)
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Bad("provider %q: want open-meteo or openweathermap", provider)
 	}
 	s := settings{
 		Fahrenheit: strings.EqualFold(rc.Units, "imperial"),
@@ -77,7 +68,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	}
 	m.set = s
 	return m, nil
-}
+})
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	var (

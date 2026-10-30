@@ -38,7 +38,7 @@ func TestTypedText(t *testing.T) {
 		`{"source":"text","text":"# Einkauf\n- Milch"}`,
 		`{"text":"Hallo Welt"}`, // source defaults to text when text is set
 	} {
-		m, err := New(common(t), json.RawMessage(raw))
+		m, err := Def.New(common(t), json.RawMessage(raw))
 		if err != nil {
 			t.Fatalf("%s: %v", raw, err)
 		}
@@ -47,10 +47,10 @@ func TestTypedText(t *testing.T) {
 			t.Errorf("%s: err %v inked %v", raw, err, c != nil && inked(c))
 		}
 	}
-	if _, err := New(common(t), json.RawMessage(`{"source":"text"}`)); err == nil || !strings.Contains(err.Error(), "text is missing") {
+	if _, err := Def.New(common(t), json.RawMessage(`{"source":"text"}`)); err == nil || !strings.Contains(err.Error(), "text is missing") {
 		t.Errorf("empty text: %v", err)
 	}
-	if _, err := New(common(t), json.RawMessage(`{"source":"url"}`)); err == nil || !strings.Contains(err.Error(), "filepath is missing") {
+	if _, err := Def.New(common(t), json.RawMessage(`{"source":"url"}`)); err == nil || !strings.Contains(err.Error(), "filepath is missing") {
 		t.Errorf("url without address: %v", err)
 	}
 }
@@ -76,7 +76,7 @@ func TestOnePerDay(t *testing.T) {
 
 func TestShapesOnePerDay(t *testing.T) {
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"text":"Was du heute kannst besorgen, das verschiebe nicht auf morgen.","one_per_day":true}`))
+		m, err := Def.New(c, json.RawMessage(`{"text":"Was du heute kannst besorgen, das verschiebe nicht auf morgen.","one_per_day":true}`))
 		if err != nil {
 			return nil, err
 		}

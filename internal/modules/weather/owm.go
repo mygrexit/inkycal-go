@@ -113,10 +113,10 @@ func getCurrent(ctx context.Context, fc *fetch.Client, u string, loc *time.Locat
 	var raw owmCurrent
 	stale, err := fc.GetJSON(ctx, u, nil, &raw)
 	if err != nil {
-		return current{}, false, fmt.Errorf("weather: current: %w", err)
+		return current{}, false, fmt.Errorf("current: %w", err)
 	}
 	if len(raw.Weather) == 0 {
-		return current{}, false, errors.New("weather: current: response has no weather entry")
+		return current{}, false, errors.New("current: response has no weather entry")
 	}
 	wind := raw.Wind.Speed
 	if raw.Wind.Gust != nil {
@@ -144,7 +144,7 @@ func getForecast(ctx context.Context, fc *fetch.Client, u string, loc *time.Loca
 	var raw owmForecast
 	stale, err := fc.GetJSON(ctx, u, nil, &raw)
 	if err != nil {
-		return nil, false, fmt.Errorf("weather: forecast: %w", err)
+		return nil, false, fmt.Errorf("forecast: %w", err)
 	}
 	points := make([]forecastPoint, 0, len(raw.List))
 	for _, f := range raw.List {

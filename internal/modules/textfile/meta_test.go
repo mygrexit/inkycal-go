@@ -6,4 +6,5 @@ import (
 	"inkycal/internal/modules/modulestest"
 )
 
-func TestMeta(t *testing.T) { modulestest.CheckMeta(t, Meta, New, rawConfig{}) }
+// Upstream settings have no "source": the device takes it from "text" or "filepath".
+func TestMeta(t *testing.T) { modulestest.CheckMeta(t, Def, "source") }

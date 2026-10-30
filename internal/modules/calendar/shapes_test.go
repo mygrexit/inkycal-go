@@ -17,7 +17,7 @@ func TestShapes(t *testing.T) {
 	loc := berlin(t)
 	url, _ := serveICS(t)
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"show_events":true,"weekday_prefix":true,"date_format":"D. MMM","ical_urls":"`+url+`"}`))
+		m, err := Def.New(c, json.RawMessage(`{"show_events":true,"weekday_prefix":true,"date_format":"D. MMM","ical_urls":"`+url+`"}`))
 		if err != nil {
 			return nil, err
 		}

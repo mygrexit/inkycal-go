@@ -3,7 +3,6 @@ package weather
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -58,12 +57,12 @@ func fetchOpenMeteo(ctx context.Context, fc *fetch.Client, lat, lon float64, lan
 	var r omResponse
 	stale, err := fc.GetJSON(ctx, openMeteoURL+"?"+q.Encode(), nil, &r)
 	if err != nil {
-		return current{}, nil, false, fmt.Errorf("weather: %w", err)
+		return current{}, nil, false, err
 	}
 	h := r.Hourly
 	n := len(h.Time)
 	if n == 0 || len(h.Temp) < n || len(h.Code) < n || len(h.Precip) < n || len(h.Wind) < n || len(h.Gust) < n || len(h.IsDay) < n {
-		return current{}, nil, false, errors.New("weather: Open-Meteo answer without hourly data")
+		return current{}, nil, false, errors.New("Open-Meteo answer without hourly data")
 	}
 	cur := current{
 		Icon:        wmoIcon(r.Current.Code, r.Current.IsDay == 1),

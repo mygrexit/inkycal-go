@@ -111,7 +111,7 @@ func TestProviderChoice(t *testing.T) {
 		{`{"provider":"openweathermap","location":"Berlin"}`, "", "api_key"},
 	}
 	for _, c := range cases {
-		m, err := New(common, json.RawMessage(c.raw))
+		m, err := Def.New(common, json.RawMessage(c.raw))
 		if c.err != "" {
 			if err == nil || !strings.Contains(err.Error(), c.err) {
 				t.Errorf("%s: err %v, want %q", c.raw, err, c.err)
@@ -129,7 +129,7 @@ func TestGenerateWithOpenMeteo(t *testing.T) {
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	serveOpenMeteo(t, omFixture(time.Date(2026, 10, 13, 6, 0, 0, 0, loc)))
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
+	m, err := Def.New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

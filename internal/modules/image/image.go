@@ -17,7 +17,6 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -41,31 +40,31 @@ type rawLook struct {
 	Dither      json.RawMessage `json:"dither"`
 }
 
-func (r rawLook) parse(name string, ditherDefault bool) (look, error) {
+func (r rawLook) parse(ditherDefault bool) (look, error) {
 	l := look{autoflip: bool(r.Autoflip)}
 	var err error
 	if l.palette, err = picture.ParsePalette(strings.ToLower(strings.TrimSpace(r.Palette))); err != nil {
-		return l, fmt.Errorf("%s: %w", name, err)
+		return l, modules.Bad("%w", err)
 	}
 	if r.Orientation != nil {
 		switch o := strings.ToLower(strings.TrimSpace(*r.Orientation)); o {
 		case "", "horizontal", "vertical":
 			l.orientation = o
 		default:
-			return l, fmt.Errorf("%s: orientation %q: want horizontal or vertical", name, *r.Orientation)
+			return l, modules.Bad("orientation %q: want horizontal or vertical", *r.Orientation)
 		}
 	}
 	if l.maxW, err = parsePercent(r.MaxW, "max_width_percent"); err != nil {
-		return l, fmt.Errorf("%s: %w", name, err)
+		return l, modules.Bad("%w", err)
 	}
 	if l.maxH, err = parsePercent(r.MaxH, "max_height_percent"); err != nil {
-		return l, fmt.Errorf("%s: %w", name, err)
+		return l, modules.Bad("%w", err)
 	}
 	l.dither = ditherDefault
 	if len(bytes.TrimSpace(r.Dither)) > 0 {
 		var d config.FlexBool
 		if err := json.Unmarshal(r.Dither, &d); err != nil {
-			return l, fmt.Errorf("%s: dither: %w", name, err)
+			return l, modules.Bad("dither: %w", err)
 		}
 		// null and "" keep the default, like Python's `"dither" in config and config["dither"] == False`.
 		if s := strings.Trim(string(bytes.TrimSpace(r.Dither)), `"`); s != "null" && s != "" {
@@ -135,32 +134,25 @@ type Image struct {
 	look   look
 }
 
-// NewImage builds the module registered as "Inkyimage".
-func NewImage(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var cfg struct {
-		Path string `json:"path"`
-		rawLook
-	}
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("image: %w", err)
-	}
+// ImageDef is the module registered as "Inkyimage".
+var ImageDef = modules.Define(ImageMeta, func(c config.Common, cfg struct {
+	Path string `json:"path"`
+	rawLook
+}) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, problem.Mark(problem.Missing, fmt.Errorf("image: config is missing path"))
+		return nil, modules.Missing("path")
 	}
-	if err := modules.CheckMinSize(c, ImageMeta); err != nil {
-		return nil, err
-	}
-	l, err := cfg.rawLook.parse("image", true)
+	l, err := cfg.rawLook.parse(true)
 	if err != nil {
 		return nil, err
 	}
 	return &Image{common: c, path: cfg.Path, look: l}, nil
-}
+})
 
 func (m *Image) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	img, stale, err := picture.Load(ctx, env.Fetch, m.path)
 	if err != nil {
-		return nil, fmt.Errorf("image: %w", err)
+		return nil, err
 	}
 	env.Stale = env.Stale || stale
 	w, h := m.common.InnerSize()

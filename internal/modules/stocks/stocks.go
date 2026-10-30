@@ -4,14 +4,10 @@ package stocks
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"log/slog"
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -25,21 +21,12 @@ type rawConfig struct {
 	Tickers config.StringList `json:"tickers"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &rc); err != nil {
-			return nil, fmt.Errorf("stocks: config: %w", err)
-		}
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	if len(rc.Tickers) == 0 {
-		return nil, problem.Mark(problem.Missing, errors.New("stocks: tickers is missing"))
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Missing("tickers")
 	}
 	return &Module{common: c, tickers: []string(rc.Tickers)}, nil
-}
+})
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	results := fetchAll(ctx, env.Fetch, m.tickers)

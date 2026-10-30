@@ -20,7 +20,7 @@ func TestShapes(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(ics)) }))
 	t.Cleanup(srv.Close)
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"ical_urls":"`+srv.URL+`"}`))
+		m, err := Def.New(c, json.RawMessage(`{"ical_urls":"`+srv.URL+`"}`))
 		if err != nil {
 			return nil, err
 		}

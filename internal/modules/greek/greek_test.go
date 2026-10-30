@@ -78,7 +78,7 @@ func TestSplitArticle(t *testing.T) {
 
 func TestGenerate(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[984,174],"padding_x":40,"padding_y":18,"fontsize":22,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{}`))
+	m, err := Def.New(common, json.RawMessage(`{}`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -78,7 +78,7 @@ func TestNewConfig(t *testing.T) {
 		{`{"filepath":""}`, false, false},
 		{`{}`, false, false},
 	} {
-		m, err := New(common, json.RawMessage(tc.raw))
+		m, err := Def.New(common, json.RawMessage(tc.raw))
 		if (err == nil) != tc.ok {
 			t.Errorf("%s: err = %v", tc.raw, err)
 			continue
@@ -165,7 +165,7 @@ func TestGenerateLocalAndRemote(t *testing.T) {
 	defer srv.Close()
 	common := modulestest.Common(t, `{"size":[924,640],"padding_x":10,"padding_y":20,"fontsize":20,"language":"de"}`)
 	for _, src := range []string{path, srv.URL + "/notes.txt"} {
-		m, err := New(common, json.RawMessage(fmt.Sprintf(`{"filepath":%q}`, src)))
+		m, err := Def.New(common, json.RawMessage(fmt.Sprintf(`{"filepath":%q}`, src)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func TestGenerateLocalAndRemote(t *testing.T) {
 		}
 	}
 	for _, src := range []string{filepath.Join(dir, "missing.txt"), srv.URL + "/missing.txt"} {
-		m, _ := New(common, json.RawMessage(fmt.Sprintf(`{"filepath":%q}`, src)))
+		m, _ := Def.New(common, json.RawMessage(fmt.Sprintf(`{"filepath":%q}`, src)))
 		if _, err := m.Generate(context.Background(), &modules.Env{Fetch: fetch.New("")}); err == nil {
 			t.Errorf("%s: missing file not reported", src)
 		}

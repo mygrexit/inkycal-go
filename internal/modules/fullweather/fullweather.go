@@ -5,9 +5,7 @@ package fullweather
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -51,23 +49,16 @@ type rawConfig struct {
 	HourFormat        config.FlexInt    `json:"hour_format"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		return nil, fmt.Errorf("fullweather: config: %w", err)
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, problem.Mark(problem.Missing, errors.New("fullweather: api_key is missing"))
+		return nil, modules.Missing("api_key")
 	}
 	if rc.Latitude == nil || rc.Longitude == nil {
-		return nil, problem.Mark(problem.Missing, errors.New("fullweather: latitude and longitude are required"))
+		return nil, problem.Mark(problem.Missing, errors.New("latitude and longitude are required"))
 	}
 	lat, lon := float64(*rc.Latitude), float64(*rc.Longitude)
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
-		return nil, fmt.Errorf("fullweather: latitude/longitude %v/%v out of range", lat, lon)
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Bad("latitude/longitude %v/%v out of range", lat, lon)
 	}
 	lang := c.Language
 	// Upstream takes the language from the locale, e.g. "de_DE.UTF-8".
@@ -84,7 +75,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		Lang:       lang,
 	}
 	return &Module{common: c, apiKey: rc.APIKey, lat: lat, lon: lon, oneCall: v == 3, set: s}, nil
-}
+})
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	var (
@@ -113,10 +104,10 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	}
 	wg.Wait()
 	if err := errors.Join(errC, errF); err != nil {
-		return nil, fmt.Errorf("fullweather: %w", err)
+		return nil, err
 	}
 	if len(points) == 0 {
-		return nil, errors.New("fullweather: forecast is empty")
+		return nil, errors.New("forecast is empty")
 	}
 	env.Stale = env.Stale || staleC || staleF
 

@@ -52,7 +52,7 @@ func fetchAll[T any](ctx context.Context, fc *fetch.Client, path, token string) 
 		var p page[T]
 		s, err := fc.GetJSON(ctx, todoistBaseURL+"/"+path+"?"+q.Encode(), header, &p)
 		if err != nil {
-			return nil, false, fmt.Errorf("todoist: %s: %w", path, err)
+			return nil, false, fmt.Errorf("%s: %w", path, err)
 		}
 		stale = stale || s
 		all = append(all, p.Results...)
@@ -61,5 +61,5 @@ func fetchAll[T any](ctx context.Context, fc *fetch.Client, path, token string) 
 		}
 		cursor = *p.NextCursor
 	}
-	return nil, false, fmt.Errorf("todoist: %s: more than %d pages", path, maxPages)
+	return nil, false, fmt.Errorf("%s: more than %d pages", path, maxPages)
 }
