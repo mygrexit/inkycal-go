@@ -43,8 +43,8 @@ func (s *Server) testCalendar(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	events, _, err := ical.Load(ctx, s.live, []string{strings.TrimSpace(req.URL)}, nil, now, now.AddDate(0, 2, 0), time.Local)
 	if err != nil {
-		msg := queryString.ReplaceAllString(err.Error(), "?…")
-		writeJSON(w, calendarTest{Error: msg, Hint: explain(msg)})
+		msg, hint := userError(err)
+		writeJSON(w, calendarTest{Error: msg, Hint: hint})
 		return
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].Start.Before(events[j].Start) })

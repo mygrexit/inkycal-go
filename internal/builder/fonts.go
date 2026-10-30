@@ -1,8 +1,6 @@
 package builder
 
 import (
-	"errors"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -68,14 +66,8 @@ func (s *Server) putFont(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "font name: letters, digits, . _ - and .ttf or .otf", http.StatusBadRequest)
 		return
 	}
-	data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxFont))
-	if err != nil {
-		var tooBig *http.MaxBytesError
-		if errors.As(err, &tooBig) {
-			http.Error(w, "font larger than 5 MiB", http.StatusRequestEntityTooLarge)
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+	data, ok := readBody(w, r, maxFont, "font larger than 5 MiB")
+	if !ok {
 		return
 	}
 	if _, err := opentype.Parse(data); err != nil {
@@ -86,23 +78,8 @@ func (s *Server) putFont(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tmp, err := os.CreateTemp(s.fontDir(), ".upload-*")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer os.Remove(tmp.Name())
-	_, err = tmp.Write(data)
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err == nil {
-		err = os.Chmod(tmp.Name(), 0o644) // fonts are not secret
-	}
-	if err == nil {
-		err = os.Rename(tmp.Name(), filepath.Join(s.fontDir(), name))
-	}
-	if err != nil {
+	// fonts are not secret
+	if err := replaceFile(filepath.Join(s.fontDir(), name), ".upload-*", data, 0o644); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

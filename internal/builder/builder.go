@@ -218,14 +218,8 @@ func (s *Server) getSettings(w http.ResponseWriter, _ *http.Request) {
 // readSettings reads and validates a request body; the JSON is kept verbatim so keys
 // this program does not know survive a save.
 func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *config.Settings, bool) {
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBody))
-	if err != nil {
-		var tooBig *http.MaxBytesError
-		if errors.As(err, &tooBig) {
-			http.Error(w, "settings larger than 1 MiB", http.StatusRequestEntityTooLarge)
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+	body, ok := readBody(w, r, maxBody, "settings larger than 1 MiB")
+	if !ok {
 		return nil, nil, false
 	}
 	st, err := config.Parse(body, "settings")
@@ -239,6 +233,21 @@ func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *
 		return nil, nil, false
 	}
 	return body, st, true
+}
+
+// readBody reads a request body of at most limit bytes; tooBig is the error beyond that.
+func readBody(w http.ResponseWriter, r *http.Request, limit int64, tooBig string) ([]byte, bool) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
+	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, tooBig, http.StatusRequestEntityTooLarge)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		return nil, false
+	}
+	return body, true
 }
 
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
@@ -274,7 +283,13 @@ func writeAtomic(path string, data []byte) error {
 			return err
 		}
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".settings-*.json")
+	return replaceFile(path, ".settings-*.json", data, mode)
+}
+
+// replaceFile writes data to a temporary file (named by pattern) next to path and
+// renames it over path, so nobody ever reads a half-written file.
+func replaceFile(path, pattern string, data []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), pattern)
 	if err != nil {
 		return err
 	}
@@ -311,6 +326,12 @@ var (
 
 // queryString hides API keys and tokens in URLs quoted by module errors.
 var queryString = regexp.MustCompile(`\?[^\s"']+`)
+
+// userError is an error as the builder shows it: query strings hidden, plus advice.
+func userError(err error) (msg, hint string) {
+	msg = queryString.ReplaceAllString(err.Error(), "?…")
+	return msg, explain(msg)
+}
 
 type moduleError struct {
 	Position int    `json:"position"` // 1-based index in settings order
@@ -355,8 +376,8 @@ func (s *Server) preview(w http.ResponseWriter, r *http.Request) {
 	errs := []moduleError{}
 	for i, m := range composed.Modules {
 		if m.Err != nil {
-			msg := queryString.ReplaceAllString(m.Err.Error(), "?…")
-			errs = append(errs, moduleError{i + 1, st.Modules[i].Name, msg, explain(msg)})
+			msg, hint := userError(m.Err)
+			errs = append(errs, moduleError{i + 1, st.Modules[i].Name, msg, hint})
 		}
 	}
 	writeJSON(w, map[string]any{
