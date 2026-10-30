@@ -21,21 +21,18 @@ func TestParseGridSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, cells, grid, err := GridCells(s)
-	if err != nil || !grid {
-		t.Fatalf("grid=%v err=%v", grid, err)
-	}
-	if g != (layout.Grid{Columns: 6, Rows: 8}) {
+	g, ts := tiles(t, s)
+	if g == nil || *g != (layout.Grid{Columns: 6, Rows: 8}) {
 		t.Errorf("grid = %+v", g)
 	}
 	// Modules are sorted by position, cells follow them.
-	if s.Modules[0].Name != "A" || cells[0] != (layout.Cell{0, 0, 3, 8}) || cells[1] != (layout.Cell{3, 0, 3, 8}) {
-		t.Errorf("modules %v cells %v", s.Modules, cells)
+	if s.Modules[0].Name != "A" || *ts[0].Cell != (layout.Cell{0, 0, 3, 8}) || *ts[1].Cell != (layout.Cell{3, 0, 3, 8}) {
+		t.Errorf("modules %v tiles %+v", s.Modules, ts)
 	}
-	// A cell module without size parses; WithSize applies the padding check.
-	c, err := ParseCommon(s.Modules[0].Config)
-	if err != nil {
-		t.Fatalf("cell module without size: %v", err)
+	// A tile on a grid has no size yet; WithSize applies the padding check.
+	c := ts[0].Common
+	if ts[0].Err != nil {
+		t.Fatalf("cell tile without size: %v", ts[0].Err)
 	}
 	if c, err = c.WithSize(100, 50); err != nil || c.Size != [2]int{100, 50} {
 		t.Errorf("WithSize: %+v %v", c.Size, err)
@@ -50,15 +47,15 @@ func TestGridDefaultsAndLegacy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g, _, grid, _ := GridCells(s); !grid || g != layout.Default {
-		t.Errorf("default grid: %+v %v", g, grid)
+	if g, _ := tiles(t, s); g == nil || *g != layout.Default {
+		t.Errorf("default grid: %+v", g)
 	}
-	legacy, err := Parse([]byte(`{"model":"m","modules":[{"position":1,"name":"A","config":{"size":[480,200]}}]}`), "test")
+	legacy, err := Parse([]byte(`{"model":"m","grid":{"columns":2,"rows":2},"modules":[{"position":1,"name":"A","config":{"size":[480,200]}}]}`), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, cells, grid, err := GridCells(legacy); grid || cells != nil || err != nil {
-		t.Errorf("legacy: grid=%v cells=%v err=%v", grid, cells, err)
+	if g, ts := tiles(t, legacy); g != nil || ts[0].Cell != nil || ts[0].Err != nil || ts[0].Common.Size != [2]int{480, 200} {
+		t.Errorf("legacy: grid=%v tile=%+v", g, ts[0])
 	}
 }
 
@@ -73,7 +70,7 @@ func TestGridErrors(t *testing.T) {
 		"outside": `{"model":"m","grid":{"columns":4,"rows":4},"modules":[
 			{"position":1,"name":"A","config":{"cell":[0,0,6,8]}}]}`,
 	}
-	want := map[string]string{"mixed": "module 2 (B) has no cell", "overlap": "overlap", "outside": "outside"}
+	want := map[string]string{"mixed": "module 2 (B): grid layout: no cell", "overlap": "overlaps module 1", "outside": "outside"}
 	for name, js := range cases {
 		_, err := Parse([]byte(js), "test")
 		if err == nil || !strings.Contains(err.Error(), want[name]) {

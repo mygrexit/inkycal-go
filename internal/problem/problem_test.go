@@ -53,6 +53,16 @@ func common(t *testing.T, raw string) config.Common {
 	return c
 }
 
+// tileErr is the problem of tile i as the device sees it.
+func tileErr(t *testing.T, s *config.Settings, i int) error {
+	t.Helper()
+	_, tiles, err := s.Tiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tiles[i].Err
+}
+
 func load(t *testing.T, body string) *config.Settings {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "settings.json")
@@ -145,14 +155,14 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.Padding},
 		{"broken style (device)", func(t *testing.T) error {
-			return load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`).Modules[1].Err
+			return tileErr(t, load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`), 1)
 		}, problem.Style},
 		{"broken style (builder)", func(t *testing.T) error {
 			_, err := config.Parse([]byte(grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`), "settings")
 			return err
 		}, problem.Style},
 		{"overlapping cell (device)", func(t *testing.T) error {
-			return load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,2,12,4]}}]}`).Modules[1].Err
+			return tileErr(t, load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,2,12,4]}}]}`), 1)
 		}, problem.Placement},
 		{"missing cell (builder)", func(t *testing.T) error {
 			_, err := config.Parse([]byte(grid+`{"position":2,"name":"B","config":{}}]}`), "settings")

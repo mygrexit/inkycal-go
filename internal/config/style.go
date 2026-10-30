@@ -1,10 +1,7 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
-
-	"inkycal/internal/problem"
 )
 
 // Colors are a tile's own inks: "white", "black" or "colour" (the panel's red or yellow).
@@ -52,8 +49,8 @@ func (s *Style) validate() error {
 	return nil
 }
 
-// Effective is a module's look: its own style where set, else the page theme.
-func Effective(page, module *Style) Style {
+// effective is a tile's look: its own style where set, else the page theme.
+func effective(page, module *Style) Style {
 	var out Style
 	for _, s := range []*Style{page, module} {
 		if s == nil {
@@ -85,23 +82,4 @@ func Effective(page, module *Style) Style {
 		}
 	}
 	return out
-}
-
-// validateStyles checks the page theme and every module's style.
-func validateStyles(s *Settings) error {
-	if err := s.Theme.validate(); err != nil {
-		return problem.Mark(problem.Style, fmt.Errorf("theme: %w", err))
-	}
-	for i, m := range s.Modules {
-		var c struct {
-			Style *Style `json:"style"`
-		}
-		if json.Unmarshal(m.Config, &c) != nil {
-			continue // reported per module when it runs
-		}
-		if err := c.Style.validate(); err != nil {
-			return problem.Mark(problem.Style, fmt.Errorf("module %d (%s): style: %w", i+1, m.Name, err))
-		}
-	}
-	return nil
 }

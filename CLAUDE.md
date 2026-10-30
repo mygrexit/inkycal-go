@@ -58,8 +58,9 @@ tools/wakebench/      cold-start comparison against a release
 
 - `deploy/install.sh` embeds the systemd unit; `install_test.go` fails if it drifts from `deploy/inkycal-go.service`.
 - Installer channels: no flag = `releases/latest`, `--dev` = the `dev-build` pre-release (tag `dev-build`, so `git push origin dev` stays unambiguous).
-- Grid cells: a settings file has cells on all modules or none (`config.GridCells`).
-- `config.Load` (device) is lenient: a bad style or cell marks only that module (`ModuleEntry.Err`, `config.ErrCell`) and a bad theme falls back to the default; `config.Parse` (builder) rejects them, so the builder never saves one.
+- Tiles are decoded once, in `(*config.Settings).Tiles()` (cell, look, problem per tile); `app/page.go` places them on the page. Read a tile's settings there, not with another `json.Unmarshal`. Words: `GLOSSARY.md`.
+- Grid cells: a page has cells on all tiles or none; a tile without one on a grid page is unplaced.
+- Device and builder take settings differently: `config.Load` and `Compose` are lenient (a broken tile fails on its own, a bad theme falls back to the default); `config.Parse` (builder) rejects a broken theme, cell or style, so the builder never saves one.
 - Builder writes settings atomically and keeps file mode; never loosen permissions of settings or `.bak`.
 - Font cache keys custom fonts by path+size+mtime; only regular files ≤ 20 MiB.
 - `go.mod` pins a patched `toolchain`; raise it when govulncheck reports standard-library issues — release binaries ship that stdlib.

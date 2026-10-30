@@ -1,8 +1,6 @@
 package app
 
 import (
-	"math"
-
 	"inkycal/internal/config"
 	"inkycal/internal/render"
 )
@@ -43,12 +41,4 @@ func inksFor(st config.Style) *render.InkMap {
 		return nil
 	}
 	return &m
-}
-
-// scaled applies a style's size factor to a font size.
-func scaled(size config.FlexInt, scale float64) config.FlexInt {
-	if scale == 0 {
-		return size
-	}
-	return config.FlexInt(max(6, int(math.Round(float64(size)*scale))))
 }

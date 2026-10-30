@@ -16,6 +16,7 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/i18n"
+	"inkycal/internal/layout"
 	"inkycal/internal/modules"
 	"inkycal/internal/problem"
 	"inkycal/internal/render"
@@ -401,7 +402,7 @@ func TestHintKeysHaveTexts(t *testing.T) {
 
 func TestFailedModuleShowsHint(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Dot", "Fail", "Missing", "Panic")
-	out := runModules(context.Background(), o, o.Now(), nil)
+	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
 	for i := 1; i < len(out); i++ {
 		img := out[i].part.Img
 		inked := false
@@ -528,7 +529,8 @@ func TestRadioStaysOnWhenDeviceStaysOn(t *testing.T) {
 // otherwise it stays powered, its bus open, until the next wake.
 func TestRunCycleReleasesPreparedPanelOnError(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Dot", "Dot")
-	o.Settings.Modules[0].Config = json.RawMessage(`{"size":[480,200],"cell":[0,0,2,2]}`) // the second has none
+	o.Settings.Grid = &layout.Grid{Columns: 0, Rows: 2} // a grid that holds no cell fails the page
+	o.Settings.Modules[0].Config = json.RawMessage(`{"cell":[0,0,1,1]}`)
 	d := &preparingDisplay{fakeDisplay: &fakeDisplay{}}
 	o.Display = d
 	if _, err := RunCycle(context.Background(), o); err == nil {
@@ -607,6 +609,16 @@ func TestBrokenStyleIsNotApplied(t *testing.T) {
 	}
 }
 
+// pageTiles resolves o's tiles on the test panel's page (480×760 below the info line).
+func pageTiles(t *testing.T, o *Options) []tile {
+	t.Helper()
+	tiles, _, err := resolveTiles(o.Settings, 480, 760)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tiles
+}
+
 func modulestestInk(c *render.Canvas) (black, colour bool) {
 	for y := 0; y < c.H; y++ {
 		for x := 0; x < c.W; x++ {
@@ -629,7 +641,7 @@ func TestStackedBrokenTileShowsHint(t *testing.T) {
 	}
 	o, _, _, _ := testOptions(t)
 	o.Settings = s
-	out := runModules(context.Background(), o, o.Now(), nil)
+	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
 	if out[0].err == nil {
 		t.Fatal("want the style error")
 	}
@@ -643,7 +655,7 @@ func TestRunModulesErrorKinds(t *testing.T) {
 	o, _, _, _ := testOptions(t, "Widget", "Wait")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // stands in for the 60 s module limit
 	defer cancel()
-	out := runModules(ctx, o, o.Now(), nil)
+	out := runModules(ctx, o, o.Now(), pageTiles(t, o))
 	if got := problem.Classify(out[0].err); got != problem.UnknownModule {
 		t.Errorf("unknown module: %v (%v)", got, out[0].err)
 	}
@@ -656,7 +668,7 @@ func TestRunModulesErrorKinds(t *testing.T) {
 func TestStackedPaddingErrorShowsHint(t *testing.T) {
 	o, _, _, _ := testOptions(t)
 	o.Settings.Modules = []config.ModuleEntry{{Position: 1, Name: "Dot", Config: json.RawMessage(`{"size":[480,60],"padding_x":250,"padding_y":40}`)}}
-	out := runModules(context.Background(), o, o.Now(), nil)
+	out := runModules(context.Background(), o, o.Now(), pageTiles(t, o))
 	if problem.Classify(out[0].err) != problem.Padding {
 		t.Fatalf("err %v", out[0].err)
 	}

@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -10,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"inkycal/internal/config"
-	"inkycal/internal/layout"
 	"inkycal/internal/modules"
 	"inkycal/internal/problem"
 	"inkycal/internal/render"
@@ -41,19 +38,12 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 	if s.InfoSection {
 		infoHeight = int(s.InfoSectionHeight)
 	}
-	g, cells, grid, err := config.GridCells(s)
+	tiles, grid, err := resolveTiles(s, pageW, pageH-infoHeight)
 	if err != nil {
 		return Composed{}, err
 	}
-	var rects []layout.Rect
-	if grid {
-		rects = make([]layout.Rect, len(cells))
-		for i, c := range cells {
-			rects[i] = g.Rect(c, pageW, pageH-infoHeight)
-		}
-	}
 	start := time.Now()
-	outcomes := runModules(ctx, o, now, rects)
+	outcomes := runModules(ctx, o, now, tiles)
 	took := time.Since(start)
 	statuses := make([]ModuleStatus, len(outcomes))
 	parts := make([]render.Part, len(outcomes), max(len(outcomes), 1))
@@ -78,10 +68,9 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 	if grid {
 		placed := make([]render.Placed, 0, len(outcomes))
 		for i, oc := range outcomes {
-			if errors.Is(s.Modules[i].Err, config.ErrCell) {
-				continue
+			if t := tiles[i]; t.placed {
+				placed = append(placed, render.Placed{Img: oc.part.Img, X: t.rect.X, Y: t.rect.Y, W: t.rect.W, H: t.rect.H, Inks: oc.part.Inks})
 			}
-			placed = append(placed, render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H, Inks: oc.part.Inks})
 		}
 		if len(placed) == 0 && len(outcomes) > 0 { // every tile was left out: say so
 			c := render.NewCanvas(pageW-80, 120, render.FontDefault, 22)
@@ -100,7 +89,6 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 
 type moduleOutcome struct {
 	part  render.Part
-	rect  layout.Rect // grid layouts: the module's section on the page
 	err   error
 	stale bool
 }
@@ -111,94 +99,56 @@ func (oc *moduleOutcome) fail(err error, module, lang string) {
 	drawHint(oc.part.Img, errorHint(module, err, lang))
 }
 
-// runModules runs all modules concurrently; a failed module leaves its section blank.
-// rects (grid layouts) give each module's section; nil takes the size from its config.
-func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.Rect) []moduleOutcome {
+// runModules runs the tiles' modules concurrently; a tile that cannot run shows its hint.
+func runModules(ctx context.Context, o *Options, now time.Time, tiles []tile) []moduleOutcome {
 	ctx, cancel := context.WithTimeout(ctx, moduleTimeout)
 	defer cancel()
-	out := make([]moduleOutcome, len(o.Settings.Modules))
-	inks := make([]*render.InkMap, len(o.Settings.Modules))
+	out := make([]moduleOutcome, len(tiles))
 	var wg sync.WaitGroup
-	for i, entry := range o.Settings.Modules {
-		if errors.Is(entry.Err, config.ErrCell) {
-			// No section on the page: nothing to draw, only the error to report.
-			out[i].err = fmt.Errorf("%s: %w", entry.Name, entry.Err)
-			out[i].part.Img = render.NewCanvas(1, 1, render.FontDefault, 14)
+	for i, t := range tiles {
+		out[i].part = render.Part{Img: t.canvas(), SectionW: t.common.Size[0], SectionH: t.common.Size[1]}
+		if !t.placed {
+			out[i].err = t.err // no section: nothing to draw, only the error to report
 			continue
 		}
-		common, err := config.ParseCommon(entry.Config)
-		own := common.Style
-		if entry.Err != nil {
-			// Load found its style broken: show why in its section, in the page's look.
-			err, own = entry.Err, nil
-		}
-		style := config.Effective(o.Settings.Theme, own)
-		common.FontSize = scaled(common.FontSize, style.Scale)
-		theme := themeFor(style, o.Settings.Dir())
-		inks[i] = inksFor(style)
-		if rects != nil {
-			out[i].rect = rects[i]
-			if err == nil {
-				common, err = common.WithSize(rects[i].W, rects[i].H)
-			}
-			common.Size = [2]int{rects[i].W, rects[i].H} // keep the blank section even when the config failed
-		}
-		w, h := common.InnerSize()
-		// A failed module keeps its section blank, so it needs a canvas even with a broken size.
-		out[i].part = render.Part{
-			Img:      render.NewThemedCanvas(max(w, 1), max(h, 1), render.FontDefault, 14, theme),
-			SectionW: common.Size[0], SectionH: common.Size[1],
-		}
-		if err != nil {
-			out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
-			if rects != nil {
-				// On a grid a shrinking cell can outgrow the padding without the module
-				// being touched: say so across the whole cell instead of leaving it blank.
-				out[i].part.Img = render.NewThemedCanvas(rects[i].W, rects[i].H, render.FontDefault, 14, theme)
-			} else if w <= 0 || h <= 0 {
-				// Stacked, with no inner area left (padding larger than the section): use the section.
-				out[i].part.Img = render.NewThemedCanvas(max(common.Size[0], 1), max(common.Size[1], 1), render.FontDefault, 14, theme)
-			}
-			drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
+		if t.err != nil {
+			out[i].fail(t.err, t.name, t.common.Language)
 			continue
 		}
-		factory, ok := o.Registry[entry.Name]
+		factory, ok := o.Registry[t.name]
 		if !ok {
-			out[i].fail(problem.Mark(problem.UnknownModule, fmt.Errorf("unknown module %q", entry.Name)), entry.Name, common.Language)
+			out[i].fail(problem.Mark(problem.UnknownModule, fmt.Errorf("unknown module %q", t.name)), t.name, t.common.Language)
 			continue
 		}
-		wg.Add(1)
-		go func(i int, entry config.ModuleEntry, common config.Common, theme *render.Theme) {
-			defer wg.Done()
+		wg.Go(func() {
 			defer func() {
 				if r := recover(); r != nil {
 					// The module may have panicked mid-drawing: hint on a fresh canvas.
-					img := out[i].part.Img
-					out[i].part.Img = render.NewThemedCanvas(img.W, img.H, render.FontDefault, 14, theme)
-					out[i].fail(fmt.Errorf("%s panicked: %v", entry.Name, r), entry.Name, common.Language)
+					out[i].part.Img = t.canvas()
+					out[i].fail(fmt.Errorf("%s panicked: %v", t.name, r), t.name, t.common.Language)
 				}
 			}()
-			m, err := factory(common, entry.Config)
+			m, err := factory(t.common, t.config)
 			if err != nil {
-				out[i].fail(err, entry.Name, common.Language)
+				out[i].fail(err, t.name, t.common.Language)
 				return
 			}
-			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: theme}
+			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: t.theme}
 			cv, err := m.Generate(ctx, env)
 			if err != nil {
-				out[i].fail(fmt.Errorf("%s: %w", entry.Name, err), entry.Name, common.Language)
+				out[i].fail(fmt.Errorf("%s: %w", t.name, err), t.name, t.common.Language)
 				return
 			}
 			out[i].part.Img = cv
 			out[i].stale = env.Stale
-		}(i, entry, common, theme)
+		})
 	}
 	wg.Wait()
 	// Own colours are applied to the finished image, so modules need not know them.
-	for i := range out {
-		if inks[i] != nil {
-			out[i].part.Img.Recolor(*inks[i])
-			out[i].part.Inks = inks[i]
+	for i, t := range tiles {
+		if t.inks != nil {
+			out[i].part.Img.Recolor(*t.inks)
+			out[i].part.Inks = t.inks
 		}
 	}
 	return out
