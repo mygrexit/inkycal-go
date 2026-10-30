@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,5 +80,36 @@ func TestLoadFallsBackToDefaultTheme(t *testing.T) {
 	s := load(t, `{"model":"m","theme":{"font":"comic"},"modules":[{"position":1,"name":"A","config":{}}]}`)
 	if s.Theme != nil || len(s.Warnings) != 1 || !strings.Contains(s.Warnings[0], "comic") {
 		t.Errorf("theme %+v warnings %q", s.Theme, s.Warnings)
+	}
+}
+
+// A style of the wrong type is the module's own problem (reported when it runs); it
+// must not cost the module its valid cell.
+func TestLoadKeepsCellWhenStyleDoesNotDecode(t *testing.T) {
+	s := load(t, `{"model":"m","modules":[
+		{"position":1,"name":"A","config":{"cell":[0,0,12,4],"style":{"scale":"big"}}},
+		{"position":2,"name":"B","config":{"cell":[0,4,12,4]}}]}`)
+	if errs := moduleErrs(s); errs[0] != "" || errs[1] != "" {
+		t.Errorf("errors %q: the cell is fine", errs)
+	}
+}
+
+// Both problems of a module are reported at once, not one per wake.
+func TestLoadReportsStyleAndCellTogether(t *testing.T) {
+	s := load(t, `{"model":"m","modules":[
+		{"position":1,"name":"A","config":{"cell":[0,0,12,4]}},
+		{"position":2,"name":"B","config":{"cell":[0,2,12,4],"style":{"font":"comic"}}}]}`)
+	e := s.Modules[1].Err
+	if !errors.Is(e, ErrCell) || !strings.Contains(e.Error(), "overlaps") || !strings.Contains(e.Error(), "comic") {
+		t.Errorf("err %v, want the overlap and the style", e)
+	}
+}
+
+// When no module can be placed the page stays a grid page (with a hint), not a stack.
+func TestGridCellsAllUnplaced(t *testing.T) {
+	s := load(t, `{"model":"m","modules":[{"position":1,"name":"A","config":{"cell":[0,0,99,4]}}]}`)
+	_, _, grid, err := GridCells(s)
+	if err != nil || !grid {
+		t.Errorf("grid %v err %v", grid, err)
 	}
 }

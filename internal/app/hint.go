@@ -25,6 +25,8 @@ func errorHint(module string, err error, lang string) string {
 		return i18n.T(lang, "hint.notcal", name)
 	case strings.Contains(msg, "too small"):
 		return i18n.T(lang, "hint.small", name)
+	case strings.Contains(msg, ": style: "):
+		return i18n.T(lang, "hint.style", name)
 	}
 	return i18n.T(lang, "hint.error", name)
 }

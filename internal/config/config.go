@@ -179,17 +179,22 @@ func tolerate(s *Settings) {
 	cells := make([]*layout.Cell, len(s.Modules))
 	anyCell := false
 	for i, m := range s.Modules {
+		// Style and cell are read apart: a style that does not decode is reported when the
+		// module runs and must not cost it a valid cell.
+		var st struct {
+			Style *Style `json:"style"`
+		}
+		if json.Unmarshal(m.Config, &st) == nil {
+			if err := st.Style.validate(); err != nil {
+				s.Modules[i].Err = fmt.Errorf("style: %w", err)
+			}
+		}
 		var c struct {
-			Style *Style       `json:"style"`
-			Cell  *layout.Cell `json:"cell"`
+			Cell *layout.Cell `json:"cell"`
 		}
-		if json.Unmarshal(m.Config, &c) != nil {
-			continue // reported per module when it runs
+		if json.Unmarshal(m.Config, &c) == nil && c.Cell != nil {
+			cells[i], anyCell = c.Cell, true
 		}
-		if err := c.Style.validate(); err != nil {
-			s.Modules[i].Err = fmt.Errorf("style: %w", err)
-		}
-		cells[i], anyCell = c.Cell, anyCell || c.Cell != nil
 	}
 	g := layout.Default
 	if s.Grid != nil {
@@ -200,22 +205,24 @@ func tolerate(s *Settings) {
 	}
 	var placed []int
 	for i, c := range cells {
+		var cellErr error
 		switch {
 		case c == nil:
-			s.Modules[i].Err = fmt.Errorf("%w: no cell", ErrCell)
-			continue
+			cellErr = fmt.Errorf("%w: no cell", ErrCell)
 		case g.Validate([]layout.Cell{*c}) != nil:
-			s.Modules[i].Err = fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows)
-			continue
-		}
-		for _, j := range placed {
-			if layout.Overlaps(*cells[j], *c) {
-				s.Modules[i].Err = fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1)
-				break
+			cellErr = fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows)
+		default:
+			for _, j := range placed {
+				if layout.Overlaps(*cells[j], *c) {
+					cellErr = fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1)
+					break
+				}
 			}
 		}
-		if !errors.Is(s.Modules[i].Err, ErrCell) {
+		if cellErr == nil {
 			placed = append(placed, i)
+		} else {
+			s.Modules[i].Err = errors.Join(cellErr, s.Modules[i].Err) // keep a style error too
 		}
 	}
 }
@@ -224,10 +231,12 @@ func tolerate(s *Settings) {
 // when no module has a cell (stacked layout); either all modules have one or none.
 // Modules Load could not place (Err wraps ErrCell) get a zero cell and are not checked.
 func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err error) {
-	var missing, unplaced []int
+	var missing []int
+	var check []layout.Cell // the cells to validate: all but the ones Load could not place
+	unplaced := 0
 	for i, m := range s.Modules {
 		if errors.Is(m.Err, ErrCell) {
-			unplaced = append(unplaced, i)
+			unplaced++
 			cells = append(cells, layout.Cell{})
 			continue
 		}
@@ -240,8 +249,9 @@ func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err 
 			continue
 		}
 		cells = append(cells, *c.Cell)
+		check = append(check, *c.Cell)
 	}
-	if len(missing)+len(unplaced) == len(s.Modules) {
+	if unplaced == 0 && len(missing) == len(s.Modules) {
 		return g, nil, false, nil
 	}
 	if len(missing) > 0 {
@@ -251,15 +261,6 @@ func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err 
 	g = layout.Default
 	if s.Grid != nil {
 		g = *s.Grid
-	}
-	check := cells
-	if len(unplaced) > 0 {
-		check = nil
-		for i, c := range cells {
-			if !errors.Is(s.Modules[i].Err, ErrCell) {
-				check = append(check, c)
-			}
-		}
 	}
 	if err := g.Validate(check); err != nil {
 		return g, nil, false, fmt.Errorf("grid layout: %w", err)

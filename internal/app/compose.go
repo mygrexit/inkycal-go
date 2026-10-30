@@ -82,6 +82,11 @@ func Compose(ctx context.Context, o *Options, now time.Time) (Composed, error) {
 			}
 			placed = append(placed, render.Placed{Img: oc.part.Img, X: oc.rect.X, Y: oc.rect.Y, W: oc.rect.W, H: oc.rect.H, Inks: oc.part.Inks})
 		}
+		if len(placed) == 0 && len(outcomes) > 0 { // every tile was left out: say so
+			c := render.NewCanvas(pageW-80, 120, render.FontDefault, 22)
+			drawHint(c, "settings.json: no tile fits the grid – fix it with the builder")
+			placed = append(placed, render.Placed{Img: c, X: 0, Y: 0, W: pageW, H: 120})
+		}
 		return Composed{Canvas: render.AssembleGrid(pageW, pageH, placed, look), Modules: statuses, Took: took}, nil
 	}
 	if len(parts) == 0 { // upstream shows a message instead of a blank panel
@@ -121,10 +126,12 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 			continue
 		}
 		common, err := config.ParseCommon(entry.Config)
-		if err == nil && entry.Err != nil {
-			err = entry.Err // Load found it broken (its style): show why in its section
+		own := common.Style
+		if entry.Err != nil {
+			// Load found its style broken: show why in its section, in the page's look.
+			err, own = entry.Err, nil
 		}
-		style := config.Effective(o.Settings.Theme, common.Style)
+		style := config.Effective(o.Settings.Theme, own)
 		common.FontSize = scaled(common.FontSize, style.Scale)
 		theme := themeFor(style, o.Settings.Dir())
 		inks[i] = inksFor(style)

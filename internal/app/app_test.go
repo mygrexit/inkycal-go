@@ -371,6 +371,8 @@ func TestErrorHint(t *testing.T) {
 		{"Calendar", "calendar: https://x/basic.ics: not an iCalendar file (got HTML)", "en", "Calendar: the address shows a web page, not a calendar – use the iCal address"},
 		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "de", "Wetter: Kachel zu klein – im Builder vergrößern"},
 		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "en", "Weather: tile too small – make it bigger in the builder"},
+		{"Weather", "Weather: style: scale 3: want 0.5–2", "de", "Wetter: ungültiger Stil – im Builder neu wählen"},
+		{"Weather", "Weather: style: scale 3: want 0.5–2", "en", "Weather: invalid style – choose it again in the builder"},
 	} {
 		if got := errorHint(c.name, errors.New(c.err), c.lang); got != c.want {
 			t.Errorf("%s %q:\n got %q\nwant %q", c.name, c.err, got, c.want)
@@ -542,4 +544,56 @@ func TestBrokenTileDoesNotStopThePanel(t *testing.T) {
 	if !strings.Contains(res.ModuleErrors[0], "style") || !strings.Contains(res.ModuleErrors[1], "overlaps") {
 		t.Errorf("module errors %q", res.ModuleErrors)
 	}
+}
+
+// Nothing placeable: the panel says so instead of going blank.
+func TestNoPlaceableTileShowsHint(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "settings.json")
+	os.WriteFile(p, []byte(`{"model":"epd_7_in_5_v2_colour","modules":[
+		{"position":1,"name":"Dot","config":{"cell":[0,0,99,4]}}]}`), 0o600)
+	s, err := config.Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, _, _, _ := testOptions(t)
+	o.Settings = s
+	c, err := Compose(context.Background(), o, o.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := modulestestInk(c.Canvas); !b {
+		t.Error("blank page: want a hint")
+	}
+}
+
+// A broken style is not applied to the error tile: its colours could paint the tile red.
+func TestBrokenStyleIsNotApplied(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "settings.json")
+	os.WriteFile(p, []byte(`{"model":"epd_7_in_5_v2_colour","modules":[
+		{"position":1,"name":"Dot","config":{"cell":[0,0,12,8],"padding_x":10,"padding_y":10,"style":{"font":"comic","colors":{"paper":"colour"}}}}]}`), 0o600)
+	s, err := config.Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, _, _, _ := testOptions(t)
+	o.Settings = s
+	c, err := Compose(context.Background(), o, o.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, colour := modulestestInk(c.Canvas); colour {
+		t.Error("the broken style's colour paper was applied")
+	}
+}
+
+func modulestestInk(c *render.Canvas) (black, colour bool) {
+	for y := 0; y < c.H; y++ {
+		for x := 0; x < c.W; x++ {
+			b, col := c.InkAt(x, y)
+			black, colour = black || b, colour || col
+		}
+	}
+	return black, colour
 }
