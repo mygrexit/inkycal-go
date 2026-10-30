@@ -1,0 +1,45 @@
+name: dev-build
+
+# Every push to dev replaces the pre-release "dev-build" (install.sh --dev) with fresh
+# binaries for arm64, armv7 and armv6 plus SHA256SUMS.
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+
+# A newer push supersedes a build still running; never two releases at once.
+concurrency:
+  group: dev-build
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: tests
+        run: make test
+
+      - name: build (make release)
+        run: make release
+
+      - name: show Go version in the binaries
+        run: go version -m dist/inkycal-linux-arm64 | head -1
+
+      - name: replace pre-release dev-build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev-build --cleanup-tag --yes || true
+          gh release create dev-build \
+            dist/inkycal-linux-arm64 dist/inkycal-linux-armv7 dist/inkycal-linux-armv6 dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Development build" \
+            --notes "Rolling development build of the dev branch at ${GITHUB_SHA::7}. Install with \`install.sh --dev\`; run install.sh without --dev to go back to the latest stable release."
