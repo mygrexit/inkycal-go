@@ -130,6 +130,9 @@ func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]b
 func (c *Client) once(ctx context.Context, url string, header http.Header) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		if ue, ok := errors.AsType[*neturl.Error](err); ok {
+			err = fmt.Errorf("GET %s: %w", redact(url), ue.Err) // url.Error quotes the whole URL
+		}
 		return nil, err
 	}
 	for k, vs := range header {
@@ -230,11 +233,17 @@ func (c *Client) load(key string) ([]byte, time.Time, bool) {
 // addresses of Google (private-…), iCloud and Outlook.
 func Redact(url string) string { return redact(url) }
 
-// urlInText finds the URLs that RedactText rewrites.
-var urlInText = regexp.MustCompile(`[a-z][a-z0-9+.-]*://[^\s"'<>]+`)
+// urlInText and queryInText find what RedactText rewrites: URLs, and query strings
+// of anything else that looks like a path.
+var (
+	urlInText   = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://[^\s"'<>]+`)
+	queryInText = regexp.MustCompile(`\?[^\s"'<>]+`)
+)
 
 // RedactText redacts every URL in a message, e.g. an error shown in the builder.
-func RedactText(msg string) string { return urlInText.ReplaceAllStringFunc(msg, redact) }
+func RedactText(msg string) string {
+	return queryInText.ReplaceAllString(urlInText.ReplaceAllStringFunc(msg, redact), "?…")
+}
 
 func redact(url string) string {
 	if i := strings.IndexByte(url, '?'); i >= 0 {
@@ -246,14 +255,24 @@ func redact(url string) string {
 	}
 	segs := strings.Split(rest, "/")
 	for i := 1; i < len(segs); i++ { // segs[0] is the host
-		switch s := segs[i]; {
-		case strings.HasPrefix(s, "private-"):
-			segs[i] = "private-…"
-		case len(s) >= 20 && isToken(s):
-			segs[i] = "…"
+		// a token may be followed by an extension (".ics") or by text after the URL (":")
+		s := segs[i]
+		j := strings.IndexFunc(s, func(r rune) bool { return !isTokenRune(r) })
+		if j < 0 {
+			j = len(s)
+		}
+		switch tok, tail := s[:j], s[j:]; {
+		case strings.HasPrefix(tok, "private-"):
+			segs[i] = "private-…" + tail
+		case len(tok) >= 20 && isToken(tok):
+			segs[i] = "…" + tail
 		}
 	}
 	return scheme + "://" + strings.Join(segs, "/")
+}
+
+func isTokenRune(r rune) bool {
+	return r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '-' || r == '_'
 }
 
 // isToken: letters, digits, - and _ only, with both letters and digits.
@@ -261,13 +280,12 @@ func isToken(s string) bool {
 	letter, digit := false, false
 	for _, r := range s {
 		switch {
+		case !isTokenRune(r):
+			return false
 		case r >= '0' && r <= '9':
 			digit = true
-		case r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z':
+		case r != '-' && r != '_':
 			letter = true
-		case r == '-' || r == '_':
-		default:
-			return false
 		}
 	}
 	return letter && digit

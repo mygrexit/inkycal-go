@@ -172,9 +172,10 @@ func TestRedactHidesPathTokens(t *testing.T) {
 		"https://calendar.google.com/calendar/ical/me%40gmail.com/private-0a1b2c3d4e5f6a7b8c9d/basic.ics":   "https://calendar.google.com/calendar/ical/me%40gmail.com/private-…/basic.ics",
 		"webcal://p52-caldav.icloud.com/published/2/MTIzNDU2Nzg5MDEyMzQ1Njc4OTBhYmNkZWZn":                   "webcal://p52-caldav.icloud.com/published/2/…",
 		"https://outlook.office365.com/owa/calendar/abc@x.de/8f2e9c71d4a54b6f9e3a1c0d2b7e8f90/calendar.ics": "https://outlook.office365.com/owa/calendar/abc@x.de/…/calendar.ics",
-		"https://api.x/weather?appid=SECRET":      "https://api.x/weather?…",
-		"https://api.open-meteo.com/v1/forecast":  "https://api.open-meteo.com/v1/forecast",
-		"https://example.com/family/calendar.ics": "https://example.com/family/calendar.ics",
+		"https://api.x/weather?appid=SECRET":                             "https://api.x/weather?…",
+		"https://api.open-meteo.com/v1/forecast":                         "https://api.open-meteo.com/v1/forecast",
+		"https://example.com/family/calendar.ics":                        "https://example.com/family/calendar.ics",
+		"https://cal.example/feeds/8f2e9c71d4a54b6f9e3a1c0d2b7e8f90.ics": "https://cal.example/feeds/….ics",
 	}
 	for in, want := range cases {
 		if got := Redact(in); got != want {
@@ -184,5 +185,24 @@ func TestRedactHidesPathTokens(t *testing.T) {
 	msg := `calendar 1: GET https://calendar.google.com/calendar/ical/x/private-0a1b2c3d4e5f/basic.ics: HTTP 404; also "https://a.b/c?key=SECRET"`
 	if got := RedactText(msg); strings.Contains(got, "0a1b2c3d4e5f") || strings.Contains(got, "SECRET") || !strings.Contains(got, "HTTP 404") {
 		t.Errorf("RedactText: %s", got)
+	}
+	for _, msg := range []string{
+		"GET webcal://p52-caldav.icloud.com/published/2/MTIzNDU2Nzg5MDEyMzQ1Njc4OTBhYmNkZWZn: HTTP 404", // token before ':'
+		"GET HTTPS://api.x/w?appid=SECRET: HTTP 401",                                                    // upper-case scheme
+		"bad path /data/2.5/weather?appid=SECRET",                                                       // no scheme at all
+	} {
+		if got := RedactText(msg); strings.Contains(got, "SECRET") || strings.Contains(got, "MTIzNDU2") {
+			t.Errorf("RedactText(%q) = %q", msg, got)
+		}
+	}
+}
+
+// A URL that does not even parse must not reach the log with its key.
+func TestBadURLDoesNotLeakKey(t *testing.T) {
+	c := New("")
+	c.Attempts = 1
+	_, err := c.Get(context.Background(), "https://api.x/w?appid=SECRET\n", nil)
+	if err == nil || strings.Contains(err.Error(), "SECRET") {
+		t.Fatalf("error leaks key or is nil: %v", err)
 	}
 }
