@@ -19,9 +19,9 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/modules/weather"
 	"inkycal/internal/render"
 )
@@ -35,30 +35,10 @@ func berlin(t *testing.T) *time.Location {
 	return loc
 }
 
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := max(0, y0); y < min(c.H, y1); y++ {
-		for x := max(0, x0); x < min(c.W, x1); x++ {
-			b, col := c.InkAt(x, y)
-			black = black || b
-			colour = colour || col
-		}
-	}
-	return black, colour
-}
-
 const fullCommon = `{"size":[984,1304],"padding_x":40,"padding_y":20,"fontsize":22,"language":"en"}`
 
 func TestNewUpstreamKeys(t *testing.T) {
-	common := mustCommon(t, fullCommon)
+	common := modulestest.Common(t, fullCommon)
 	for name, raw := range map[string]string{
 		"no api_key":   `{"latitude":51.5,"longitude":-0.13}`,
 		"no latitude":  `{"api_key":"k","longitude":-0.13}`,
@@ -70,7 +50,7 @@ func TestNewUpstreamKeys(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	tiny := mustCommon(t, `{"size":[300,60],"padding_x":0,"padding_y":0}`)
+	tiny := modulestest.Common(t, `{"size":[300,60],"padding_x":0,"padding_y":0}`)
 	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1}`)); err == nil {
 		t.Error("300x60 accepted")
 	}
@@ -283,7 +263,7 @@ func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
 
 func generate(t *testing.T, common, raw string, now time.Time) *render.Canvas {
 	t.Helper()
-	m, err := New(mustCommon(t, common), json.RawMessage(raw))
+	m, err := New(modulestest.Common(t, common), json.RawMessage(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,17 +291,17 @@ func TestGenerate(t *testing.T) {
 	if hits.Load() != 1 {
 		t.Errorf("One Call fetched %d times, want 1 with api_version 3.0", hits.Load())
 	}
-	if _, colour := inkIn(c, 0, 0, 280, 125); !colour {
+	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
 		t.Error("date numeral not drawn in colour")
 	}
-	if black, _ := inkIn(c, 300, 0, 424, 124); !black {
+	if black, _ := modulestest.InkIn(c, 300, 0, 424, 124); !black {
 		t.Error("current icon missing")
 	}
 	// The chart's red dot sits at its left edge, between the header and the day row.
-	if _, colour := inkIn(c, 0, 280, 200, c.H-300); !colour {
+	if _, colour := modulestest.InkIn(c, 0, 280, 200, c.H-300); !colour {
 		t.Error("no red observation marker in the chart")
 	}
-	if black, _ := inkIn(c, 0, c.H-200, c.W, c.H); !black {
+	if black, _ := modulestest.InkIn(c, 0, c.H-200, c.W, c.H); !black {
 		t.Error("day columns missing at the bottom")
 	}
 
@@ -345,7 +325,7 @@ func TestDrawShapes(t *testing.T) {
 	for _, sz := range [][2]int{{904, 1264}, {904, 600}, {904, 400}, {904, 140}, {400, 600}, {640, 384}} {
 		c := render.NewCanvas(sz[0], sz[1], render.FontDefault, 14)
 		draw(c, v)
-		if b, _ := inkIn(c, 0, 0, c.W, c.H); !b {
+		if b, _ := modulestest.InkIn(c, 0, 0, c.W, c.H); !b {
 			t.Errorf("%v: nothing drawn", sz)
 		}
 	}

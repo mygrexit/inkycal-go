@@ -8,29 +8,10 @@ import (
 	"time"
 	"unicode"
 
-	"inkycal/internal/config"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
-
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := y0; y < y1; y++ {
-		for x := x0; x < x1; x++ {
-			b, col := c.InkAt(x, y)
-			black, colour = black || b, colour || col
-		}
-	}
-	return
-}
 
 func TestWordList(t *testing.T) {
 	ws, err := loadWords()
@@ -96,7 +77,7 @@ func TestSplitArticle(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	common := mustCommon(t, `{"size":[984,174],"padding_x":40,"padding_y":18,"fontsize":22,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[984,174],"padding_x":40,"padding_y":18,"fontsize":22,"language":"de"}`)
 	m, err := New(common, json.RawMessage(`{}`))
 	if err != nil {
 		t.Fatal(err)
@@ -111,7 +92,7 @@ func TestGenerate(t *testing.T) {
 		if c.W != 904 || c.H != 138 {
 			t.Fatalf("canvas %dx%d", c.W, c.H)
 		}
-		black, colour := inkIn(c, 0, 0, c.W, c.H)
+		black, colour := modulestest.InkIn(c, 0, 0, c.W, c.H)
 		w := pick(m.(*Module).words, now)
 		art, _ := splitArticle(w.El)
 		if !black || (art != "" && !colour) {

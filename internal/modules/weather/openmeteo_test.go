@@ -12,6 +12,7 @@ import (
 
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 )
 
 // omFixture is an Open-Meteo answer (timeformat=unixtime) starting at 06:00 local time,
@@ -100,7 +101,7 @@ func TestWMOIcons(t *testing.T) {
 }
 
 func TestProviderChoice(t *testing.T) {
-	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
 	cases := []struct {
 		raw, provider, err string
 	}{
@@ -127,7 +128,7 @@ func TestGenerateWithOpenMeteo(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	serveOpenMeteo(t, omFixture(time.Date(2026, 10, 13, 6, 0, 0, 0, loc)))
-	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
 	m, err := New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +137,7 @@ func TestGenerateWithOpenMeteo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, colour := inkIn(c, 0, 0, 280, 125); !colour {
+	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
 		t.Error("date numeral missing")
 	}
 }

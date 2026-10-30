@@ -16,23 +16,14 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
 
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
 func TestNewTickers(t *testing.T) {
-	c := mustCommon(t, `{"size":[904,140],"fontsize":22}`)
+	c := modulestest.Common(t, `{"size":[904,140],"fontsize":22}`)
 	for raw, want := range map[string][]string{
 		`{"tickers":"TSLA, U, NVDA, EURUSD=X"}`: {"TSLA", "U", "NVDA", "EURUSD=X"},
 		`{"tickers":["AAPL","^GDAXI"]}`:         {"AAPL", "^GDAXI"},
@@ -50,7 +41,7 @@ func TestNewTickers(t *testing.T) {
 			t.Errorf("%s: expected an error", raw)
 		}
 	}
-	tiny := mustCommon(t, `{"size":[100,100]}`)
+	tiny := modulestest.Common(t, `{"size":[100,100]}`)
 	if _, err := New(tiny, json.RawMessage(`{"tickers":"AAPL"}`)); err == nil {
 		t.Error("expected size error")
 	}
@@ -185,28 +176,18 @@ func TestColumnsDegrade(t *testing.T) {
 	}
 }
 
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := y0; y < y1; y++ {
-		for x := x0; x < x1; x++ {
-			b, col := c.InkAt(x, y)
-			black, colour = black || b, colour || col
-		}
-	}
-	return
-}
-
 func TestDrawRowsOverflowAndRed(t *testing.T) {
 	rows := sampleRows("en")
 	c := render.NewCanvas(904, 140, render.FontDefault, 22)
 	drawRows(c, rows, 22, "en") // 140/35 = 4 slots: 3 rows + "+ n more"
 	rowH := 22 * 8 / 5
 	for i := 0; i < 3; i++ {
-		_, red := inkIn(c, 0, i*rowH, c.W, (i+1)*rowH)
+		_, red := modulestest.InkIn(c, 0, i*rowH, c.W, (i+1)*rowH)
 		if red != rows[i].Down {
 			t.Errorf("row %d: red %v, down %v", i, red, rows[i].Down)
 		}
 	}
-	if b, _ := inkIn(c, 0, 3*rowH, 200, 4*rowH); !b {
+	if b, _ := modulestest.InkIn(c, 0, 3*rowH, 200, 4*rowH); !b {
 		t.Error("no overflow line")
 	}
 }
@@ -268,7 +249,7 @@ func sampleRows(lang string) []row {
 
 func TestGenerate(t *testing.T) {
 	chartServer(t)
-	c := mustCommon(t, `{"size":[944,180],"padding_x":20,"padding_y":20,"fontsize":22,"language":"de"}`)
+	c := modulestest.Common(t, `{"size":[944,180],"padding_x":20,"padding_y":20,"fontsize":22,"language":"de"}`)
 	m, err := New(c, json.RawMessage(`{"tickers":"AAPL, TSLA, NOPE"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +262,7 @@ func TestGenerate(t *testing.T) {
 	if canvas.W != 904 || canvas.H != 140 {
 		t.Errorf("canvas %dx%d", canvas.W, canvas.H)
 	}
-	if _, red := inkIn(canvas, 0, 0, canvas.W, canvas.H); !red {
+	if _, red := modulestest.InkIn(canvas, 0, 0, canvas.W, canvas.H); !red {
 		t.Error("TSLA is down but nothing is red")
 	}
 
@@ -310,7 +291,7 @@ func TestPreview(t *testing.T) {
 		{"stocks-904x140-en.png", "en", "AAPL, TSLA, ^GDAXI", 904, 140},
 		{"stocks-400x200.png", "en", "AAPL, TSLA, ^GDAXI, SAP.DE, EURUSD=X", 400, 200},
 	} {
-		c := mustCommon(t, fmt.Sprintf(`{"size":[%d,%d],"fontsize":22,"language":%q}`, p.w, p.h, p.lang))
+		c := modulestest.Common(t, fmt.Sprintf(`{"size":[%d,%d],"fontsize":22,"language":%q}`, p.w, p.h, p.lang))
 		m, err := New(c, json.RawMessage(fmt.Sprintf(`{"tickers":%q}`, p.tickers)))
 		if err != nil {
 			t.Fatal(err)

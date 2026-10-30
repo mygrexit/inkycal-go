@@ -7,41 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
 
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := y0; y < y1; y++ {
-		for x := x0; x < x1; x++ {
-			b, col := c.InkAt(x, y)
-			black = black || b
-			colour = colour || col
-		}
-	}
-	return black, colour
-}
-
 func TestNewValidation(t *testing.T) {
-	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":14,"language":"en"}`)
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":14,"language":"en"}`)
 	if _, err := New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
 		t.Error("missing api_key accepted")
 	}
 	if _, err := New(common, json.RawMessage(`{"api_key":"k"}`)); err == nil {
 		t.Error("missing location accepted")
 	}
-	tiny := mustCommon(t, `{"size":[60,30],"padding_x":0,"padding_y":0,"fontsize":14}`)
+	tiny := modulestest.Common(t, `{"size":[60,30],"padding_x":0,"padding_y":0,"fontsize":14}`)
 	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
 		t.Error("60x30 accepted, too small for the today band")
 	}
@@ -67,7 +47,7 @@ func TestGenerate(t *testing.T) {
 		now.Add(3*time.Hour).Unix(), now.Add(6*time.Hour).Unix())
 	serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), forecast)
 
-	common := mustCommon(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
 	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
 	if err != nil {
 		t.Fatal(err)
@@ -81,14 +61,14 @@ func TestGenerate(t *testing.T) {
 	if c.W != 904 || c.H != 250 {
 		t.Fatalf("canvas = %dx%d, want 904x250", c.W, c.H)
 	}
-	if _, colour := inkIn(c, 0, 0, 280, 125); !colour {
+	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
 		t.Error("date numeral not drawn in colour")
 	}
-	if black, _ := inkIn(c, 300, 0, 424, 124); !black {
+	if black, _ := modulestest.InkIn(c, 300, 0, 424, 124); !black {
 		t.Error("day icon missing")
 	}
 	// 12 m/s later today is strong wind: the gauge turns red.
-	if _, colour := inkIn(c, 734, 0, c.W, 45); !colour {
+	if _, colour := modulestest.InkIn(c, 734, 0, c.W, 45); !colour {
 		t.Error("strong-wind gauge not red")
 	}
 	if env.Stale {
@@ -104,14 +84,14 @@ func TestDrawDayFitsOtherShapes(t *testing.T) {
 
 	narrow := render.NewCanvas(400, 200, render.FontDefault, 14) // width-limited: 400*250/904 ≈ 110 px tall
 	drawDay(narrow, v, "de")
-	if b, c := inkIn(narrow, 0, 0, 400, 40); b || c {
+	if b, c := modulestest.InkIn(narrow, 0, 0, 400, 40); b || c {
 		t.Error("narrow band not centred vertically (ink in the top 40 px)")
 	}
-	if b, c := inkIn(narrow, 0, 160, 400, 200); b || c {
+	if b, c := modulestest.InkIn(narrow, 0, 160, 400, 200); b || c {
 		t.Error("narrow band not centred vertically (ink in the bottom 40 px)")
 	}
 
-	common := mustCommon(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
 	if _, err := New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
 		t.Errorf("7.5\" sized band rejected: %v", err)
 	}

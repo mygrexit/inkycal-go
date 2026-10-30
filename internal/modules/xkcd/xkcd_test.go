@@ -15,26 +15,17 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/picture"
 	"inkycal/internal/render"
 )
 
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
 const common480 = `{"size":[480,320],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`
 
 func TestNewUpstreamKeys(t *testing.T) {
-	c := mustCommon(t, common480)
+	c := modulestest.Common(t, common480)
 	m, err := New(c, json.RawMessage(`{"mode":"random","palette":"bwr","alt":"yes","filter":"yes"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -61,13 +52,13 @@ func TestNewUpstreamKeys(t *testing.T) {
 }
 
 func TestNewRejects(t *testing.T) {
-	c := mustCommon(t, common480)
+	c := modulestest.Common(t, common480)
 	for _, raw := range []string{`{"mode":"oldest"}`, `{"palette":"rgb"}`, `{"alt":"maybe"}`} {
 		if _, err := New(c, json.RawMessage(raw)); err == nil {
 			t.Errorf("%s accepted", raw)
 		}
 	}
-	small := mustCommon(t, `{"size":[100,50]}`)
+	small := modulestest.Common(t, `{"size":[100,50]}`)
 	if _, err := New(small, nil); err == nil {
 		t.Error("tiny module accepted")
 	}
@@ -318,7 +309,7 @@ func serveXkcd(t *testing.T, imgW, imgH int) *server {
 
 func generate(t *testing.T, size, raw string, now time.Time) (*render.Canvas, *modules.Env) {
 	t.Helper()
-	m, err := New(mustCommon(t, size), json.RawMessage(raw))
+	m, err := New(modulestest.Common(t, size), json.RawMessage(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +413,7 @@ func TestGenerateFailsWithoutNetwork(t *testing.T) {
 	old := baseURL
 	baseURL = "http://127.0.0.1:1"
 	t.Cleanup(func() { baseURL = old })
-	m, _ := New(mustCommon(t, common480), nil)
+	m, _ := New(modulestest.Common(t, common480), nil)
 	f := fetch.New("")
 	f.Attempts = 1
 	if _, err := m.Generate(context.Background(), &modules.Env{Now: time.Now(), Loc: time.UTC, Fetch: f}); err == nil {

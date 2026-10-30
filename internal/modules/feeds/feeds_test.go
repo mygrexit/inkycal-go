@@ -20,9 +20,9 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
 
@@ -38,15 +38,6 @@ const testAtom = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"><title>A</title>
 <entry><title>Atom-Titel</title><summary>Kurzfassung</summary><id>1</id><updated>2026-10-10T00:00:00Z</updated></entry>
 </feed>`
-
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
 
 func TestEntry(t *testing.T) {
 	cases := []struct {
@@ -146,7 +137,7 @@ func TestLayout(t *testing.T) {
 }
 
 func TestArrange(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	in := []item{{Title: "1"}, {Title: "2"}, {Title: "3"}, {Title: "4"}, {Title: "5"}, {Title: "6"}}
 
 	m, err := New(common, json.RawMessage(`{"feed_urls":"http://x/feed","shuffle_feeds":false}`))
@@ -176,7 +167,7 @@ func TestGenerate(t *testing.T) {
 		io.WriteString(w, testRSS)
 	}))
 	defer srv.Close()
-	common := mustCommon(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
+	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
 	m, err := New(common, json.RawMessage(`{"feed_urls":"`+srv.URL+`/a.xml, `+srv.URL+`/b.xml","shuffle_feeds":false}`))
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +195,7 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestNewRequiresURLs(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	if _, err := New(common, json.RawMessage(`{"feed_urls":""}`)); err == nil {
 		t.Error("empty feed_urls accepted")
 	}

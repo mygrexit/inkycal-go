@@ -6,6 +6,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
 
@@ -95,17 +96,7 @@ func TestDrawRowsOneColumnWhenNarrowOrShort(t *testing.T) {
 	c := render.NewCanvas(240, 400, render.FontDefault, 16)
 	drawRows(c, rows, 16, "de")
 	// the due label sits at the right edge of the tile, not of a half-width column
-	if _, col := inkInRect(c, 200, 0, 240, 30); !col {
+	if _, col := modulestest.InkIn(c, 200, 0, 240, 30); !col {
 		t.Error("due label not at the right edge: still two columns")
 	}
-}
-
-func inkInRect(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := y0; y < y1; y++ {
-		for x := x0; x < x1; x++ {
-			b, col := c.InkAt(x, y)
-			black, colour = black || b, colour || col
-		}
-	}
-	return
 }

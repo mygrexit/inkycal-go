@@ -14,30 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
-
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := max(0, y0); y < min(c.H, y1); y++ {
-		for x := max(0, x0); x < min(c.W, x1); x++ {
-			b, col := c.InkAt(x, y)
-			black, colour = black || b, colour || col
-		}
-	}
-	return
-}
 
 // savePreview writes c as PNG (black, red, white) into $INKYCAL_PREVIEW_DIR.
 func savePreview(t *testing.T, name string, c *render.Canvas) {
@@ -89,11 +70,11 @@ func TestSplit(t *testing.T) {
 }
 
 func TestNewIgnoresUnknownKeys(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	if _, err := New(common, json.RawMessage(`{"whatever":1}`)); err != nil {
 		t.Fatal(err)
 	}
-	tiny := mustCommon(t, `{"size":[60,20],"padding_x":0,"padding_y":0}`)
+	tiny := modulestest.Common(t, `{"size":[60,20],"padding_x":0,"padding_y":0}`)
 	if _, err := New(tiny, nil); err == nil {
 		t.Error("tiny module accepted")
 	}
@@ -103,14 +84,14 @@ func TestDrawFitsAndShrinks(t *testing.T) {
 	for _, size := range [][2]int{{904, 140}, {904, 600}, {300, 60}} {
 		c := render.NewCanvas(size[0], size[1], render.FontRegular, 20)
 		draw(c, "What do you call a fish wearing a bowtie?", "Sofishticated.", 20)
-		if b, _ := inkIn(c, 0, 0, c.W, c.H); !b {
+		if b, _ := modulestest.InkIn(c, 0, 0, c.W, c.H); !b {
 			t.Errorf("%v: no text", size)
 		}
-		if _, col := inkIn(c, 0, 0, c.W, c.H); !col {
+		if _, col := modulestest.InkIn(c, 0, 0, c.W, c.H); !col {
 			t.Errorf("%v: punchline dash missing", size)
 		}
 		// nothing in the outermost rows: the block is not clipped
-		if b, _ := inkIn(c, 0, 0, c.W, 1); b {
+		if b, _ := modulestest.InkIn(c, 0, 0, c.W, 1); b {
 			t.Errorf("%v: ink in first row", size)
 		}
 	}
@@ -131,7 +112,7 @@ func TestGenerate(t *testing.T) {
 		fmt.Fprint(w, `{"id":"R7UfaahVfFd","joke":"My dog used to chase people on a bike a lot. It got so bad I had to take his bike away.","status":200}`)
 	}))
 	defer srv.Close()
-	common := mustCommon(t, `{"size":[924,180],"padding_x":10,"padding_y":20,"fontsize":20,"language":"en"}`)
+	common := modulestest.Common(t, `{"size":[924,180],"padding_x":10,"padding_y":20,"fontsize":20,"language":"en"}`)
 	m, err := New(common, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +129,7 @@ func TestGenerate(t *testing.T) {
 	if c.W != 904 || c.H != 140 {
 		t.Fatalf("canvas %dx%d", c.W, c.H)
 	}
-	if b, _ := inkIn(c, 0, 0, c.W, c.H); !b {
+	if b, _ := modulestest.InkIn(c, 0, 0, c.W, c.H); !b {
 		t.Error("nothing drawn")
 	}
 }
@@ -158,7 +139,7 @@ func TestGenerateEmptyJoke(t *testing.T) {
 		fmt.Fprint(w, `{"status":200}`)
 	}))
 	defer srv.Close()
-	common := mustCommon(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	m, _ := New(common, nil)
 	m.(*Module).url = srv.URL
 	if _, err := m.Generate(context.Background(), &modules.Env{Fetch: fetch.New("")}); err == nil {

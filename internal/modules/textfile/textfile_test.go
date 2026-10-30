@@ -15,30 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
-
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := max(0, y0); y < min(c.H, y1); y++ {
-		for x := max(0, x0); x < min(c.W, x1); x++ {
-			b, col := c.InkAt(x, y)
-			black, colour = black || b, colour || col
-		}
-	}
-	return
-}
 
 // savePreview writes c as PNG (black, red, white) into $INKYCAL_PREVIEW_DIR.
 func savePreview(t *testing.T, name string, c *render.Canvas) {
@@ -85,7 +66,7 @@ const sample = "# Wochenplan\n" +
 	"Danke!\n"
 
 func TestNewConfig(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	for _, tc := range []struct {
 		raw    string
 		remote bool
@@ -163,7 +144,7 @@ func TestDrawCountsRest(t *testing.T) {
 		}
 	}
 	draw(c, ps, 20, "de")
-	if b, _ := inkIn(c, 0, 0, c.W, c.H); !b {
+	if b, _ := modulestest.InkIn(c, 0, 0, c.W, c.H); !b {
 		t.Error("nothing drawn")
 	}
 }
@@ -182,7 +163,7 @@ func TestGenerateLocalAndRemote(t *testing.T) {
 		fmt.Fprint(w, sample)
 	}))
 	defer srv.Close()
-	common := mustCommon(t, `{"size":[924,640],"padding_x":10,"padding_y":20,"fontsize":20,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[924,640],"padding_x":10,"padding_y":20,"fontsize":20,"language":"de"}`)
 	for _, src := range []string{path, srv.URL + "/notes.txt"} {
 		m, err := New(common, json.RawMessage(fmt.Sprintf(`{"filepath":%q}`, src)))
 		if err != nil {
@@ -196,7 +177,7 @@ func TestGenerateLocalAndRemote(t *testing.T) {
 		if c.W != 904 || c.H != 600 {
 			t.Fatalf("canvas %dx%d", c.W, c.H)
 		}
-		if b, _ := inkIn(c, 0, 0, c.W, c.H); !b {
+		if b, _ := modulestest.InkIn(c, 0, 0, c.W, c.H); !b {
 			t.Errorf("%s: nothing drawn", src)
 		}
 	}

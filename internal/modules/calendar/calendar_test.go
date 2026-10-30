@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
 )
 
@@ -39,26 +39,6 @@ var testICS = strings.Join([]string{
 	"END:VCALENDAR",
 	"",
 }, "\r\n")
-
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
-func inkIn(c *render.Canvas, x0, y0, x1, y1 int) (black, colour bool) {
-	for y := y0; y < y1; y++ {
-		for x := x0; x < x1; x++ {
-			b, col := c.InkAt(x, y)
-			black = black || b
-			colour = colour || col
-		}
-	}
-	return black, colour
-}
 
 func serveICS(t *testing.T) (url string, hits *atomic.Int32) {
 	t.Helper()
@@ -93,11 +73,11 @@ func cellRect(t *testing.T, w, h, fontSize int, now time.Time, showEvents bool, 
 func cellInk(t *testing.T, c *render.Canvas, now time.Time, showEvents bool, day int) (black, colour bool) {
 	t.Helper()
 	x0, y0, x1, y1 := cellRect(t, c.W, c.H, 14, now, showEvents, day)
-	return inkIn(c, x0, y0, x1, y1)
+	return modulestest.InkIn(c, x0, y0, x1, y1)
 }
 
 func TestNewRejectsTinySize(t *testing.T) {
-	tiny := mustCommon(t, `{"size":[60,60],"padding_x":0,"padding_y":0,"fontsize":14}`)
+	tiny := modulestest.Common(t, `{"size":[60,60],"padding_x":0,"padding_y":0,"fontsize":14}`)
 	if _, err := New(tiny, json.RawMessage(`{}`)); err == nil {
 		t.Error("60x60 accepted")
 	}
@@ -107,7 +87,7 @@ func TestGenerateWithEvents(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
 	icsURL, hits := serveICS(t)
-	common := mustCommon(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
+	common := modulestest.Common(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
 	m, err := New(common, json.RawMessage(fmt.Sprintf(
 		`{"week_starts_on":"Monday","show_events":true,"ical_urls":%q,"ical_files":null,"date_format":"D MMM","time_format":"HH:mm"}`, icsURL)))
 	if err != nil {
@@ -137,7 +117,7 @@ func TestGenerateWithEvents(t *testing.T) {
 	weeks := monthGrid(2026, time.October, time.Monday)
 	l := computeLayout(460, 380, render.NewCanvas(460, 380, render.FontDefault, 14).LineHeight(), true, len(weeks))
 	// +2 skips the bottom edge of the last grid row.
-	if black, _ := inkIn(c, 0, c.H-l.EventsH+2, c.W, c.H); !black {
+	if black, _ := modulestest.InkIn(c, 0, c.H-l.EventsH+2, c.W, c.H); !black {
 		t.Error("events list area is empty")
 	}
 }
@@ -146,7 +126,7 @@ func TestGenerateWithoutEventsSkipsFetch(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
 	icsURL, hits := serveICS(t)
-	common := mustCommon(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
+	common := modulestest.Common(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
 	m, err := New(common, json.RawMessage(fmt.Sprintf(`{"show_events":"False","ical_urls":%q}`, icsURL)))
 	if err != nil {
 		t.Fatal(err)

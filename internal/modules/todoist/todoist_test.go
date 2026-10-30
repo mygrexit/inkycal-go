@@ -8,22 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
+	"inkycal/internal/modules/modulestest"
 )
 
-func mustCommon(t *testing.T, raw string) config.Common {
-	t.Helper()
-	c, err := config.ParseCommon(json.RawMessage(raw))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c
-}
-
 func TestNewRequiresAPIKey(t *testing.T) {
-	common := mustCommon(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14}`)
+	common := modulestest.Common(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	if _, err := New(common, json.RawMessage(`{"project_filter":""}`)); err == nil {
 		t.Error("missing api_key accepted")
 	}
@@ -42,7 +33,7 @@ func TestGenerate(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	})
-	common := mustCommon(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
+	common := modulestest.Common(t, `{"size":[480,200],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
 	m, err := New(common, json.RawMessage(`{"api_key":"tok","project_filter":"Inbox","show_priority":true}`))
 	if err != nil {
 		t.Fatal(err)
