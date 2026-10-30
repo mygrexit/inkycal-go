@@ -56,7 +56,7 @@ tools/wakebench/      cold-start comparison against a release
 ## Gotchas
 
 - `deploy/install.sh` embeds the systemd unit; `install_test.go` fails if it drifts from `deploy/inkycal-go.service`.
-- Installer channels: no flag = `releases/latest`, `--dev` = the `dev` pre-release.
+- Installer channels: no flag = `releases/latest`, `--dev` = the `dev-build` pre-release (tag `dev-build`, so `git push origin dev` stays unambiguous).
 - Grid cells: a settings file has cells on all modules or none (`config.GridCells`).
 - Builder writes settings atomically and keeps file mode; never loosen permissions of settings or `.bak`.
 - Font cache keys custom fonts by path+size+mtime; only regular files ≤ 20 MiB.

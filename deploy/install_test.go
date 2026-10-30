@@ -30,7 +30,8 @@ func TestInstallerUnitMatchesServiceFile(t *testing.T) {
 	}
 }
 
-// --dev installs the rolling "dev" pre-release; without it the latest stable release.
+// --dev installs the rolling "dev-build" pre-release (tag dev-build, not dev: a tag named
+// like the dev branch makes "git push origin dev" ambiguous); without it the latest stable release.
 // GitHub never treats a pre-release as "latest", so stable users never get dev builds.
 func TestInstallerChannels(t *testing.T) {
 	script, err := os.ReadFile("install.sh")
@@ -40,7 +41,7 @@ func TestInstallerChannels(t *testing.T) {
 	s := string(script)
 	for _, want := range []string{
 		"--dev) channel=dev ;;",
-		`base="https://github.com/$REPO/releases/download/dev"`,
+		`base="https://github.com/$REPO/releases/download/dev-build"`,
 		`base="https://github.com/$REPO/releases/latest/download"`,
 	} {
 		if !strings.Contains(s, want) {

@@ -153,7 +153,7 @@ Optional keys on top of upstream's:
 ```
 
 **Development build:** the newest, not yet released state lives on the `dev` branch and the
-pre-release "dev". Switch to it with
+pre-release "dev-build". Switch to it with
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mygrexit/inkycal-go/dev/deploy/install.sh | sudo sh -s -- --dev

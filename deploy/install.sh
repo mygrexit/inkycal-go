@@ -7,7 +7,7 @@
 #   --pisugar      install pisugar-server + pisugar-poweroff and switch on battery mode
 #   --no-pisugar   skip PiSugar even if one is detected
 #   --binary PATH  use a local inkycal binary instead of downloading the release
-#   --dev          install the development build (pre-release "dev"); run again
+#   --dev          install the development build (pre-release "dev-build"); run again
 #                  without --dev to go back to the latest stable release
 #
 # What it does: checks settings.json (made with the Inkycal web generator), enables SPI
@@ -72,7 +72,7 @@ if [ -n "$binary" ]; then
 else
 	say "downloading inkycal-go ($ARCH, $channel)"
 	if [ "$channel" = dev ]; then
-		base="https://github.com/$REPO/releases/download/dev"
+		base="https://github.com/$REPO/releases/download/dev-build"
 	else
 		base="https://github.com/$REPO/releases/latest/download"
 	fi
