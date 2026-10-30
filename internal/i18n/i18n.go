@@ -43,6 +43,7 @@ var words = map[string]map[string]string{
 		"hint.unknown": "%s: this module no longer exists – remove the tile",
 		"hint.notcal":  "%s: the address shows a web page, not a calendar – use the iCal address",
 		"hint.small":   "%s: tile too small – make it bigger in the builder",
+		"hint.style":   "%s: invalid style – choose it again in the builder",
 		"hint.error":   "%s: error – see journalctl -u inkycal-go",
 	},
 	"de": {
@@ -67,6 +68,7 @@ var words = map[string]map[string]string{
 		"hint.unknown": "%s: dieses Modul gibt es nicht mehr – Kachel entfernen",
 		"hint.notcal":  "%s: Adresse liefert eine Webseite statt eines Kalenders – iCal-Adresse verwenden",
 		"hint.small":   "%s: Kachel zu klein – im Builder vergrößern",
+		"hint.style":   "%s: ungültiger Stil – im Builder neu wählen",
 		"hint.error":   "%s: Fehler – Details mit journalctl -u inkycal-go",
 		// module names in error hints
 		"Weather":  "Wetter",
