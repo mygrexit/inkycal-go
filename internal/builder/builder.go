@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sync"
 	"time"
 
@@ -323,12 +322,9 @@ var (
 	colourYellow = color.RGBA{230, 190, 0, 255}
 )
 
-// queryString hides API keys and tokens in URLs quoted by module errors.
-var queryString = regexp.MustCompile(`\?[^\s"']+`)
-
-// userError is an error as the builder shows it: query strings hidden, plus advice.
+// userError is an error as the builder shows it: secrets in URLs hidden, plus advice.
 func userError(err error) (msg, hint string) {
-	msg = queryString.ReplaceAllString(err.Error(), "?…")
+	msg = fetch.RedactText(err.Error())
 	return msg, explain(msg)
 }
 

@@ -15,6 +15,8 @@ import (
 	neturl "net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -223,14 +225,50 @@ func (c *Client) load(key string) ([]byte, time.Time, bool) {
 	return body, st.ModTime(), true
 }
 
-// Redact drops query strings (API keys!) from URLs before logging.
+// Redact hides the secrets of a URL before it reaches a log or an error: the query
+// string (API keys) and path segments that are tokens, as in the private calendar
+// addresses of Google (private-…), iCloud and Outlook.
 func Redact(url string) string { return redact(url) }
 
+// urlInText finds the URLs that RedactText rewrites.
+var urlInText = regexp.MustCompile(`[a-z][a-z0-9+.-]*://[^\s"'<>]+`)
+
+// RedactText redacts every URL in a message, e.g. an error shown in the builder.
+func RedactText(msg string) string { return urlInText.ReplaceAllStringFunc(msg, redact) }
+
 func redact(url string) string {
-	for i := 0; i < len(url); i++ {
-		if url[i] == '?' {
-			return url[:i] + "?…"
+	if i := strings.IndexByte(url, '?'); i >= 0 {
+		url = url[:i] + "?…"
+	}
+	scheme, rest, ok := strings.Cut(url, "://")
+	if !ok {
+		return url
+	}
+	segs := strings.Split(rest, "/")
+	for i := 1; i < len(segs); i++ { // segs[0] is the host
+		switch s := segs[i]; {
+		case strings.HasPrefix(s, "private-"):
+			segs[i] = "private-…"
+		case len(s) >= 20 && isToken(s):
+			segs[i] = "…"
 		}
 	}
-	return url
+	return scheme + "://" + strings.Join(segs, "/")
+}
+
+// isToken: letters, digits, - and _ only, with both letters and digits.
+func isToken(s string) bool {
+	letter, digit := false, false
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9':
+			digit = true
+		case r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z':
+			letter = true
+		case r == '-' || r == '_':
+		default:
+			return false
+		}
+	}
+	return letter && digit
 }
