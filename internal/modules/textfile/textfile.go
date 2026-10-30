@@ -127,30 +127,50 @@ func lineOfDay(text string, now time.Time) string {
 }
 
 // drawLine sets a single line large and centred, like a quote of the day: the largest
-// size whose wrapped lines fit the tile (with some air), never below the body size.
+// size whose wrapped lines fit the tile (with some air). A long line may go below the
+// body size, down to 10 px, rather than be cut off.
 func drawLine(c *render.Canvas, text string, body int) {
 	floor := min(body, 10)
-	for size := max(floor, min(c.H/2, c.W/3)); size >= floor; size-- {
-		st := render.Style{Font: render.FontRegular, Size: size}
-		w := c.W * 9 / 10
-		lines := c.WrapStyle(text, st, w, w)
-		step := size * 5 / 4
-		capH := c.CapHeight(st)
-		_, desc := c.Metrics(st)
-		total := (len(lines)-1)*step + capH + desc
-		wide := false
-		for _, l := range lines {
-			wide = wide || c.Advance(l, st) > w
-		}
-		if (total <= c.H*8/10 && !wide) || size == floor {
-			y := (c.H-total)/2 + capH
-			for _, l := range c.Clip(lines, max(1, c.H/step), st, w) {
-				c.TextCenter(c.W/2, y, l, st, render.InkBlack)
-				y += step
-			}
-			return
+	size := lineSize(c, text, floor, max(floor, min(c.H/2, c.W/3)))
+	st := render.Style{Font: render.FontRegular, Size: size}
+	lines, total, _ := lineLayout(c, text, st)
+	step := size * 5 / 4
+	y := (c.H-total)/2 + c.CapHeight(st)
+	for _, l := range c.Clip(lines, max(1, c.H/step), st, c.W*9/10) {
+		c.TextCenter(c.W/2, y, l, st, render.InkBlack)
+		y += step
+	}
+}
+
+// lineSize is the largest size in floor..top whose layout fits, else floor. Fitting only
+// gets easier as the size shrinks, so a binary search finds what a scan from top would,
+// with a handful of wraps instead of one per size.
+func lineSize(c *render.Canvas, text string, floor, top int) int {
+	lo, hi := floor, top // the answer is in lo..hi; sizes above hi do not fit
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if _, _, ok := lineLayout(c, text, render.Style{Font: render.FontRegular, Size: mid}); ok {
+			lo = mid
+		} else {
+			hi = mid - 1
 		}
 	}
+	return lo
+}
+
+// lineLayout wraps text at st into 90 % of the tile width; fits is whether it takes at
+// most 80 % of the height with no word wider than the line.
+func lineLayout(c *render.Canvas, text string, st render.Style) (lines []string, total int, fits bool) {
+	w := c.W * 9 / 10
+	lines = c.WrapStyle(text, st, w, w)
+	_, desc := c.Metrics(st)
+	total = (len(lines)-1)*(st.Size*5/4) + c.CapHeight(st) + desc
+	for _, l := range lines {
+		if c.Advance(l, st) > w {
+			return lines, total, false
+		}
+	}
+	return lines, total, total <= c.H*8/10
 }
 
 // para is one source line: a paragraph, list item or heading; blank lines become gaps.
