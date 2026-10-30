@@ -114,11 +114,16 @@ func TestTileKeepsCellWhenStyleDoesNotDecode(t *testing.T) {
 	}
 }
 
-// Both problems of a tile are reported at once, not one per wake.
+// Both problems of a tile are reported at once on the panel, not one per wake; the
+// builder names one at a time, the cell first.
 func TestTileReportsStyleAndCellTogether(t *testing.T) {
-	_, ts := tiles(t, load(t, `{"model":"m","modules":[
+	body := `{"model":"m","modules":[
 		{"position":1,"name":"A","config":{"cell":[0,0,12,4]}},
-		{"position":2,"name":"B","config":{"cell":[0,2,12,4],"style":{"font":"comic"}}}]}`))
+		{"position":2,"name":"B","config":{"cell":[0,2,12,4],"style":{"font":"comic"}}}]}`
+	if _, err := Parse([]byte(body), "settings"); err == nil || err.Error() != "module 2 (B): grid layout: cell [0 2 12 4] overlaps module 1" {
+		t.Errorf("Parse: %v", err)
+	}
+	_, ts := tiles(t, load(t, body))
 	e := ts[1].Err
 	if ts[1].Cell != nil || e == nil || !strings.Contains(e.Error(), "overlaps") || !strings.Contains(e.Error(), "comic") {
 		t.Errorf("cell %v err %v, want unplaced with the overlap and the style", ts[1].Cell, e)

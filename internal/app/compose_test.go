@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"inkycal/internal/problem"
 	"testing"
 	"time"
+
+	"inkycal/internal/problem"
 )
 
 func TestComposeWithoutCycle(t *testing.T) {

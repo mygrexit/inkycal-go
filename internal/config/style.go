@@ -50,9 +50,9 @@ func (s *Style) validate() error {
 }
 
 // effective is a tile's look: its own style where set, else the page theme.
-func effective(page, module *Style) Style {
+func effective(page, tile *Style) Style {
 	var out Style
-	for _, s := range []*Style{page, module} {
+	for _, s := range []*Style{page, tile} {
 		if s == nil {
 			continue
 		}

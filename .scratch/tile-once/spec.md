@@ -18,3 +18,8 @@ Each tile's config is decoded up to five times (tolerate ×2, GridCells, ParseCo
 6. Panel pixels and device error texts stay identical. Only the builder's save rejections for cells change their wording (`module 2 (B): grid layout: no cell`).
 7. `render.Assemble` / `AssembleGrid` stay as they are (merging them changes dividers).
 8. Tests go through `Tiles`, `Parse`, `Load` and `Compose`; the `GridCells` tests are replaced, not kept.
+
+## Accepted after review
+
+- A broken grid (e.g. 0 columns) together with a tile without a cell now fails the page with the grid's own problem (`grid layout: grid 0x2: …`) instead of `module 2 (B) has no cell`: the grid is the cause.
+- When a tile's config does not decode, cell and style are read once more on their own, so a field of the wrong type does not cost the tile its cell (as before). The happy path decodes once.

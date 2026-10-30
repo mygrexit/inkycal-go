@@ -34,7 +34,7 @@ func resolveTiles(s *config.Settings, w, h int) (tiles []tile, grid bool, err er
 	tiles = make([]tile, len(specs))
 	for i, sp := range specs {
 		t := &tiles[i]
-		t.name, t.config, t.common, t.grid = s.Modules[i].Name, s.Modules[i].Config, sp.Common, g != nil
+		t.name, t.config, t.common, t.grid = sp.Name, sp.Config, sp.Common, g != nil
 		t.placed = g == nil || sp.Cell != nil
 		if !t.placed {
 			t.err = fmt.Errorf("%s: %w", t.name, sp.Err)

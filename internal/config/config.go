@@ -146,8 +146,11 @@ func Parse(data []byte, name string) (*Settings, error) {
 		return nil, err
 	}
 	for i, t := range tiles {
-		if t.rejected != nil {
-			return nil, fmt.Errorf("module %d (%s): %w", i+1, s.Modules[i].Name, t.rejected)
+		if err := t.rejected; err != nil {
+			if j, ok := err.(interface{ Unwrap() []error }); ok {
+				err = j.Unwrap()[0] // one problem at a time, as before: the cell first
+			}
+			return nil, fmt.Errorf("module %d (%s): %w", i+1, t.Name, err)
 		}
 	}
 	return s, nil

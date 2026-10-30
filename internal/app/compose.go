@@ -93,10 +93,10 @@ type moduleOutcome struct {
 	stale bool
 }
 
-// fail records a module's error and writes the matching hint into its image.
-func (oc *moduleOutcome) fail(err error, module, lang string) {
+// fail records a tile's error and writes the matching hint into its image.
+func (oc *moduleOutcome) fail(err error, t tile) {
 	oc.err = err
-	drawHint(oc.part.Img, errorHint(module, err, lang))
+	drawHint(oc.part.Img, errorHint(t.name, err, t.common.Language))
 }
 
 // runModules runs the tiles' modules concurrently; a tile that cannot run shows its hint.
@@ -112,12 +112,12 @@ func runModules(ctx context.Context, o *Options, now time.Time, tiles []tile) []
 			continue
 		}
 		if t.err != nil {
-			out[i].fail(t.err, t.name, t.common.Language)
+			out[i].fail(t.err, t)
 			continue
 		}
 		factory, ok := o.Registry[t.name]
 		if !ok {
-			out[i].fail(problem.Mark(problem.UnknownModule, fmt.Errorf("unknown module %q", t.name)), t.name, t.common.Language)
+			out[i].fail(problem.Mark(problem.UnknownModule, fmt.Errorf("unknown module %q", t.name)), t)
 			continue
 		}
 		wg.Go(func() {
@@ -125,18 +125,18 @@ func runModules(ctx context.Context, o *Options, now time.Time, tiles []tile) []
 				if r := recover(); r != nil {
 					// The module may have panicked mid-drawing: hint on a fresh canvas.
 					out[i].part.Img = t.canvas()
-					out[i].fail(fmt.Errorf("%s panicked: %v", t.name, r), t.name, t.common.Language)
+					out[i].fail(fmt.Errorf("%s panicked: %v", t.name, r), t)
 				}
 			}()
 			m, err := factory(t.common, t.config)
 			if err != nil {
-				out[i].fail(err, t.name, t.common.Language)
+				out[i].fail(err, t)
 				return
 			}
 			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: t.theme}
 			cv, err := m.Generate(ctx, env)
 			if err != nil {
-				out[i].fail(fmt.Errorf("%s: %w", t.name, err), t.name, t.common.Language)
+				out[i].fail(fmt.Errorf("%s: %w", t.name, err), t)
 				return
 			}
 			out[i].part.Img = cv

@@ -12,10 +12,12 @@ import (
 
 // Tile is one entry of settings.json's modules with its config decoded once.
 type Tile struct {
-	Common Common       // shared keys with defaults, font size scaled by the look; as far as it got when the config does not decode
-	Cell   *layout.Cell // its cell on a grid page; nil when stacked or unplaced
-	Look   Style        // its style over the page theme; the theme alone when its style is broken
-	Err    error        // why it cannot run: placement, style, config or padding
+	Name   string
+	Config json.RawMessage // for the module, which reads its own keys from it
+	Common Common          // shared keys with defaults, font size scaled by the look; as far as it got when the config does not decode
+	Cell   *layout.Cell    // its cell on a grid page; nil when stacked or unplaced
+	Look   Style           // its style over the page theme; the theme alone when its style is broken
+	Err    error           // why it cannot run: placement, style, config or padding
 
 	rejected error // what Parse refuses: a placement or style problem
 }
@@ -28,16 +30,18 @@ type Tile struct {
 func (s *Settings) Tiles() (grid *layout.Grid, tiles []Tile, err error) {
 	tiles = make([]Tile, len(s.Modules))
 	cells := make([]*layout.Cell, len(s.Modules))
-	other := make([]error, len(s.Modules)) // config or padding problem
+	other := make([]error, len(s.Modules)) // config or padding problem, for a tile with a section
 	anyCell := false
 	for i, m := range s.Modules {
 		t := &tiles[i]
+		t.Name, t.Config = m.Name, m.Config
 		c, err := decodeCommon(m.Config)
-		cell, style := c.Cell, c.Style
+		// checked is the style to validate; the look still takes c.Style as far as it decoded.
+		cell, checked := c.Cell, c.Style
 		if err != nil {
 			// One field of the wrong type must not cost the tile its cell or hide a broken
-			// style: read those two on their own.
-			cell, style = nil, nil
+			// style: read those two on their own (apart, so one cannot spoil the other).
+			cell, checked = nil, nil
 			var part struct {
 				Cell *layout.Cell `json:"cell"`
 			}
@@ -48,13 +52,13 @@ func (s *Settings) Tiles() (grid *layout.Grid, tiles []Tile, err error) {
 				Style *Style `json:"style"`
 			}
 			if json.Unmarshal(m.Config, &st) == nil {
-				style = st.Style
+				checked = st.Style
 			}
 		} else if cell == nil {
 			err = c.checkSize()
 		}
 		own := c.Style
-		if e := style.validate(); e != nil {
+		if e := checked.validate(); e != nil {
 			t.rejected = problem.Mark(problem.Style, fmt.Errorf("style: %w", e))
 			own = nil
 		}
@@ -79,7 +83,7 @@ func (s *Settings) Tiles() (grid *layout.Grid, tiles []Tile, err error) {
 		switch {
 		case t.rejected != nil:
 			t.Err = t.rejected
-		case other[i] != nil && (grid == nil || t.Cell != nil):
+		case other[i] != nil: // an unplaced tile is always rejected, so this one has a section
 			t.Err = other[i]
 		}
 	}
