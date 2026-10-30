@@ -74,3 +74,17 @@ tools/wakebench/      cold-start comparison against a release
 
 - Work on `dev`; `main` is the released line. Small, tested commits; a failing test first for bug fixes.
 - Prefer gopls (LSP) for definitions and references over grep when renaming or removing code.
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature>/` (GitHub Issues are off for this fork). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) as a `Status:` line in each issue file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created when a term or decision gets settled. See `docs/agents/domain.md`.
