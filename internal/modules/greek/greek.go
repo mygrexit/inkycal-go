@@ -248,7 +248,7 @@ func drawPic(c *render.Canvas, wd word, r image.Rectangle) {
 	case ok:
 		c.FillCircle(cx, cy, p*3/10, ink)
 	case wd.De == "weiß":
-		for t := 0; t < 3; t++ {
+		for t := range 3 {
 			c.RoundedRect(r.Min.X+p/5+t, r.Min.Y+p/5+t, p*3/5-2*t, p*3/5-2*t, p*3/10, render.InkBlack)
 		}
 	case isDigits(wd.Pic):

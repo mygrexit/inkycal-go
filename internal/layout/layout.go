@@ -36,7 +36,7 @@ func (g Grid) Validate(cells []Cell) error {
 		if c[0] < 0 || c[1] < 0 || c[2] < 1 || c[3] < 1 || c[0]+c[2] > g.Columns || c[1]+c[3] > g.Rows {
 			return fmt.Errorf("module %d: cell %v is outside the %dx%d grid", i+1, c, g.Columns, g.Rows)
 		}
-		for j := 0; j < i; j++ {
+		for j := range i {
 			if Overlaps(cells[j], c) {
 				return fmt.Errorf("modules %d and %d overlap", j+1, i+1)
 			}

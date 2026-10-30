@@ -146,7 +146,7 @@ func TestTempStepAndPrecipScale(t *testing.T) {
 func sampleForecast(now time.Time) []weather.ForecastPoint {
 	start := now.UTC().Truncate(3 * time.Hour).Add(3 * time.Hour)
 	var pts []weather.ForecastPoint
-	for i := 0; i < 40; i++ {
+	for i := range 40 {
 		t := start.Add(time.Duration(i*3) * time.Hour).In(now.Location())
 		hr := float64(t.Hour()) + float64(t.Minute())/60
 		day := float64(i) / 8

@@ -37,7 +37,7 @@ func TestAssembleGridCentresAndDivides(t *testing.T) {
 	// The info line is in the bottom 40 px.
 	inked := false
 	for y := 200; y < 240; y++ {
-		for x := 0; x < 200; x++ {
+		for x := range 200 {
 			b, _ := out.InkAt(x, y)
 			inked = inked || b
 		}

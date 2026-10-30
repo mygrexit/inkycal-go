@@ -51,8 +51,8 @@ func TestDryRunWritesPreview(t *testing.T) {
 		t.Fatalf("preview %v", b)
 	}
 	red := 0
-	for y := 0; y < 480; y++ {
-		for x := 0; x < 800; x++ {
+	for y := range 480 {
+		for x := range 800 {
 			r, g, _, _ := img.At(x, y).RGBA()
 			if r > 0xF000 && g < 0x1000 {
 				red++

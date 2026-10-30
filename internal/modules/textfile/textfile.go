@@ -171,7 +171,7 @@ func parse(text string) []para {
 	text = strings.ReplaceAll(text, "\r", "\n")
 	text = strings.TrimPrefix(text, "\ufeff")
 	var out []para
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		indent := 0
 		for _, r := range line {
 			if r == ' ' {

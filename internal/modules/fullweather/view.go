@@ -217,7 +217,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 	}
 
 	y, mo, d := now.Date()
-	for i := 0; i < maxDays; i++ {
+	for i := range maxDays {
 		start := time.Date(y, mo, d+i, 0, 0, 0, 0, now.Location())
 		var day []weather.ForecastPoint
 		for _, p := range points {

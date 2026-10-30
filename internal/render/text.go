@@ -46,7 +46,7 @@ func lineHeight(f font.Face) int {
 func wrap(f font.Face, text string, maxWidth int) []string {
 	var lines []string
 	cur := ""
-	for _, word := range strings.Split(text, " ") {
+	for word := range strings.SplitSeq(text, " ") {
 		proposed := strings.TrimSpace(cur + " " + word)
 		if font.MeasureString(f, proposed).Ceil() <= maxWidth {
 			cur = proposed
@@ -96,7 +96,7 @@ func (c *Canvas) Write(x, y, w, h int, text string, o TextOpts) {
 	face := c.face(c.fontID, size)
 
 	var lines []string
-	for _, logical := range strings.Split(text, "\n") {
+	for logical := range strings.SplitSeq(text, "\n") {
 		lines = append(lines, wrap(face, logical, w)...)
 	}
 	if len(lines) == 0 {

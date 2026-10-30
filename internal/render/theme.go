@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"sync"
@@ -48,9 +49,7 @@ var pairs = map[string]map[FontID]FontSource{
 func Pair(name string) map[FontID]FontSource {
 	if p, ok := pairs[name]; ok {
 		out := make(map[FontID]FontSource, len(p))
-		for k, v := range p {
-			out[k] = v
-		}
+		maps.Copy(out, p)
 		return out
 	}
 	out := map[FontID]FontSource{}

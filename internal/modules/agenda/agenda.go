@@ -63,7 +63,7 @@ type item struct {
 // sort under today's header, headers come before events of the same time.
 func buildItems(today time.Time, days int, events []ical.Event, dateFmt, lang string) []item {
 	var items []item
-	for i := 0; i < days; i++ {
+	for i := range days {
 		d := today.AddDate(0, 0, i)
 		items = append(items, item{isDate: true, title: timefmt.Format(d, dateFmt, lang), start: d})
 	}

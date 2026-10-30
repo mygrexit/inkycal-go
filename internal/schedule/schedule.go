@@ -70,7 +70,7 @@ func NextWakeAt(now time.Time, times []int, minSleep time.Duration) time.Time {
 		return NextWake(now, 0, minSleep)
 	}
 	y, m, d := now.Date()
-	for day := 0; day < 3; day++ {
+	for day := range 3 {
 		for _, t := range times {
 			wake := time.Date(y, m, d+day, t/60, t%60, 0, 0, now.Location())
 			if wake.Sub(now) >= minSleep {

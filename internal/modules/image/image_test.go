@@ -40,8 +40,8 @@ func mustCommon(t *testing.T, w, h int) config.Common {
 func scene(w, h int) *goimage.RGBA {
 	img := goimage.NewRGBA(goimage.Rect(0, 0, w, h))
 	sx, sy, sr := float64(w)*0.68, float64(h)*0.34, float64(h)*0.14
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			fy := float64(y) / float64(h)
 			v := uint8(235 - 90*fy)
 			col := color.RGBA{v, v, uint8(min(255, int(v)+15)), 255}

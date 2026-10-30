@@ -75,7 +75,7 @@ func TestPickIsStablePerDay(t *testing.T) {
 		t.Error("a new comic in the same hundred changes the pick")
 	}
 	seen := map[int]bool{}
-	for d := 0; d < 30; d++ {
+	for d := range 30 {
 		n := pick(morning.AddDate(0, 0, d), 3310, 0)
 		if n < 1 || n > 3300 || n == 404 {
 			t.Fatalf("pick = %d", n)
@@ -233,13 +233,13 @@ func lineArt(w, h int) []byte {
 	for i := range img.Pix {
 		img.Pix[i] = 255
 	}
-	for x := 0; x < w; x++ {
+	for x := range w {
 		img.Set(x, 0, color.Black)
 		img.Set(x, h-1, color.Black)
 		img.Set(x, h/2, color.Gray{Y: 180}) // faint stroke: must survive
 	}
-	for y := 0; y < 20; y++ {
-		for x := 0; x < 20; x++ {
+	for y := range 20 {
+		for x := range 20 {
 			img.Set(w/4+x, h/4+y, color.RGBA{255, 0, 0, 255})
 		}
 	}

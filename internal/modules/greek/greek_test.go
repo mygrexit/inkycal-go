@@ -56,7 +56,7 @@ func TestPickIsStableForADayAndCycles(t *testing.T) {
 	}
 	// Over the length of the list every word comes up once.
 	got := map[string]bool{}
-	for d := 0; d < len(ws); d++ {
+	for d := range ws {
 		got[pick(ws, morning.AddDate(0, 0, d)).El] = true
 	}
 	if len(got) != len(ws) {
@@ -83,7 +83,7 @@ func TestGenerate(t *testing.T) {
 		t.Fatal(err)
 	}
 	loc, _ := time.LoadLocation("Europe/Berlin")
-	for d := 0; d < 3; d++ {
+	for d := range 3 {
 		now := time.Date(2026, 10, 13+d, 6, 0, 0, 0, loc)
 		c, err := m.Generate(context.Background(), &modules.Env{Now: now, Loc: loc})
 		if err != nil {

@@ -19,7 +19,7 @@ import (
 // 12 hourly values; rain 0.5 mm in the hours ending 07:00, 08:00 and 09:00.
 func omFixture(start time.Time) string {
 	var times, temps, codes, precip, wind, gust, isDay []string
-	for h := 0; h < 12; h++ {
+	for h := range 12 {
 		at := start.Add(time.Duration(h) * time.Hour)
 		times = append(times, fmt.Sprint(at.Unix()))
 		temps = append(temps, fmt.Sprintf("%.1f", 4+float64(h)/2))

@@ -107,11 +107,9 @@ func fetchEntries(ctx context.Context, fc *fetch.Client, urls []string) ([]item,
 	fetchErrs := make([]error, len(urls))
 	var wg sync.WaitGroup
 	for i, u := range urls {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			results[i], fetchErrs[i] = fc.Get(ctx, u, nil)
-		}()
+		})
 	}
 	wg.Wait()
 	for i, u := range urls {

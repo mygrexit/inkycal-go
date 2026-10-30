@@ -96,8 +96,7 @@ func post(ctx context.Context, hc *http.Client, target string, items []string) (
 	}
 	resp, err := hc.Do(req)
 	if err != nil {
-		var ue *url.Error
-		if errors.As(err, &ue) {
+		if ue, ok := errors.AsType[*url.Error](err); ok {
 			err = fmt.Errorf("POST %s: %w", fetch.Redact(target), ue.Err) // url.Error would log tokens in the query
 		}
 		return nil, err

@@ -115,7 +115,7 @@ func (m *Module) drawGrid(c *render.Canvas, l layout, weeks [][7]int, now time.T
 	lang := m.common.Language
 	head := render.Style{Font: render.FontRegular, Size: l.Body * 4 / 5}
 	first := weekStartDate(now, m.weekStart)
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		name := timefmt.Format(first.AddDate(0, 0, i), "ddd", lang)
 		c.TextCenter(l.GridX+l.CellW*i+l.CellW/2, l.HeaderH-l.Body/2, name, head, render.InkBlack)
 	}
@@ -250,7 +250,7 @@ func (m *Module) drawEvents(c *render.Canvas, l layout, now time.Time, events []
 	if firstToday >= 0 {
 		top := out[firstToday].y - inset/2
 		h := out[lastToday].y + rowH + inset/2 - top
-		for t := 0; t < 2; t++ { // 2 px
+		for t := range 2 { // 2 px
 			c.RoundedRect(t, top+t, c.W-2*t, h-2*t, l.Body/2-t, render.InkColour)
 		}
 	}

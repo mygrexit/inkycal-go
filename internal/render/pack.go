@@ -31,8 +31,8 @@ func Pack(c *Canvas, panelW, panelH, orientation int) (Frame, error) {
 	for i := range f.Black {
 		f.Black[i] = 0xFF
 	}
-	for dy := 0; dy < panelH; dy++ {
-		for dx := 0; dx < panelW; dx++ {
+	for dy := range panelH {
+		for dx := range panelW {
 			sx, sy := dx, dy
 			if rotate {
 				sx, sy = c.W-1-dy, dx

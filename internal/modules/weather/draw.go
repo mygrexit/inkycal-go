@@ -78,7 +78,7 @@ func drawWind(c *render.Canvas, x, y, iconW, h, level int) {
 	}
 	barW, gap := max(h/5, 4), max(h/8, 3)
 	bx := x + iconW + h/3
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		bh := h * (i + 2) / 5
 		by := y + h - bh - h/10
 		if i < level {

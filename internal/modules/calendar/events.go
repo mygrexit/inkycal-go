@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func mergeSources(events []ical.Event, labels []string, dedupe bool, lang string
 	for _, e := range events {
 		k := key{strings.ToLower(strings.TrimSpace(e.Title)), e.Start.UnixNano(), e.End.UnixNano(), e.AllDay}
 		if i, ok := index[k]; ok && dedupe {
-			if len(labels) > 0 && !containsInt(sources[k], e.Source) {
+			if len(labels) > 0 && !slices.Contains(sources[k], e.Source) {
 				sources[k] = append(sources[k], e.Source)
 				out[i].Label = joinSources(sources[k], labels, lang)
 			}
@@ -59,15 +60,6 @@ func mergeSources(events []ical.Event, labels []string, dedupe bool, lang string
 		out = append(out, labeledEvent{Event: e, Label: name(e.Source)})
 	}
 	return out
-}
-
-func containsInt(s []int, v int) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 func joinSources(srcs []int, labels []string, lang string) string {

@@ -93,7 +93,7 @@ func (c *Canvas) WrapStyle(text string, st Style, first, rest int) []string {
 	var lines []string
 	width := first
 	cur := ""
-	for _, word := range strings.Fields(text) {
+	for word := range strings.FieldsSeq(text) {
 		if cur == "" {
 			cur = word
 		} else if c.Advance(cur+" "+word, st) <= width {

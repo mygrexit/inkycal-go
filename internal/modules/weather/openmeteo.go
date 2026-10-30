@@ -83,7 +83,7 @@ func fetchOpenMeteo(ctx context.Context, fc *fetch.Client, lat, lon float64, lan
 		cur.Sunset = time.Unix(r.Daily.Sunset[0], 0).In(loc)
 	}
 	var points []forecastPoint
-	for i := 0; i < n; i++ {
+	for i := range n {
 		at := time.Unix(h.Time[i], 0).In(loc)
 		if at.Hour()%3 != 0 {
 			continue

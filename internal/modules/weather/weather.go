@@ -89,11 +89,9 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	if m.provider == "open-meteo" {
 		cur, points, staleC, errC = fetchOpenMeteo(ctx, env.Fetch, m.lat, m.lon, m.set.Lang, env.Loc)
 	} else {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			points, staleF, errF = fetchForecast(ctx, env.Fetch, m.apiKey, m.location, m.set.Lang, env.Loc)
-		}()
+		})
 		cur, staleC, errC = fetchCurrent(ctx, env.Fetch, m.apiKey, m.location, m.set.Lang, env.Loc)
 	}
 	wg.Wait()

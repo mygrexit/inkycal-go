@@ -233,7 +233,7 @@ func (m *Module) load(ctx context.Context, env *modules.Env, boxW, boxH int) (lo
 
 	var best loaded
 	var lastErr error
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for attempt := range maxAttempts {
 		n := pick(env.Now, latest.Num, attempt)
 		cand, stale, err := tryComic(ctx, env.Fetch, n, large)
 		if err != nil {

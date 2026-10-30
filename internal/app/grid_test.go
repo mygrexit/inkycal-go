@@ -51,7 +51,7 @@ func TestComposeGridPlacesModulesSideBySide(t *testing.T) {
 	}
 	// Module ink (the red dots) never reaches the info line: the grid ends at y=760.
 	for y := 760; y < 800; y++ {
-		for x := 0; x < 480; x++ {
+		for x := range 480 {
 			if _, col := c.InkAt(x, y); col {
 				t.Fatalf("module ink in the info area at %d,%d", x, y)
 			}

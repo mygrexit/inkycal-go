@@ -100,7 +100,7 @@ func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]b
 	attempts := max(c.Attempts, 1)
 	wait := c.Backoff
 	var lastErr error
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		if i > 0 {
 			select {
 			case <-ctx.Done():
@@ -140,8 +140,7 @@ func (c *Client) once(ctx context.Context, url string, header http.Header) ([]by
 	}
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
-		var ue *neturl.Error
-		if errors.As(err, &ue) {
+		if ue, ok := errors.AsType[*neturl.Error](err); ok {
 			err = fmt.Errorf("GET %s: %w", redact(url), ue.Err) // url.Error would log the API key
 		}
 		return nil, err

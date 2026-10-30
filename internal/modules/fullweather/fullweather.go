@@ -106,11 +106,9 @@ func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 		points, staleF, errF = weather.FetchForecast(ctx, env.Fetch, u, env.Loc)
 	}()
 	if m.oneCall {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			uvi = fetchUVI(ctx, env.Fetch, m.apiKey, m.lat, m.lon)
-		}()
+		})
 	}
 	wg.Wait()
 	if err := errors.Join(errC, errF); err != nil {

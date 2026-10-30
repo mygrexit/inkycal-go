@@ -181,7 +181,7 @@ func TestDrawRowsOverflowAndRed(t *testing.T) {
 	c := render.NewCanvas(904, 140, render.FontDefault, 22)
 	drawRows(c, rows, 22, "en") // 140/35 = 4 slots: 3 rows + "+ n more"
 	rowH := 22 * 8 / 5
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, red := modulestest.InkIn(c, 0, i*rowH, c.W, (i+1)*rowH)
 		if red != rows[i].Down {
 			t.Errorf("row %d: red %v, down %v", i, red, rows[i].Down)
@@ -353,7 +353,7 @@ func TestOneRowStillShowsATicker(t *testing.T) {
 	rows := []row{{Symbol: "AAPL", Name: "Apple", Price: "1", Change: "+1%"}, {Symbol: "MSFT", Name: "Microsoft", Price: "2", Change: "+2%"}}
 	drawRows(c, rows, 18, "en")
 	black := 0
-	for x := 0; x < 60; x++ {
+	for x := range 60 {
 		for y := 0; y < c.H; y++ {
 			if b, _ := c.InkAt(x, y); b {
 				black++

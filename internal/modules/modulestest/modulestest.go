@@ -88,8 +88,7 @@ func jsonKeys(t reflect.Type) []string {
 		t = t.Elem()
 	}
 	var keys []string
-	for i := 0; i < t.NumField(); i++ {
-		sf := t.Field(i)
+	for sf := range t.Fields() {
 		tag, _, _ := strings.Cut(sf.Tag.Get("json"), ",")
 		if sf.Anonymous && tag == "" {
 			keys = append(keys, jsonKeys(sf.Type)...)

@@ -239,8 +239,7 @@ func (s *Server) readSettings(w http.ResponseWriter, r *http.Request) ([]byte, *
 func readBody(w http.ResponseWriter, r *http.Request, limit int64, tooBig string) ([]byte, bool) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
 	if err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			http.Error(w, tooBig, http.StatusRequestEntityTooLarge)
 		} else {
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -142,7 +142,7 @@ func drawRows(c *render.Canvas, rows []row, body int, lang string) {
 		if r.High {
 			ink = render.InkColour
 		}
-		for t := 0; t < 2; t++ { // 2 px checkbox
+		for t := range 2 { // 2 px checkbox
 			c.RoundedRect(x+t, baseline-box+t+1, box-2*t, box-2*t, 2, ink)
 		}
 		xt := x + box + body/2

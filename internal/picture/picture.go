@@ -143,8 +143,8 @@ func Draw(c *render.Canvas, img image.Image, x, y int, p Palette, dither bool) {
 	pal := p.entries()
 	// Two rows of RGB error, swapped per line.
 	cur, next := make([][3]float64, w+2), make([][3]float64, w+2)
-	for py := 0; py < h; py++ {
-		for px := 0; px < w; px++ {
+	for py := range h {
+		for px := range w {
 			r16, g16, b16, _ := img.At(b.Min.X+px, b.Min.Y+py).RGBA()
 			v := [3]float64{float64(r16>>8) + cur[px+1][0], float64(g16>>8) + cur[px+1][1], float64(b16>>8) + cur[px+1][2]}
 			best, bestD := pal[0], -1.0
@@ -161,7 +161,7 @@ func Draw(c *render.Canvas, img image.Image, x, y int, p Palette, dither bool) {
 				continue
 			}
 			er := [3]float64{v[0] - best.r, v[1] - best.g, v[2] - best.b}
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				cur[px+2][i] += er[i] * 7 / 16
 				next[px][i] += er[i] * 3 / 16
 				next[px+1][i] += er[i] * 5 / 16

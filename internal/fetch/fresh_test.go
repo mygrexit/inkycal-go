@@ -20,7 +20,7 @@ func TestFreshForServesYoungCacheWithoutRequest(t *testing.T) {
 	defer srv.Close()
 	c := New(t.TempDir())
 	c.FreshFor = time.Hour
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		res, err := c.Get(context.Background(), srv.URL, nil)
 		if err != nil || string(res.Body) != "body" || res.Stale {
 			t.Fatalf("get %d: %q stale=%v err=%v", i, res.Body, res.Stale, err)
