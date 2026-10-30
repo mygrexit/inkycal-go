@@ -498,3 +498,18 @@ func TestRadioStaysOnWhenDeviceStaysOn(t *testing.T) {
 		t.Errorf("poweroff=%v off=%d on=%d", res.PowerOff, n.off, n.on)
 	}
 }
+
+// A cycle that fails after the panel was woken ahead of time must put it back to sleep:
+// otherwise it stays powered, its bus open, until the next wake.
+func TestRunCycleReleasesPreparedPanelOnError(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Dot", "Dot")
+	o.Settings.Modules[0].Config = json.RawMessage(`{"size":[480,200],"cell":[0,0,2,2]}`) // the second has none
+	d := &preparingDisplay{fakeDisplay: &fakeDisplay{}}
+	o.Display = d
+	if _, err := RunCycle(context.Background(), o); err == nil {
+		t.Fatal("want a grid error")
+	}
+	if got := strings.Join(d.log, ","); got != "prepare,release" {
+		t.Errorf("driver calls %q, want prepare,release", got)
+	}
+}

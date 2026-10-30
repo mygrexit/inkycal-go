@@ -116,6 +116,15 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	} else {
 		close(prepared)
 	}
+	// release puts a panel woken ahead of time back to sleep when nothing is shown.
+	release := func() {
+		<-prepared
+		if canPrepare {
+			if err := prep.Release(); err != nil {
+				slog.Warn("putting the prepared panel to sleep failed", "err", err)
+			}
+		}
+	}
 	if o.Network != nil {
 		// A cycle that died after switching the radio off (crash, failed power-off)
 		// must not leave the device unreachable: make sure it is on.
@@ -132,6 +141,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 
 	composed, err := Compose(ctx, o, now)
 	if err != nil {
+		release()
 		return res, err
 	}
 	for i, m := range composed.Modules {
@@ -145,6 +155,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	panelW, panelH := o.Display.Size()
 	frame, err := render.Pack(composed.Canvas, panelW, panelH, int(s.Orientation))
 	if err != nil {
+		release()
 		return res, err
 	}
 	res.Timings.Render = time.Since(start) - res.Timings.Modules
@@ -166,12 +177,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 	} else {
 		slog.Info("image unchanged, skipping refresh")
 		go func() {
-			<-prepared
-			if canPrepare {
-				if err := prep.Release(); err != nil {
-					slog.Warn("putting the prepared panel to sleep failed", "err", err)
-				}
-			}
+			release()
 			displayDone <- nil
 		}()
 	}
