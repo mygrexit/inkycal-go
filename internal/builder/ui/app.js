@@ -1,6 +1,6 @@
 // inkycal builder: places modules on the grid and shows the page as the panel renders it.
 import { cellRect, fits, minSpans, bestFree, makeRoom, nudge, fromLegacy, moveCell, resizeCell, autoFont } from "./grid.js";
-import { coerce, display, visible, missing, partition, optionLabel, normalize, selectRead } from "./form.js";
+import { coerce, display, missing, partition, optionLabel, normalize, selectRead } from "./form.js";
 import { toPaper } from "./paper.js";
 import { groupPanels, ORIENTATIONS } from "./panels.js";
 import { paletteGroups, tileTitle } from "./palette.js";
@@ -41,11 +41,53 @@ async function api(method, path, body) {
   return res;
 }
 
+// ---------- DOM helpers ----------
+
+function button(text, onClick, cls = "") {
+  const b = document.createElement("button");
+  b.type = "button";
+  if (cls) b.className = cls;
+  b.textContent = text;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+// optionButton is a list choice: a bold title with a line of detail below.
+function optionButton(title, detail, onClick, cls = "panel-option") {
+  const b = button("", onClick, cls);
+  const n = document.createElement("strong");
+  n.textContent = title;
+  const d = document.createElement("span");
+  d.textContent = detail;
+  b.append(n, d);
+  return b;
+}
+
+function panelButton(pn, onClick) {
+  return optionButton(pn.name, `${pn.w} × ${pn.h} px` + (pn.hint ? " · " + pn.hint : ""), onClick,
+    "panel-option" + (pn.model === state.settings.model ? " current" : ""));
+}
+
+function fieldset(title) {
+  const fs = document.createElement("fieldset");
+  const legend = document.createElement("legend");
+  legend.textContent = title;
+  fs.append(legend);
+  return fs;
+}
+
+function small(text) {
+  const el = document.createElement("small");
+  el.textContent = text;
+  return el;
+}
+
 // ---------- geometry ----------
 
 const grid = () => state.settings.grid || state.catalog.grid;
 const modules = () => state.settings.modules;
 const metaOf = name => state.catalog.modules.find(m => m.name === name);
+const cells = () => modules().map(m => m.config.cell);
 
 function page() {
   const [w, h] = state.catalog.models[state.settings.model] || [800, 480];
@@ -139,7 +181,7 @@ async function runPreview() {
     state.errors = {};
     for (const e of data.errors) state.errors[e.position - 1] = e;
     showImage(data.image);
-    setStatus(isDirty() ? "unsaved changes" : "saved", isDirty() ? "dirty" : "");
+    showDirty();
   } catch (err) {
     setStatus(err.message, "error");
   } finally {
@@ -179,6 +221,10 @@ function setStatus(text, kind = "") {
 }
 
 const isDirty = () => snapshot() !== state.saved;
+
+function showDirty() {
+  setStatus(isDirty() ? "unsaved changes" : "saved", isDirty() ? "dirty" : "");
+}
 
 function layoutPage() {
   const p = page();
@@ -225,28 +271,21 @@ const NUDGES = [
 function renderTileList() {
   const list = $("#tile-list");
   list.replaceChildren();
-  const cells = modules().map(m => m.config.cell);
+  const all = cells();
   const mins = modules().map(m => spansFor(m));
   modules().forEach((m, i) => {
     if (!m.config.cell) return;
     const li = document.createElement("li");
     li.className = i === state.selected ? "selected" : "";
-    const name = document.createElement("button");
-    name.type = "button";
-    name.className = "tile-name";
-    name.textContent = tileTitle(metaOf(m.name), m) + (state.errors[i] ? " ⚠" : "");
-    name.addEventListener("click", () => select(i));
+    const name = button(tileTitle(metaOf(m.name), m) + (state.errors[i] ? " ⚠" : ""), () => select(i), "tile-name");
     const tools = document.createElement("span");
     tools.className = "nudges";
     for (const [action, sym, label] of NUDGES) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = sym;
+      const next = nudge(grid(), all, mins, i, action);
+      const b = button(sym, () => applyCell(i, next));
       b.title = label;
       b.setAttribute("aria-label", `${label}: ${name.textContent}`);
-      const next = nudge(grid(), cells, mins, i, action);
       b.disabled = !next;
-      b.addEventListener("click", () => applyCell(i, next));
       tools.append(b);
     }
     li.append(name, tools);
@@ -326,7 +365,7 @@ function renderAll() {
   $("#display-chip").textContent = panelName();
   $("#undo").disabled = state.history.length < 2;
   $("#redo").disabled = !state.future.length;
-  setStatus(isDirty() ? "unsaved changes" : "saved", isDirty() ? "dirty" : "");
+  showDirty();
   layoutPage();
   renderTiles();
   renderInspector();
@@ -354,14 +393,14 @@ function addModule(meta, at, preset = {}) {
   config.language = defaultLanguage();
   const entry = { position: 0, name: meta.name, config };
   const [cs, rs] = spansFor({ name: meta.name, config });
-  const cells = modules().map(m => m.config.cell);
+  const taken = cells();
   let cell = at ? [at[0], at[1], cs, rs] : null;
   if (cell) cell = moveCell(cell, 0, 0, grid());
   // a click (or a drop on a taken spot) gets the largest free box up to a full-width band
-  if (!cell || !fits(grid(), cells, cell, -1)) cell = bestFree(grid(), cells, [cs, rs], [grid().columns, Math.max(rs, 4)]);
+  if (!cell || !fits(grid(), taken, cell, -1)) cell = bestFree(grid(), taken, [cs, rs], [grid().columns, Math.max(rs, 4)]);
   if (!cell) {
     // a full page: shrink the biggest tile that can spare the room
-    const room = makeRoom(grid(), cells, modules().map(m => spansFor(m)), [cs, rs]);
+    const room = makeRoom(grid(), taken, modules().map(m => spansFor(m)), [cs, rs]);
     if (!room) {
       setStatus(`no room for ${meta.title}: make another tile smaller first`, "error");
       return;
@@ -424,7 +463,7 @@ function moveDrag(e) {
   const dc = Math.round((e.clientX - drag.x) / ((p.pageW / g.columns) * state.scale));
   const dr = Math.round((e.clientY - drag.y) / ((p.areaH / g.rows) * state.scale));
   drag.to = drag.edge ? resizeCell(drag.from, drag.edge, dc, dr, drag.min, g) : moveCell(drag.from, dc, dr, g);
-  const ok = fits(g, modules().map(m => m.config.cell), drag.to, drag.i);
+  const ok = fits(g, cells(), drag.to, drag.i);
   place(drag.tile, cellRect(g, drag.to, p.pageW, p.areaH));
   drag.tile.classList.toggle("invalid", !ok);
 }
@@ -432,7 +471,7 @@ function moveDrag(e) {
 function endDrag() {
   if (!drag) return;
   const { i, from, to } = drag;
-  const ok = fits(grid(), modules().map(m => m.config.cell), to, i);
+  const ok = fits(grid(), cells(), to, i);
   finishDrag();
   if (ok && String(from) !== String(to)) applyCell(i, to);
   else renderTiles();
@@ -531,10 +570,7 @@ function fieldInput(field, value, onChange) {
       input.autocomplete = "off";
       const row = document.createElement("div");
       row.className = "secret";
-      const eye = document.createElement("button");
-      eye.type = "button";
-      eye.textContent = "Show";
-      eye.addEventListener("click", e => {
+      const eye = button("Show", e => {
         e.preventDefault();
         input.type = input.type === "password" ? "text" : "password";
         eye.textContent = input.type === "password" ? "Show" : "Hide";
@@ -549,11 +585,7 @@ function fieldInput(field, value, onChange) {
       input.value = shown;
       wrap.append(title, input);
   }
-  if (field.help) {
-    const help = document.createElement("small");
-    help.textContent = field.help;
-    wrap.append(help);
-  }
+  if (field.help) wrap.append(small(field.help));
   const read = () => (field.kind === "select" ? selectRead(field, input.value) : { value: coerce(field, field.kind === "bool" ? input.checked : input.value) });
   // typing updates the preview; leaving the field records one undo step
   input.addEventListener("input", () => {
@@ -570,6 +602,15 @@ function fieldInput(field, value, onChange) {
 function setValue(obj, key, value) {
   if (value === undefined) delete obj[key];
   else obj[key] = value;
+}
+
+// edits is a fieldInput callback for obj[key]: typing previews, leaving the field commits.
+function edits(obj, key) {
+  return (v, record) => {
+    setValue(obj, key, v);
+    if (record) commit();
+    else schedulePreview();
+  };
 }
 
 function renderInspector() {
@@ -617,11 +658,7 @@ function renderInspector() {
         (f.advanced ? more : box).append(el);
         continue;
       }
-      const el = fieldInput(f, values[f.key], (v, record) => {
-        setValue(values, f.key, v);
-        if (record) commit();
-        else schedulePreview();
-      });
+      const el = fieldInput(f, values[f.key], edits(values, f.key));
       if (absent.includes(f.key)) {
         el.classList.add("missing");
         const m = document.createElement("span");
@@ -640,27 +677,17 @@ function renderInspector() {
     box.append(rawEditor(entry));
   }
 
-  const layout = more;
   const [iw, ih] = innerSize(entry);
   const auto = autoFont(state.catalog.font_rule, iw, ih);
-  const num = (key, label) =>
-    fieldInput({ key, label, kind: "number" }, values[key], (v, record) => {
-      setValue(values, key, v);
-      if (record) commit();
-      else schedulePreview();
-    });
-  layout.append(num("padding_x", "Inner margin left/right (px)"), num("padding_y", "Inner margin top/bottom (px)"));
+  const num = (key, label) => fieldInput({ key, label, kind: "number" }, values[key], edits(values, key));
+  more.append(num("padding_x", "Inner margin left/right (px)"), num("padding_y", "Inner margin top/bottom (px)"));
   const font = num("fontsize", "Base text size (px)");
-  const autoBtn = document.createElement("button");
-  autoBtn.type = "button";
-  autoBtn.textContent = `Auto (${auto} px)`;
-  autoBtn.addEventListener("click", () => {
+  font.append(button(`Auto (${auto} px)`, () => {
     values.fontsize = auto;
     commit();
-  });
-  font.append(autoBtn);
-  layout.append(font);
-  layout.append(
+  }));
+  more.append(font);
+  more.append(
     fieldInput({ key: "language", label: "Language", kind: "select", options: LANGS, labels: { en: "English", de: "Deutsch" }, required: true }, values.language || "en", (v, record) => {
       setValue(values, "language", v);
       if (record) commit();
@@ -670,22 +697,13 @@ function renderInspector() {
   info.className = "muted small";
   const [c, r, cs, rs] = values.cell;
   info.textContent = `Cell: column ${c + 1}, row ${r + 1}, ${cs} × ${rs} · inner ${iw} × ${ih} px`;
-  layout.append(info);
-  box.append(layout);
+  more.append(info);
+  box.append(more);
   box.append(styleEditor(values, "style", "Style of this tile", state.settings.theme));
 
   const actions = document.createElement("div");
   actions.className = "actions";
-  const del = document.createElement("button");
-  del.type = "button";
-  del.className = "danger";
-  del.textContent = "Remove module";
-  del.addEventListener("click", removeSelected);
-  const done = document.createElement("button");
-  done.type = "button";
-  done.textContent = "Page settings";
-  done.addEventListener("click", () => select(-1));
-  actions.append(del, done);
+  actions.append(button("Remove module", removeSelected, "danger"), button("Page settings", () => select(-1)));
   box.append(actions);
 }
 
@@ -732,20 +750,17 @@ function renderPageSettings(box) {
   p.textContent = "Select a module on the panel to edit it.";
   box.append(h, p);
   const s = state.settings;
-  const on = key => (v, record) => {
+  const on = key => edits(s, key);
+  // these change the page area, so tiles may need to move
+  const onReflow = key => (v, record) => {
     setValue(s, key, v);
-    if (record) commit();
-    else schedulePreview();
+    if (record) reflow();
   };
   const disp = document.createElement("div");
   disp.className = "field";
   const dl = document.createElement("span");
   dl.textContent = "Display";
-  const pick = document.createElement("button");
-  pick.type = "button";
-  pick.textContent = panelName() + " — change…";
-  pick.addEventListener("click", openDisplayPicker);
-  disp.append(dl, pick);
+  disp.append(dl, button(panelName() + " — change…", openDisplayPicker));
   box.append(disp);
   box.append(fieldInput({ key: "orientation", label: "Orientation", kind: "select", options: ORIENTATIONS.map(o => o.value),
     labels: Object.fromEntries(ORIENTATIONS.map(o => [String(o.value), o.label])), required: true }, s.orientation ?? 0, on("orientation")));
@@ -756,29 +771,17 @@ function renderPageSettings(box) {
     }));
   box.append(fieldInput({ key: "update_interval", label: "Update interval (minutes)", kind: "number" }, s.update_interval, on("update_interval")));
 
-  const look = document.createElement("fieldset");
-  const legend = document.createElement("legend");
-  legend.textContent = "Look";
-  look.append(legend);
+  const look = fieldset("Look");
   look.append(fieldInput({ key: "dividers", label: "Hairlines between modules", kind: "bool" }, s.dividers, on("dividers")));
   look.append(fieldInput({ key: "border_around_modules", label: "Border around modules", kind: "bool" }, s.border_around_modules, on("border_around_modules")));
-  look.append(fieldInput({ key: "info_section", label: "Info line (time, battery)", kind: "bool" }, s.info_section, (v, record) => {
-    setValue(s, "info_section", v);
-    if (record) reflow();
-  }));
+  look.append(fieldInput({ key: "info_section", label: "Info line (time, battery)", kind: "bool" }, s.info_section, onReflow("info_section")));
   if (s.info_section) {
-    look.append(fieldInput({ key: "info_section_height", label: "Info line height (px)", kind: "number" }, s.info_section_height, (v, record) => {
-      setValue(s, "info_section_height", v);
-      if (record) reflow();
-    }));
+    look.append(fieldInput({ key: "info_section_height", label: "Info line height (px)", kind: "number" }, s.info_section_height, onReflow("info_section_height")));
   }
   box.append(look);
   box.append(styleEditor(s, "theme", "Theme (all tiles)", null));
 
-  const adv = document.createElement("fieldset");
-  const legend2 = document.createElement("legend");
-  legend2.textContent = "Panel";
-  adv.append(legend2);
+  const adv = fieldset("Panel");
   adv.append(fieldInput({ key: "image_hash", label: "Skip refresh when nothing changed", kind: "bool" }, s.image_hash, on("image_hash")));
   adv.append(fieldInput({ key: "disable_calibration", label: "Never run calibration", kind: "bool" }, s.disable_calibration, on("disable_calibration")));
   const g = grid();
@@ -817,28 +820,21 @@ function styleEditor(owner, key, title, parent) {
   };
   const own = owner[key] || {};
   const eff = effective(parent, own);
-  const fs = document.createElement("fieldset");
-  const legend = document.createElement("legend");
-  legend.textContent = title;
-  fs.append(legend);
+  const fs = fieldset(title);
 
   // colour presets as little tiles in the panel's inks
   const presets = document.createElement("div");
   presets.className = "presets";
   const current = matchPreset(eff.colors);
   for (const p of presetsFor(panelInks())) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "preset";
+    const b = button("Aa", () => set(st => ({ ...st, colors: { ...p.colors } })), "preset");
     b.title = p.label;
     b.setAttribute("aria-pressed", String(current === p.id));
     b.style.background = inkCss(p.colors.paper);
     b.style.color = inkCss(p.colors.ink);
-    b.textContent = "Aa";
     const dot = document.createElement("span");
     dot.style.background = inkCss(p.colors.accent);
     b.append(dot);
-    b.addEventListener("click", () => set(st => ({ ...st, colors: { ...p.colors } })));
     presets.append(b);
   }
   fs.append(presets);
@@ -894,13 +890,7 @@ function styleEditor(owner, key, title, parent) {
   sizeWrap.append(sz, range);
   fs.append(sizeWrap);
 
-  if (Object.keys(own).length) {
-    const reset = document.createElement("button");
-    reset.type = "button";
-    reset.textContent = isTile ? "Use the theme" : "Reset theme";
-    reset.addEventListener("click", () => set(() => ({})));
-    fs.append(reset);
-  }
+  if (Object.keys(own).length) fs.append(button(isTile ? "Use the theme" : "Reset theme", () => set(() => ({}))));
 
   if (key === "theme") {
     if (panelInks() === "bwr") {
@@ -985,12 +975,9 @@ function calendarHelp(values) {
     p.append(n, g.steps);
     how.append(p);
   }
-  const test = document.createElement("button");
-  test.type = "button";
-  test.textContent = "Test the addresses";
   const out = document.createElement("div");
   out.className = "cal-results";
-  test.addEventListener("click", async e => {
+  const test = button("Test the addresses", async e => {
     e.preventDefault();
     const urls = display({ kind: "url_list" }, values.ical_urls).split("\n").filter(Boolean);
     out.replaceChildren();
@@ -1032,15 +1019,6 @@ function openWizard(isNew = false) {
   $("#wizard").showModal();
 }
 
-function wizardButton(text, onClick, cls = "") {
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = cls;
-  b.textContent = text;
-  b.addEventListener("click", onClick);
-  return b;
-}
-
 function renderWizard() {
   const body = $("#wizard-body");
   body.replaceChildren();
@@ -1066,17 +1044,11 @@ function renderWizard() {
       list.replaceChildren();
       for (const g of groupPanels(state.catalog.panel_list || [], search.value)) {
         for (const pn of g.panels) {
-          const b = wizardButton("", () => {
+          list.append(panelButton(pn, () => {
             state.settings.model = pn.model;
             reflow();
             renderWizard();
-          }, "panel-option" + (pn.model === state.settings.model ? " current" : ""));
-          const n = document.createElement("strong");
-          n.textContent = pn.name;
-          const m = document.createElement("span");
-          m.textContent = `${pn.w} × ${pn.h} px` + (pn.hint ? " · " + pn.hint : "");
-          b.append(n, m);
-          list.append(b);
+          }));
         }
       }
     };
@@ -1088,14 +1060,14 @@ function renderWizard() {
     const list = document.createElement("div");
     list.className = "wizard-list";
     if (modules().length) {
-      list.append(wizardButton("Keep my current tiles", () => {
+      list.append(button("Keep my current tiles", () => {
         wiz.step++;
         renderWizard();
       }, "panel-option current"));
     }
     for (const tpl of state.catalog.templates || []) {
       const fits = templateFits(tpl, state.catalog, p.pageW, p.areaH);
-      const b = wizardButton("", () => {
+      const b = optionButton(tpl.title, tpl.description + (fits ? "" : " — too big for this display"), () => {
         if (modules().length && !confirm("Replace the current tiles with this template?")) return;
         Object.assign(state.settings, applyTemplate(state.settings, tpl, state.catalog, defaultLanguage(), p.pageW, p.areaH));
         state.selected = -1;
@@ -1103,13 +1075,8 @@ function renderWizard() {
         commit();
         wiz.step++;
         renderWizard();
-      }, "panel-option");
+      });
       b.disabled = !fits;
-      const n = document.createElement("strong");
-      n.textContent = tpl.title;
-      const m = document.createElement("span");
-      m.textContent = tpl.description + (fits ? "" : " — too big for this display");
-      b.append(n, m);
       list.append(b);
     }
     body.append(list);
@@ -1134,17 +1101,11 @@ function renderWizard() {
     }
     for (const { m, i, meta } of todo) {
       const { optional, labels } = needs(meta, m);
-      const b = wizardButton("", () => {
+      list.append(optionButton((optional ? "＋ " : "⚠ ") + tileTitle(meta, m), (optional ? "Add " : "Needs: ") + labels.join(", ") + " — set up", () => {
         $("#wizard").close();
         select(i);
         banner(`Fill in the marked fields of "${tileTitle(meta, m)}" — then open the assistant again or just save.`);
-      }, "panel-option");
-      const n = document.createElement("strong");
-      n.textContent = (optional ? "＋ " : "⚠ ") + tileTitle(meta, m);
-      const d = document.createElement("span");
-      d.textContent = (optional ? "Add " : "Needs: ") + labels.join(", ") + " — set up";
-      b.append(n, d);
-      list.append(b);
+      }));
     }
     body.append(list);
   } else {
@@ -1217,9 +1178,6 @@ function placeInput(field, values) {
   input.type = "search";
   input.value = values[field.key] || "";
   input.placeholder = "e.g. Hamburg";
-  const go = document.createElement("button");
-  go.type = "button";
-  go.textContent = "Search";
   const list = document.createElement("div");
   list.className = "place-results";
   const search = async () => {
@@ -1232,38 +1190,29 @@ function placeInput(field, values) {
       list.replaceChildren();
       if (!places.length) list.textContent = "Nothing found — try another spelling.";
       for (const p of places) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = p.label;
-        b.addEventListener("click", () => {
+        list.append(button(p.label, () => {
           values[field.key] = p.location;
           values.latitude = Math.round(p.latitude * 1000) / 1000;
           values.longitude = Math.round(p.longitude * 1000) / 1000;
           commit();
-        });
-        list.append(b);
+        }));
       }
     } catch (err) {
       list.textContent = "Search failed: " + err.message;
     }
   };
-  go.addEventListener("click", search);
   input.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
       search();
     }
   });
-  row.append(input, go);
+  row.append(input, button("Search", search));
   wrap.append(title, row, list);
   if (values.latitude !== undefined && values.longitude !== undefined) {
-    const at = document.createElement("small");
-    at.textContent = `📍 ${values[field.key] || ""} (${values.latitude}, ${values.longitude})`;
-    wrap.append(at);
+    wrap.append(small(`📍 ${values[field.key] || ""} (${values.latitude}, ${values.longitude})`));
   } else if (field.help) {
-    const help = document.createElement("small");
-    help.textContent = field.help;
-    wrap.append(help);
+    wrap.append(small(field.help));
   }
   return wrap;
 }
@@ -1291,22 +1240,13 @@ function renderDisplayList(query) {
     h.textContent = g.group;
     box.append(h);
     for (const p of g.panels) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "panel-option" + (p.model === state.settings.model ? " current" : "");
-      const name = document.createElement("strong");
-      name.textContent = p.name;
-      const meta = document.createElement("span");
-      meta.textContent = `${p.w} × ${p.h} px` + (p.hint ? " · " + p.hint : "");
-      b.append(name, meta);
-      b.addEventListener("click", () => {
+      box.append(panelButton(p, () => {
         $("#display-dialog").close();
         if (p.model === state.settings.model) return;
         state.settings.model = p.model;
         banner("");
         reflow();
-      });
-      box.append(b);
+      }));
     }
   }
   if (!box.children.length) box.textContent = "No display matches.";
@@ -1346,7 +1286,7 @@ function onKey(e) {
   if (step) {
     e.preventDefault();
     const cell = e.shiftKey ? resizeCell(entry.config.cell, "se", step[0], step[1], spansFor(entry), g) : moveCell(entry.config.cell, step[0], step[1], g);
-    if (fits(g, modules().map(m => m.config.cell), cell, state.selected)) applyCell(state.selected, cell);
+    if (fits(g, cells(), cell, state.selected)) applyCell(state.selected, cell);
   } else if (e.key === "Delete" || e.key === "Backspace") {
     e.preventDefault();
     removeSelected();
