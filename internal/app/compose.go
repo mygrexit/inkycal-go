@@ -95,6 +95,12 @@ type moduleOutcome struct {
 	stale bool
 }
 
+// fail records a module's error and writes the matching hint into its image.
+func (oc *moduleOutcome) fail(err error, module, lang string) {
+	oc.err = err
+	drawHint(oc.part.Img, errorHint(module, err, lang))
+}
+
 // runModules runs all modules concurrently; a failed module leaves its section blank.
 // rects (grid layouts) give each module's section; nil takes the size from its config.
 func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.Rect) []moduleOutcome {
@@ -134,8 +140,7 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 		}
 		factory, ok := o.Registry[entry.Name]
 		if !ok {
-			out[i].err = fmt.Errorf("unknown module %q", entry.Name)
-			drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
+			out[i].fail(fmt.Errorf("unknown module %q", entry.Name), entry.Name, common.Language)
 			continue
 		}
 		wg.Add(1)
@@ -143,24 +148,21 @@ func runModules(ctx context.Context, o *Options, now time.Time, rects []layout.R
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					out[i].err = fmt.Errorf("%s panicked: %v", entry.Name, r)
 					// The module may have panicked mid-drawing: hint on a fresh canvas.
 					img := out[i].part.Img
 					out[i].part.Img = render.NewThemedCanvas(img.W, img.H, render.FontDefault, 14, theme)
-					drawHint(out[i].part.Img, errorHint(entry.Name, out[i].err, common.Language))
+					out[i].fail(fmt.Errorf("%s panicked: %v", entry.Name, r), entry.Name, common.Language)
 				}
 			}()
 			m, err := factory(common, entry.Config)
 			if err != nil {
-				out[i].err = err
-				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
+				out[i].fail(err, entry.Name, common.Language)
 				return
 			}
 			env := &modules.Env{Now: now, Loc: o.Loc, Fetch: o.Fetch, Theme: theme}
 			cv, err := m.Generate(ctx, env)
 			if err != nil {
-				out[i].err = fmt.Errorf("%s: %w", entry.Name, err)
-				drawHint(out[i].part.Img, errorHint(entry.Name, err, common.Language))
+				out[i].fail(fmt.Errorf("%s: %w", entry.Name, err), entry.Name, common.Language)
 				return
 			}
 			out[i].part.Img = cv
