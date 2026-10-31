@@ -53,10 +53,6 @@ type ModuleEntry struct {
 	Position int             `json:"position"`
 	Name     string          `json:"name"`
 	Config   json.RawMessage `json:"config"`
-
-	// Err is set by Load when the module cannot run as configured (a bad style or cell):
-	// the panel shows the other modules. Parse rejects such settings instead.
-	Err error `json:"-"`
 }
 
 // Common holds the keys every module config shares.
@@ -78,6 +74,16 @@ func (c Common) InnerSize() (w, h int) {
 // ParseCommon extracts the shared module keys and applies defaults. Modules on a grid
 // (Cell set) get their size from the cell: call WithSize before using it.
 func ParseCommon(raw json.RawMessage) (Common, error) {
+	c, err := decodeCommon(raw)
+	if err != nil || c.Cell != nil {
+		return c, err
+	}
+	return c, c.checkSize()
+}
+
+// decodeCommon reads the shared module keys and fills in defaults; on an error the keys
+// stay as far as they decoded, without defaults.
+func decodeCommon(raw json.RawMessage) (Common, error) {
 	var c Common
 	if err := json.Unmarshal(raw, &c); err != nil {
 		return c, err
@@ -88,10 +94,7 @@ func ParseCommon(raw json.RawMessage) (Common, error) {
 	if c.Language == "" {
 		c.Language = "en"
 	}
-	if c.Cell != nil {
-		return c, nil
-	}
-	return c, c.checkSize()
+	return c, nil
 }
 
 // WithSize sets the section size (grid layouts) and checks it against the padding.
@@ -107,9 +110,9 @@ func (c Common) checkSize() error {
 	return nil
 }
 
-// Load reads and defaults a settings file for the panel. A broken module (style or
-// cell) gets ModuleEntry.Err instead of failing the whole file, and a broken theme
-// falls back to the default look: one bad tile must not stop the panel refreshing.
+// Load reads and defaults a settings file for the panel. It is lenient: a broken theme
+// falls back to the default look, and a broken tile only fails itself (see Tiles), so
+// one bad tile does not stop the panel refreshing.
 func Load(path string) (*Settings, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -119,23 +122,36 @@ func Load(path string) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	tolerate(s)
+	if err := s.Theme.validate(); err != nil {
+		s.Warnings = append(s.Warnings, fmt.Sprintf("theme: %v – using the default look", err))
+		s.Theme = nil
+	}
 	s.dir = filepath.Dir(path)
 	return s, nil
 }
 
 // Parse defaults and validates settings.json content; name appears in messages. Unlike
-// Load it rejects any broken module, so the builder never saves one.
+// Load it is strict: it rejects a broken theme and any tile that cannot be placed or has
+// a broken style, so the builder never saves one.
 func Parse(data []byte, name string) (*Settings, error) {
 	s, err := decode(data, name)
 	if err != nil {
 		return nil, err
 	}
-	if _, _, _, err := GridCells(s); err != nil {
+	if err := s.Theme.validate(); err != nil {
+		return nil, problem.Mark(problem.Style, fmt.Errorf("theme: %w", err))
+	}
+	_, tiles, err := s.Tiles()
+	if err != nil {
 		return nil, err
 	}
-	if err := validateStyles(s); err != nil {
-		return nil, err
+	for i, t := range tiles {
+		if err := t.rejected; err != nil {
+			if j, ok := err.(interface{ Unwrap() []error }); ok {
+				err = j.Unwrap()[0] // one problem at a time, as before: the cell first
+			}
+			return nil, fmt.Errorf("module %d (%s): %w", i+1, t.Name, err)
+		}
 	}
 	return s, nil
 }
@@ -166,107 +182,6 @@ func decode(data []byte, name string) (*Settings, error) {
 	}
 	sort.SliceStable(s.Modules, func(i, j int) bool { return s.Modules[i].Position < s.Modules[j].Position })
 	return &s, nil
-}
-
-// ErrCell marks a module Load could not place on the grid; it has no section.
-var ErrCell = errors.New("grid layout")
-
-// tolerate turns what Parse rejects per module into ModuleEntry.Err.
-func tolerate(s *Settings) {
-	if err := s.Theme.validate(); err != nil {
-		s.Warnings = append(s.Warnings, fmt.Sprintf("theme: %v – using the default look", err))
-		s.Theme = nil
-	}
-	cells := make([]*layout.Cell, len(s.Modules))
-	anyCell := false
-	for i, m := range s.Modules {
-		// Style and cell are read apart: a style that does not decode is reported when the
-		// module runs and must not cost it a valid cell.
-		var st struct {
-			Style *Style `json:"style"`
-		}
-		if json.Unmarshal(m.Config, &st) == nil {
-			if err := st.Style.validate(); err != nil {
-				s.Modules[i].Err = problem.Mark(problem.Style, fmt.Errorf("style: %w", err))
-			}
-		}
-		var c struct {
-			Cell *layout.Cell `json:"cell"`
-		}
-		if json.Unmarshal(m.Config, &c) == nil && c.Cell != nil {
-			cells[i], anyCell = c.Cell, true
-		}
-	}
-	g := layout.Default
-	if s.Grid != nil {
-		g = *s.Grid
-	}
-	if !anyCell || g.Validate(nil) != nil {
-		return // no grid, or a broken one: GridCells reports that for the whole page
-	}
-	var placed []int
-	for i, c := range cells {
-		var cellErr error
-		switch {
-		case c == nil:
-			cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: no cell", ErrCell))
-		case g.Validate([]layout.Cell{*c}) != nil:
-			cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows))
-		default:
-			for _, j := range placed {
-				if layout.Overlaps(*cells[j], *c) {
-					cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1))
-					break
-				}
-			}
-		}
-		if cellErr == nil {
-			placed = append(placed, i)
-		} else {
-			s.Modules[i].Err = errors.Join(cellErr, s.Modules[i].Err) // keep a style error too
-		}
-	}
-}
-
-// GridCells returns the grid and each module's cell, in module order. grid is false
-// when no module has a cell (stacked layout); either all modules have one or none.
-// Modules Load could not place (Err wraps ErrCell) get a zero cell and are not checked.
-func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err error) {
-	var missing []int
-	var check []layout.Cell // the cells to validate: all but the ones Load could not place
-	unplaced := 0
-	for i, m := range s.Modules {
-		if errors.Is(m.Err, ErrCell) {
-			unplaced++
-			cells = append(cells, layout.Cell{})
-			continue
-		}
-		var c struct {
-			Cell *layout.Cell `json:"cell"`
-		}
-		if err := json.Unmarshal(m.Config, &c); err != nil || c.Cell == nil {
-			missing = append(missing, i)
-			cells = append(cells, layout.Cell{})
-			continue
-		}
-		cells = append(cells, *c.Cell)
-		check = append(check, *c.Cell)
-	}
-	if unplaced == 0 && len(missing) == len(s.Modules) {
-		return g, nil, false, nil
-	}
-	if len(missing) > 0 {
-		m := s.Modules[missing[0]]
-		return g, nil, false, problem.Mark(problem.Placement, fmt.Errorf("grid layout: module %d (%s) has no cell", missing[0]+1, m.Name))
-	}
-	g = layout.Default
-	if s.Grid != nil {
-		g = *s.Grid
-	}
-	if err := g.Validate(check); err != nil {
-		return g, nil, false, problem.Mark(problem.Placement, fmt.Errorf("grid layout: %w", err))
-	}
-	return g, cells, true, nil
 }
 
 // FindSettings returns explicit if set, else $INKYCAL_SETTINGS_PATH, else the first existing SearchPaths entry.

@@ -28,7 +28,7 @@ func TestNewTickers(t *testing.T) {
 		`{"tickers":"TSLA, U, NVDA, EURUSD=X"}`: {"TSLA", "U", "NVDA", "EURUSD=X"},
 		`{"tickers":["AAPL","^GDAXI"]}`:         {"AAPL", "^GDAXI"},
 	} {
-		m, err := New(c, json.RawMessage(raw))
+		m, err := Def.New(c, json.RawMessage(raw))
 		if err != nil {
 			t.Fatalf("%s: %v", raw, err)
 		}
@@ -37,12 +37,12 @@ func TestNewTickers(t *testing.T) {
 		}
 	}
 	for _, raw := range []string{`{}`, `{"tickers":""}`, `{"tickers":null}`, `{"tickers":5}`} {
-		if _, err := New(c, json.RawMessage(raw)); err == nil {
+		if _, err := Def.New(c, json.RawMessage(raw)); err == nil {
 			t.Errorf("%s: expected an error", raw)
 		}
 	}
 	tiny := modulestest.Common(t, `{"size":[100,100]}`)
-	if _, err := New(tiny, json.RawMessage(`{"tickers":"AAPL"}`)); err == nil {
+	if _, err := Def.New(tiny, json.RawMessage(`{"tickers":"AAPL"}`)); err == nil {
 		t.Error("expected size error")
 	}
 }
@@ -250,7 +250,7 @@ func sampleRows(lang string) []row {
 func TestGenerate(t *testing.T) {
 	chartServer(t)
 	c := modulestest.Common(t, `{"size":[944,180],"padding_x":20,"padding_y":20,"fontsize":22,"language":"de"}`)
-	m, err := New(c, json.RawMessage(`{"tickers":"AAPL, TSLA, NOPE"}`))
+	m, err := Def.New(c, json.RawMessage(`{"tickers":"AAPL, TSLA, NOPE"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestGenerate(t *testing.T) {
 		t.Error("TSLA is down but nothing is red")
 	}
 
-	all, err := New(c, json.RawMessage(`{"tickers":"NOPE, GONE"}`))
+	all, err := Def.New(c, json.RawMessage(`{"tickers":"NOPE, GONE"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestPreview(t *testing.T) {
 		{"stocks-400x200.png", "en", "AAPL, TSLA, ^GDAXI, SAP.DE, EURUSD=X", 400, 200},
 	} {
 		c := modulestest.Common(t, fmt.Sprintf(`{"size":[%d,%d],"fontsize":22,"language":%q}`, p.w, p.h, p.lang))
-		m, err := New(c, json.RawMessage(fmt.Sprintf(`{"tickers":%q}`, p.tickers)))
+		m, err := Def.New(c, json.RawMessage(fmt.Sprintf(`{"tickers":%q}`, p.tickers)))
 		if err != nil {
 			t.Fatal(err)
 		}

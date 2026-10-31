@@ -5,11 +5,12 @@ import "inkycal/internal/layout"
 // quotes fill the "quote of the day" tiles; one line per day.
 const quotes = "Carpe diem.\nLess is more.\nOne step at a time.\nBe kind.\nEnjoy the little things.\nToday is a good day."
 
-// Templates use the default 12 × 16 grid and these paddings; the assistant fills in the
+// Every new tile, from a template or the palette, gets these paddings (the catalog's
+// tile_padding); templates use the default 12 × 16 grid, and the builder fills in the
 // language, font size and every field's default.
 const (
-	templatePadX = 16
-	templatePadY = 12
+	tilePadX = 16
+	tilePadY = 12
 )
 
 type templateModule struct {

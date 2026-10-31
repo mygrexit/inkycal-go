@@ -16,6 +16,7 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/epd"
 	"inkycal/internal/fetch"
+	"inkycal/internal/fetch/fetchtest"
 )
 
 // The dashboard as it hangs in the kitchen: 12.48" panel in portrait, two family calendars.
@@ -151,7 +152,7 @@ func previewOptions(t testing.TB, now time.Time, todoistOK bool, display epd.Dis
 		t.Fatal(err)
 	}
 	fc := fetch.New(filepath.Join(dir, "http"))
-	fc.HTTP = &http.Client{Transport: p2Rewrite{target: target}, Timeout: 10 * time.Second}
+	fc.HTTP = &http.Client{Transport: fetchtest.Rewrite{Target: target}, Timeout: 10 * time.Second}
 	fc.Attempts = 1
 	return &Options{
 		Settings: settings,

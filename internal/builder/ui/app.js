@@ -1,5 +1,6 @@
 // inkycal builder: places modules on the grid and shows the page as the panel renders it.
-import { cellRect, fits, minSpans, bestFree, makeRoom, nudge, fromLegacy, moveCell, resizeCell, autoFont } from "./grid.js";
+import { cellRect, fits, minSpans, bestFree, makeRoom, nudge, fromLegacy, moveCell, resizeCell } from "./grid.js";
+import { newTile, placeTile, autoFontOf, innerOf } from "./tile.js";
 import { coerce, display, missing, partition, optionLabel, normalize, selectRead } from "./form.js";
 import { toPaper } from "./paper.js";
 import { groupPanels, ORIENTATIONS } from "./panels.js";
@@ -103,9 +104,8 @@ function spansFor(entry) {
 }
 
 function innerSize(entry) {
-  const p = page(), r = cellRect(grid(), entry.config.cell, p.pageW, p.areaH);
-  const c = entry.config;
-  return [r.w - 2 * (Number(c.padding_x) || 0), r.h - 2 * (Number(c.padding_y) || 0)];
+  const p = page();
+  return innerOf(grid(), entry.config, p.pageW, p.areaH);
 }
 
 // syncSizes writes each module's pixel size next to its cell (upstream Inkycal reads it).
@@ -387,12 +387,8 @@ function defaultLanguage() {
 }
 
 function addModule(meta, at, preset = {}) {
-  const config = { ...Object.fromEntries((meta.fields || []).filter(f => f.default !== undefined).map(f => [f.key, f.default])), ...preset };
-  config.padding_x = 20;
-  config.padding_y = 16;
-  config.language = defaultLanguage();
-  const entry = { position: 0, name: meta.name, config };
-  const [cs, rs] = spansFor({ name: meta.name, config });
+  const entry = newTile(state.catalog, meta.name, preset, defaultLanguage());
+  const [cs, rs] = spansFor(entry);
   const taken = cells();
   let cell = at ? [at[0], at[1], cs, rs] : null;
   if (cell) cell = moveCell(cell, 0, 0, grid());
@@ -410,10 +406,10 @@ function addModule(meta, at, preset = {}) {
     cell = room.cell;
     banner(`The page was full: ${(metaOf(other.name) || { title: other.name }).title} got smaller to make room. Undo with Ctrl+Z.`);
   }
-  config.cell = cell;
+  const p = page();
+  placeTile(state.catalog, grid(), entry.config, cell, p.pageW, p.areaH);
   modules().push(entry);
   renumber();
-  config.fontsize = autoFont(state.catalog.font_rule, ...innerSize(entry));
   state.selected = modules().length - 1;
   commit();
 }
@@ -498,9 +494,10 @@ function applyCell(i, cell) {
 
 function applyCellSilently(i, cell) {
   const entry = modules()[i];
-  const wasAuto = Number(entry.config.fontsize) === autoFont(state.catalog.font_rule, ...innerSize(entry));
+  const p = page();
+  const wasAuto = Number(entry.config.fontsize) === autoFontOf(state.catalog, grid(), entry.config, p.pageW, p.areaH);
   entry.config.cell = cell;
-  if (wasAuto) entry.config.fontsize = autoFont(state.catalog.font_rule, ...innerSize(entry));
+  if (wasAuto) entry.config.fontsize = autoFontOf(state.catalog, grid(), entry.config, p.pageW, p.areaH);
 }
 
 function cellAt(clientX, clientY) {
@@ -678,7 +675,8 @@ function renderInspector() {
   }
 
   const [iw, ih] = innerSize(entry);
-  const auto = autoFont(state.catalog.font_rule, iw, ih);
+  const pg = page();
+  const auto = autoFontOf(state.catalog, grid(), entry.config, pg.pageW, pg.areaH);
   const num = (key, label) => fieldInput({ key, label, kind: "number" }, values[key], edits(values, key));
   more.append(num("padding_x", "Inner margin left/right (px)"), num("padding_y", "Inner margin top/bottom (px)"));
   const font = num("fontsize", "Base text size (px)");

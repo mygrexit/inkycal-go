@@ -3,6 +3,8 @@
 package fetch
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -38,13 +40,14 @@ type Result struct {
 
 // StatusError is returned for non-2xx responses.
 type StatusError struct {
-	URL  string
-	Code int
-	Body string
+	Method string // "" is GET
+	URL    string
+	Code   int
+	Body   string
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("GET %s: HTTP %d: %s", e.URL, e.Code, e.Body)
+	return fmt.Sprintf("%s %s: HTTP %d: %s", cmp.Or(e.Method, http.MethodGet), e.URL, e.Code, e.Body)
 }
 
 func (e *StatusError) retryable() bool { return e.Code >= 500 || e.Code == http.StatusTooManyRequests }
@@ -61,16 +64,33 @@ func New(cacheDir string) *Client {
 	}
 }
 
+// request is one HTTP request as the client sends, retries and caches it.
+type request struct {
+	method, url string
+	header      http.Header
+	body        []byte // POST only
+}
+
 // Get fetches url. On network errors, 5xx or 429 it retries and finally falls back to the cache.
 // 4xx errors (wrong key, wrong URL) are returned directly so misconfiguration stays visible.
 func (c *Client) Get(ctx context.Context, url string, header http.Header) (Result, error) {
-	key := cacheKey(url, header)
+	return c.do(ctx, request{method: http.MethodGet, url: url, header: header})
+}
+
+// Post sends body to url and is retried and cached like Get; the cache keeps one answer
+// per body. Only for requests that change nothing on the server (Inkyserver renders an image).
+func (c *Client) Post(ctx context.Context, url string, header http.Header, body []byte) (Result, error) {
+	return c.do(ctx, request{method: http.MethodPost, url: url, header: header, body: body})
+}
+
+func (c *Client) do(ctx context.Context, r request) (Result, error) {
+	key := r.cacheKey()
 	if c.FreshFor > 0 {
 		if cached, at, ok := c.load(key); ok && time.Since(at) < c.FreshFor {
 			return Result{Body: cached, FetchedAt: at}, nil
 		}
 	}
-	body, err := c.fetch(ctx, url, header)
+	body, err := c.fetch(ctx, r)
 	if err == nil {
 		c.store(key, body)
 		return Result{Body: body, FetchedAt: time.Now()}, nil
@@ -80,7 +100,7 @@ func (c *Client) Get(ctx context.Context, url string, header http.Header) (Resul
 		return Result{}, err
 	}
 	if cached, at, ok := c.load(key); ok {
-		slog.Warn("using cached response", "url", redact(url), "cached_at", at, "err", err)
+		slog.Warn("using cached response", "url", redact(r.url), "cached_at", at, "err", err)
 		return Result{Body: cached, Stale: true, FetchedAt: at}, nil
 	}
 	return Result{}, err
@@ -104,7 +124,7 @@ type BadResponseError struct{ Err error }
 func (e *BadResponseError) Error() string { return "invalid JSON: " + e.Err.Error() }
 func (e *BadResponseError) Unwrap() error { return e.Err }
 
-func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]byte, error) {
+func (c *Client) fetch(ctx context.Context, r request) ([]byte, error) {
 	attempts := max(c.Attempts, 1)
 	wait := c.Backoff
 	var lastErr error
@@ -117,7 +137,7 @@ func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]b
 			}
 			wait *= 2
 		}
-		body, err := c.once(ctx, url, header)
+		body, err := c.once(ctx, r)
 		if err == nil {
 			return body, nil
 		}
@@ -133,15 +153,19 @@ func (c *Client) fetch(ctx context.Context, url string, header http.Header) ([]b
 	return nil, lastErr
 }
 
-func (c *Client) once(ctx context.Context, url string, header http.Header) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+func (c *Client) once(ctx context.Context, r request) ([]byte, error) {
+	var payload io.Reader
+	if r.body != nil {
+		payload = bytes.NewReader(r.body)
+	}
+	req, err := http.NewRequestWithContext(ctx, r.method, r.url, payload)
 	if err != nil {
 		if ue, ok := errors.AsType[*neturl.Error](err); ok {
-			err = fmt.Errorf("GET %s: %w", redact(url), ue.Err) // url.Error quotes the whole URL
+			err = fmt.Errorf("%s %s: %w", r.method, redact(r.url), ue.Err) // url.Error quotes the whole URL
 		}
 		return nil, err
 	}
-	for k, vs := range header {
+	for k, vs := range r.header {
 		for _, v := range vs {
 			req.Header.Add(k, v)
 		}
@@ -152,7 +176,7 @@ func (c *Client) once(ctx context.Context, url string, header http.Header) ([]by
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		if ue, ok := errors.AsType[*neturl.Error](err); ok {
-			err = fmt.Errorf("GET %s: %w", redact(url), ue.Err) // url.Error would log the API key
+			err = fmt.Errorf("%s %s: %w", r.method, redact(r.url), ue.Err) // url.Error would log the API key
 		}
 		return nil, err
 	}
@@ -166,13 +190,23 @@ func (c *Client) once(ctx context.Context, url string, header http.Header) ([]by
 		if len(snippet) > 200 {
 			snippet = snippet[:200]
 		}
-		return nil, &StatusError{URL: redact(url), Code: resp.StatusCode, Body: snippet}
+		method := r.method
+		if method == http.MethodGet {
+			method = "" // the zero value reads as GET
+		}
+		return nil, &StatusError{Method: method, URL: redact(r.url), Code: resp.StatusCode, Body: snippet}
 	}
 	return body, nil
 }
 
-func cacheKey(url string, header http.Header) string {
-	sum := sha256.Sum256([]byte(url + "\n" + header.Get("Authorization")))
+// cacheKey names a request's cached answer. A GET keeps the key it always had, so an
+// update finds the cache it left.
+func (r request) cacheKey() string {
+	s := r.url + "\n" + r.header.Get("Authorization")
+	if r.method != http.MethodGet {
+		s = r.method + "\n" + s + "\n" + string(r.body)
+	}
+	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
 }
 

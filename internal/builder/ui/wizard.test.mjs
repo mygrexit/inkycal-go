@@ -29,7 +29,8 @@ test("applyTemplate builds modules with defaults, language and positions", () =>
       { name: "Weather", fields: [{ key: "provider", default: "open-meteo" }] },
       { name: "TextToDisplay", fields: [{ key: "source", default: "text" }] },
     ],
-    template_padding: [16, 12],
+    tile_padding: [16, 12],
+    grid: { columns: 12, rows: 16 },
     font_rule: { h_div: 9, w_div: 40, min: 12, max: 32 },
   };
   const tpl = { modules: [{ name: "Weather", cell: [0, 0, 12, 4] }, { name: "TextToDisplay", cell: [0, 4, 6, 4], config: { one_per_day: true } }] };
@@ -49,7 +50,7 @@ test("applyTemplate builds modules with defaults, language and positions", () =>
 });
 
 test("templateFits checks every module's minimum on the chosen display", () => {
-  const catalog = { modules: [{ name: "Greek", min_w: 300, min_h: 60 }], template_padding: [16, 12] };
+  const catalog = { modules: [{ name: "Greek", min_w: 300, min_h: 60 }], tile_padding: [16, 12], grid: { columns: 12, rows: 16 } };
   const tpl = { modules: [{ name: "Greek", cell: [0, 0, 8, 2] }] };
   assert.equal(templateFits(tpl, catalog, 984, 1304), true);  // 8 cols = 656 px
   assert.equal(templateFits(tpl, catalog, 480, 800), false);  // 8 cols = 320 − 32 < 300

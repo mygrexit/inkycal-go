@@ -4,9 +4,6 @@ package textfile
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -17,7 +14,6 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/i18n"
 	"inkycal/internal/modules"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -39,34 +35,25 @@ type rawConfig struct {
 	OnePerDay config.FlexBool `json:"one_per_day"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &rc); err != nil {
-			return nil, fmt.Errorf("textfile: config: %w", err)
-		}
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	m := &Module{common: c, onePerDay: bool(rc.OnePerDay)}
 	if rc.Source == "text" || (rc.Source == "" && rc.Text != "") {
 		if strings.TrimSpace(rc.Text) == "" {
-			return nil, problem.Mark(problem.Missing, errors.New("textfile: text is missing"))
+			return nil, modules.Missing("text")
 		}
 		m.text = rc.Text
 		return m, nil
 	}
 	p := strings.TrimSpace(rc.Filepath)
 	if p == "" {
-		return nil, problem.Mark(problem.Missing, errors.New("textfile: filepath is missing"))
+		return nil, modules.Missing("filepath")
 	}
 	lower := strings.ToLower(p)
 	m.path = p
 	// upstream only treats https:// as remote; plain http is accepted too
 	m.remote = strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://")
 	return m, nil
-}
+})
 
 func (m *Module) read(ctx context.Context, env *modules.Env) (string, error) {
 	if m.path == "" {
@@ -76,18 +63,18 @@ func (m *Module) read(ctx context.Context, env *modules.Env) (string, error) {
 	if m.remote {
 		res, err := env.Fetch.Get(ctx, m.path, nil)
 		if err != nil {
-			return "", fmt.Errorf("textfile: %w", err)
+			return "", err
 		}
 		env.Stale = env.Stale || res.Stale
 		body = res.Body
 	} else {
 		f, err := os.Open(m.path)
 		if err != nil {
-			return "", fmt.Errorf("textfile: %w", err)
+			return "", err
 		}
 		defer f.Close()
 		if body, err = io.ReadAll(io.LimitReader(f, maxFile)); err != nil {
-			return "", fmt.Errorf("textfile: %w", err)
+			return "", err
 		}
 	}
 	if !utf8.Valid(body) {

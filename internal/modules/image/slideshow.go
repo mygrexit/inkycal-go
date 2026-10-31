@@ -2,8 +2,6 @@ package image
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,7 +11,6 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -31,38 +28,33 @@ type Slideshow struct {
 	look     look
 }
 
-// NewSlideshow builds the module registered as "Slideshow".
+type slideshowConfig struct {
+	Path     string         `json:"path"`
+	Interval config.FlexInt `json:"interval"`
+	rawLook
+}
+
+// SlideshowDef is the module registered as "Slideshow".
 //
 // Besides the upstream keys it reads "interval" (minutes, default 1440 = one image
 // per day). Set it to the time between wakes – e.g. 720 for update_times
 // ["06:00", "18:00"] or 60 for update_interval 60 – to show the next image on every update.
-func NewSlideshow(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var cfg struct {
-		Path     string         `json:"path"`
-		Interval config.FlexInt `json:"interval"`
-		rawLook
-	}
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("slideshow: %w", err)
-	}
+var SlideshowDef = modules.Define(SlideshowMeta, func(c config.Common, cfg slideshowConfig) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, problem.Mark(problem.Missing, fmt.Errorf("slideshow: config is missing path"))
+		return nil, modules.Missing("path")
 	}
 	if cfg.Interval < 0 || cfg.Interval > 1440 {
-		return nil, fmt.Errorf("slideshow: interval %d: want 1–1440 minutes", cfg.Interval)
+		return nil, modules.Bad("interval %d: want 1–1440 minutes", cfg.Interval)
 	}
 	if cfg.Interval == 0 {
 		cfg.Interval = 1440
 	}
-	if err := modules.CheckMinSize(c, SlideshowMeta); err != nil {
-		return nil, err
-	}
-	l, err := cfg.rawLook.parse("slideshow", true)
+	l, err := cfg.rawLook.parse(true)
 	if err != nil {
 		return nil, err
 	}
 	return &Slideshow{common: c, dir: cfg.Path, interval: int(cfg.Interval), look: l}, nil
-}
+})
 
 // slideFiles lists the folder's images (not recursive, no dot files) in name order.
 func slideFiles(dir string) ([]string, error) {
@@ -105,14 +97,14 @@ func pickSlide(files []string, now time.Time, interval int) string {
 func (m *Slideshow) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	files, err := slideFiles(m.dir)
 	if err != nil {
-		return nil, fmt.Errorf("slideshow: %w", err)
+		return nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("slideshow: no PNG or JPG images in %s", m.dir)
+		return nil, modules.Bad("no PNG or JPG images in %s", m.dir)
 	}
 	img, _, err := picture.Load(ctx, env.Fetch, pickSlide(files, env.Now, m.interval))
 	if err != nil {
-		return nil, fmt.Errorf("slideshow: %w", err)
+		return nil, err
 	}
 	w, h := m.common.InnerSize()
 	return m.look.place(img, w, h, int(m.common.FontSize)), nil

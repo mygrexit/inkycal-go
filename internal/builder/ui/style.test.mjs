@@ -15,6 +15,13 @@ test("presetsFor drops presets a b/w panel cannot show", () => {
   assert.equal(presetsFor("bwr").length, PRESETS.length);
 });
 
+test("a tile that picks a font pair leaves the page's custom fonts, as config.effective does", () => {
+  const page = { font: "custom", custom_fonts: { text: "fonts/x.ttf", bold: "fonts/x.ttf" } };
+  for (const f of ["serif", "sans", "mono"]) assert.deepEqual(effective(page, { font: f }).custom_fonts, {}, f);
+  assert.equal(effective(page, { scale: 1.2 }).custom_fonts.text, "fonts/x.ttf", "a tile without a font keeps the page font");
+  assert.equal(effective(page, { font: "custom", custom_fonts: { bold: "b.ttf" } }).custom_fonts.text, "fonts/x.ttf");
+});
+
 test("effective merges tile over page, field by field", () => {
   const page = { font: "serif", scale: 1.2, colors: { accent: "black" } };
   const tile = { colors: { paper: "black", ink: "white" } };

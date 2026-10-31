@@ -1,6 +1,7 @@
 package weather
 
 import (
+	"inkycal/internal/forecast"
 	"inkycal/internal/render"
 	"inkycal/internal/timefmt"
 )
@@ -38,7 +39,7 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	// Weather block.
 	x0 := u(300)
 	right := w
-	c.Icon(x0, 0, u(124), u(124), iconGlyph(v.Icon), render.FontWeather, render.InkBlack, 0.95)
+	c.Icon(x0, 0, u(124), u(124), forecast.Glyph(v.Icon), render.FontWeather, render.InkBlack, 0.95)
 
 	hi := render.Style{Font: render.FontBold, Size: c.SizeForCap(render.FontBold, u(50))}
 	lo := render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, u(30))}
@@ -51,10 +52,12 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	colX := right - u(170)
 	iconW := u(44)
 	drawWind(c, colX, u(6), iconW, u(36), v.Wind)
-	c.Icon(colX, u(46), iconW, u(36), glyphSunrise, render.FontWeather, render.InkBlack, 0.95)
-	c.Text(colX+iconW+u(14), u(74), v.Sunrise, small, render.InkBlack)
-	c.Icon(colX, u(88), iconW, u(36), glyphSunset, render.FontWeather, render.InkBlack, 0.95)
-	c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
+	if v.Sunrise != "" { // none in polar day or night
+		c.Icon(colX, u(46), iconW, u(36), forecast.GlyphSunrise, render.FontWeather, render.InkBlack, 0.95)
+		c.Text(colX+iconW+u(14), u(74), v.Sunrise, small, render.InkBlack)
+		c.Icon(colX, u(88), iconW, u(36), forecast.GlyphSunset, render.FontWeather, render.InkBlack, 0.95)
+		c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
+	}
 
 	// Timeline: the observation plus the coming 3-hour slots of today.
 	label := render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, u(15))}
@@ -64,14 +67,14 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 		cx := x0 + i*colW + colW/2
 		ink := render.InkBlack
 		c.TextCenter(cx, u(164), s.Label, label, ink)
-		c.Icon(cx-u(28), u(172), u(56), u(46), iconGlyph(s.Icon), render.FontWeather, ink, 0.9)
+		c.Icon(cx-u(28), u(172), u(56), u(46), forecast.Glyph(s.Icon), render.FontWeather, ink, 0.9)
 		c.TextCenter(cx, u(246), s.Temp, temp, ink)
 	}
 }
 
 // drawWind draws the wind glyph and a three-step gauge; a strong-wind day is red.
 func drawWind(c *render.Canvas, x, y, iconW, h, level int) {
-	c.Icon(x, y, iconW, h, glyphWind, render.FontWeather, render.InkBlack, 0.95)
+	c.Icon(x, y, iconW, h, forecast.GlyphWind, render.FontWeather, render.InkBlack, 0.95)
 	ink := render.InkBlack
 	if level >= 3 {
 		ink = render.InkColour

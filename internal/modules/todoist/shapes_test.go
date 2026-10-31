@@ -33,7 +33,7 @@ func TestShapes(t *testing.T) {
 		}
 	})
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"api_key":"tok"}`))
+		m, err := Def.New(c, json.RawMessage(`{"api_key":"tok"}`))
 		if err != nil {
 			return nil, err
 		}

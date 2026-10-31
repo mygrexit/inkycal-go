@@ -3,9 +3,7 @@ package jokes
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -22,13 +20,10 @@ type Module struct {
 	url    string
 }
 
-// New takes no module keys: upstream Jokes has none besides the shared ones.
-func New(c config.Common, _ json.RawMessage) (modules.Module, error) {
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
+// Def takes no module keys: upstream Jokes has none besides the shared ones.
+var Def = modules.Define(Meta, func(c config.Common, _ struct{}) (modules.Module, error) {
 	return &Module{common: c, url: APIURL}, nil
-}
+})
 
 type apiJoke struct {
 	ID     string `json:"id"`
@@ -44,12 +39,12 @@ func (m *Module) fetch(ctx context.Context, env *modules.Env) (string, error) {
 	var j apiJoke
 	stale, err := env.Fetch.GetJSON(ctx, m.url, h, &j)
 	if err != nil {
-		return "", fmt.Errorf("jokes: %w", err)
+		return "", err
 	}
 	env.Stale = env.Stale || stale
 	joke := strings.TrimSpace(j.Joke)
 	if joke == "" {
-		return "", errors.New("jokes: API returned no joke")
+		return "", errors.New("API returned no joke")
 	}
 	return joke, nil
 }

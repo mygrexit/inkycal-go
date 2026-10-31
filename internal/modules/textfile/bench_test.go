@@ -14,7 +14,7 @@ import (
 // BenchmarkLineOfDayTall sets a quote of the day on a tall tile, where the size search runs longest.
 func BenchmarkLineOfDayTall(b *testing.B) {
 	common := modulestest.Common(&testing.T{}, `{"size":[480,600],"padding_x":10,"padding_y":10,"fontsize":24,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{"text":"Was du heute kannst besorgen, das verschiebe nicht auf morgen, sagt man, und doch liegt so vieles noch herum.","one_per_day":true}`))
+	m, err := Def.New(common, json.RawMessage(`{"text":"Was du heute kannst besorgen, das verschiebe nicht auf morgen, sagt man, und doch liegt so vieles noch herum.","one_per_day":true}`))
 	if err != nil {
 		b.Fatal(err)
 	}

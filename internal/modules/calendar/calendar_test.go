@@ -78,7 +78,7 @@ func cellInk(t *testing.T, c *render.Canvas, now time.Time, showEvents bool, day
 
 func TestNewRejectsTinySize(t *testing.T) {
 	tiny := modulestest.Common(t, `{"size":[60,60],"padding_x":0,"padding_y":0,"fontsize":14}`)
-	if _, err := New(tiny, json.RawMessage(`{}`)); err == nil {
+	if _, err := Def.New(tiny, json.RawMessage(`{}`)); err == nil {
 		t.Error("60x60 accepted")
 	}
 }
@@ -88,7 +88,7 @@ func TestGenerateWithEvents(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
 	icsURL, hits := serveICS(t)
 	common := modulestest.Common(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
-	m, err := New(common, json.RawMessage(fmt.Sprintf(
+	m, err := Def.New(common, json.RawMessage(fmt.Sprintf(
 		`{"week_starts_on":"Monday","show_events":true,"ical_urls":%q,"ical_files":null,"date_format":"D MMM","time_format":"HH:mm"}`, icsURL)))
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +127,7 @@ func TestGenerateWithoutEventsSkipsFetch(t *testing.T) {
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
 	icsURL, hits := serveICS(t)
 	common := modulestest.Common(t, `{"size":[480,400],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
-	m, err := New(common, json.RawMessage(fmt.Sprintf(`{"show_events":"False","ical_urls":%q}`, icsURL)))
+	m, err := Def.New(common, json.RawMessage(fmt.Sprintf(`{"show_events":"False","ical_urls":%q}`, icsURL)))
 	if err != nil {
 		t.Fatal(err)
 	}
