@@ -11,6 +11,7 @@ import (
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -53,14 +54,14 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 	switch provider {
 	case "openweathermap":
 		if strings.TrimSpace(rc.APIKey) == "" {
-			return nil, errors.New("weather: api_key is missing")
+			return nil, problem.Mark(problem.Missing, errors.New("weather: api_key is missing"))
 		}
 		if strings.TrimSpace(string(rc.Location)) == "" {
-			return nil, errors.New("weather: location is missing")
+			return nil, problem.Mark(problem.Missing, errors.New("weather: location is missing"))
 		}
 	case "open-meteo":
 		if rc.Latitude == nil || rc.Longitude == nil {
-			return nil, errors.New("weather: latitude and longitude are missing (search the place)")
+			return nil, problem.Mark(problem.Missing, errors.New("weather: latitude and longitude are missing (search the place)"))
 		}
 		m.lat, m.lon = float64(*rc.Latitude), float64(*rc.Longitude)
 	default:

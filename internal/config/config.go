@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"inkycal/internal/layout"
+	"inkycal/internal/problem"
 	"inkycal/internal/schedule"
 )
 
@@ -101,7 +102,7 @@ func (c Common) WithSize(w, h int) (Common, error) {
 
 func (c Common) checkSize() error {
 	if w, h := c.InnerSize(); w <= 0 || h <= 0 {
-		return fmt.Errorf("module size %v too small for padding %d/%d", c.Size, c.PaddingX, c.PaddingY)
+		return problem.Mark(problem.Padding, fmt.Errorf("module size %v too small for padding %d/%d", c.Size, c.PaddingX, c.PaddingY))
 	}
 	return nil
 }
@@ -143,7 +144,7 @@ func Parse(data []byte, name string) (*Settings, error) {
 func decode(data []byte, name string) (*Settings, error) {
 	var s Settings
 	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, problem.Mark(problem.BadSetting, fmt.Errorf("%s: %w", name, err))
 	}
 	if s.UpdateInterval <= 0 {
 		s.UpdateInterval = 60
@@ -158,7 +159,7 @@ func decode(data []byte, name string) (*Settings, error) {
 		return nil, fmt.Errorf("orientation must be 0 or 180, got %d", s.Orientation)
 	}
 	if s.Model == "" {
-		return nil, errors.New("model is missing")
+		return nil, errors.New("model is missing") // page-wide: no tile advice fits
 	}
 	if _, err := schedule.ParseTimes(s.UpdateTimes); err != nil {
 		return nil, err
@@ -186,7 +187,7 @@ func tolerate(s *Settings) {
 		}
 		if json.Unmarshal(m.Config, &st) == nil {
 			if err := st.Style.validate(); err != nil {
-				s.Modules[i].Err = fmt.Errorf("style: %w", err)
+				s.Modules[i].Err = problem.Mark(problem.Style, fmt.Errorf("style: %w", err))
 			}
 		}
 		var c struct {
@@ -208,13 +209,13 @@ func tolerate(s *Settings) {
 		var cellErr error
 		switch {
 		case c == nil:
-			cellErr = fmt.Errorf("%w: no cell", ErrCell)
+			cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: no cell", ErrCell))
 		case g.Validate([]layout.Cell{*c}) != nil:
-			cellErr = fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows)
+			cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: cell %v is outside the %dx%d grid", ErrCell, *c, g.Columns, g.Rows))
 		default:
 			for _, j := range placed {
 				if layout.Overlaps(*cells[j], *c) {
-					cellErr = fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1)
+					cellErr = problem.Mark(problem.Placement, fmt.Errorf("%w: cell %v overlaps module %d", ErrCell, *c, j+1))
 					break
 				}
 			}
@@ -256,14 +257,14 @@ func GridCells(s *Settings) (g layout.Grid, cells []layout.Cell, grid bool, err 
 	}
 	if len(missing) > 0 {
 		m := s.Modules[missing[0]]
-		return g, nil, false, fmt.Errorf("grid layout: module %d (%s) has no cell", missing[0]+1, m.Name)
+		return g, nil, false, problem.Mark(problem.Placement, fmt.Errorf("grid layout: module %d (%s) has no cell", missing[0]+1, m.Name))
 	}
 	g = layout.Default
 	if s.Grid != nil {
 		g = *s.Grid
 	}
 	if err := g.Validate(check); err != nil {
-		return g, nil, false, fmt.Errorf("grid layout: %w", err)
+		return g, nil, false, problem.Mark(problem.Placement, fmt.Errorf("grid layout: %w", err))
 	}
 	return g, cells, true, nil
 }

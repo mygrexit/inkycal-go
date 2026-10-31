@@ -17,6 +17,7 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -41,7 +42,7 @@ func NewServer(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("server: %w", err)
 	}
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, fmt.Errorf("server: config is missing path")
+		return nil, problem.Mark(problem.Missing, fmt.Errorf("server: config is missing path"))
 	}
 	if err := modules.CheckMinSize(c, ServerMeta); err != nil {
 		return nil, err
@@ -107,7 +108,7 @@ func post(ctx context.Context, hc *http.Client, target string, items []string) (
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("POST: HTTP %d", resp.StatusCode)
+		return nil, problem.Mark(problem.ForStatus(resp.StatusCode), fmt.Errorf("POST: HTTP %d", resp.StatusCode))
 	}
 	return picture.Decode(data)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/teambition/rrule-go"
 
 	"inkycal/internal/fetch"
+	"inkycal/internal/problem"
 )
 
 type Event struct {
@@ -393,9 +394,9 @@ func checkCalendar(body []byte) error {
 		return nil
 	}
 	if lower := bytes.ToLower(head); bytes.Contains(lower, []byte("<html")) || bytes.Contains(lower, []byte("<!doctype html")) {
-		return errors.New("not an iCalendar file (got HTML)")
+		return problem.Mark(problem.NotCalendar, errors.New("not an iCalendar file (got HTML)"))
 	}
-	return errors.New("not an iCalendar file")
+	return problem.Mark(problem.BadResponse, errors.New("not an iCalendar file"))
 }
 
 // Load fetches all URLs in parallel (webcal:// is treated as https://), reads all files,

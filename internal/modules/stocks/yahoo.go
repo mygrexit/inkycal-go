@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"inkycal/internal/fetch"
+	"inkycal/internal/problem"
 )
 
 // yahooBaseURL is a variable so tests can point it at an httptest server.
@@ -87,7 +88,7 @@ func chartURL(ticker string) string {
 func parseChart(ticker string, body []byte) (quote, error) {
 	var r chartResponse
 	if err := json.Unmarshal(body, &r); err != nil {
-		return quote{}, fmt.Errorf("stocks: %s: invalid JSON: %w", ticker, err)
+		return quote{}, problem.Mark(problem.BadResponse, fmt.Errorf("stocks: %s: invalid JSON: %w", ticker, err))
 	}
 	if e := r.Chart.Error; e != nil {
 		return quote{}, fmt.Errorf("stocks: %s: %s: %s", ticker, e.Code, e.Description)

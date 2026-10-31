@@ -18,6 +18,7 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/weather"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -56,10 +57,10 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		return nil, fmt.Errorf("fullweather: config: %w", err)
 	}
 	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, errors.New("fullweather: api_key is missing")
+		return nil, problem.Mark(problem.Missing, errors.New("fullweather: api_key is missing"))
 	}
 	if rc.Latitude == nil || rc.Longitude == nil {
-		return nil, errors.New("fullweather: latitude and longitude are required")
+		return nil, problem.Mark(problem.Missing, errors.New("fullweather: latitude and longitude are required"))
 	}
 	lat, lon := float64(*rc.Latitude), float64(*rc.Longitude)
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {

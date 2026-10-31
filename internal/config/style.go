@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+
+	"inkycal/internal/problem"
 )
 
 // Colors are a tile's own inks: "white", "black" or "colour" (the panel's red or yellow).
@@ -88,7 +90,7 @@ func Effective(page, module *Style) Style {
 // validateStyles checks the page theme and every module's style.
 func validateStyles(s *Settings) error {
 	if err := s.Theme.validate(); err != nil {
-		return fmt.Errorf("theme: %w", err)
+		return problem.Mark(problem.Style, fmt.Errorf("theme: %w", err))
 	}
 	for i, m := range s.Modules {
 		var c struct {
@@ -98,7 +100,7 @@ func validateStyles(s *Settings) error {
 			continue // reported per module when it runs
 		}
 		if err := c.Style.validate(); err != nil {
-			return fmt.Errorf("module %d (%s): style: %w", i+1, m.Name, err)
+			return problem.Mark(problem.Style, fmt.Errorf("module %d (%s): style: %w", i+1, m.Name, err))
 		}
 	}
 	return nil

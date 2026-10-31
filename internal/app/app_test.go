@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +15,9 @@ import (
 
 	"inkycal/internal/config"
 	"inkycal/internal/fetch"
+	"inkycal/internal/i18n"
 	"inkycal/internal/modules"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 	"inkycal/internal/state"
 )
@@ -78,6 +82,15 @@ var testRegistry = map[string]modules.Factory{
 	"Dot":   func(c config.Common, _ json.RawMessage) (modules.Module, error) { return dotModule{c}, nil },
 	"Fail":  func(config.Common, json.RawMessage) (modules.Module, error) { return failModule{}, nil },
 	"Panic": func(config.Common, json.RawMessage) (modules.Module, error) { panic("broken module") },
+	"Wait":  func(config.Common, json.RawMessage) (modules.Module, error) { return waitModule{}, nil },
+}
+
+// waitModule waits for its data until the cycle gives up, like a fetch that never answers.
+type waitModule struct{}
+
+func (waitModule) Generate(ctx context.Context, _ *modules.Env) (*render.Canvas, error) {
+	<-ctx.Done()
+	return nil, fmt.Errorf("wait: GET https://slow.example: %w", ctx.Err())
 }
 
 func testOptions(t *testing.T, names ...string) (*Options, *fakeDisplay, *fakePiSugar, *fakeSystem) {
@@ -358,24 +371,30 @@ func TestInfoTextRoundsBatteryWithImageHash(t *testing.T) {
 
 func TestErrorHint(t *testing.T) {
 	for _, c := range []struct {
-		name, err, lang, want string
+		name       string
+		err        error
+		lang, want string
 	}{
-		{"Todoist", `todoist: projects: GET https://api.todoist.com/…: HTTP 401: {"error":"Unauthorized"}`, "de", "Todoist: Zugang abgelehnt – API-Schlüssel in settings.json prüfen"},
-		{"Weather", `weather: current: Get "https://api.openweathermap.org/…": dial tcp: lookup api.openweathermap.org: no such host`, "de", "Wetter: keine Verbindung"},
-		{"Calendar", "calendar: calendar 2: boom", "de", "Kalender: Fehler – Details mit journalctl -u inkycal-go"},
-		{"Calendar", "boom", "en", "Calendar: error – see journalctl -u inkycal-go"},
-		{"Weather", "weather: latitude and longitude are missing (search the place)", "de", "Wetter: noch nicht eingerichtet – im Builder ausfüllen"},
-		{"Agenda", "agenda: ical_urls is missing", "en", "Agenda: not set up yet – fill it in with the builder"},
-		{"Widget", `unknown module "Widget"`, "de", "Widget: dieses Modul gibt es nicht mehr – Kachel entfernen"},
-		{"Calendar", "calendar: https://x/basic.ics: not an iCalendar file (got HTML)", "de", "Kalender: Adresse liefert eine Webseite statt eines Kalenders – iCal-Adresse verwenden"},
-		{"Calendar", "calendar: https://x/basic.ics: not an iCalendar file (got HTML)", "en", "Calendar: the address shows a web page, not a calendar – use the iCal address"},
-		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "de", "Wetter: Kachel zu klein – im Builder vergrößern"},
-		{"Weather", "weather: inner size 120x40 too small (min 200x100)", "en", "Weather: tile too small – make it bigger in the builder"},
-		{"Weather", "Weather: style: scale 3: want 0.5–2", "de", "Wetter: ungültiger Stil – im Builder neu wählen"},
-		{"Weather", "Weather: style: scale 3: want 0.5–2", "en", "Weather: invalid style – choose it again in the builder"},
+		{"Todoist", &fetch.StatusError{URL: "https://api.todoist.com/…", Code: 401, Body: `{"error":"Unauthorized"}`}, "de", "Todoist: Zugang abgelehnt – API-Schlüssel in settings.json prüfen"},
+		{"Weather", fmt.Errorf("weather: current: %w", &net.DNSError{Err: "no such host", Name: "api.openweathermap.org", IsNotFound: true}), "de", "Wetter: keine Verbindung"},
+		{"Weather", fmt.Errorf("weather: %w", context.DeadlineExceeded), "de", "Wetter: Dienst antwortet nicht – nächster Versuch beim nächsten Aufwachen"},
+		{"Calendar", errors.New("calendar: calendar 2: boom"), "de", "Kalender: Fehler – Details mit journalctl -u inkycal-go"},
+		{"Calendar", errors.New("boom"), "en", "Calendar: error – see journalctl -u inkycal-go"},
+		{"Fullweather", problem.Mark(problem.Missing, errors.New("fullweather: latitude and longitude are required")), "en", "Fullweather: not set up yet – fill it in with the builder"},
+		{"Widget", problem.Mark(problem.UnknownModule, errors.New(`unknown module "Widget"`)), "de", "Widget: dieses Modul gibt es nicht mehr – Kachel entfernen"},
+		{"Weather", problem.Mark(problem.Padding, errors.New("module size [40 40] too small for padding 30/30")), "de", "Wetter: Innenabstand größer als die Kachel – im Builder verkleinern"},
 	} {
-		if got := errorHint(c.name, errors.New(c.err), c.lang); got != c.want {
+		if got := errorHint(c.name, c.err, c.lang); got != c.want {
 			t.Errorf("%s %q:\n got %q\nwant %q", c.name, c.err, got, c.want)
+		}
+	}
+}
+
+// Every kind with a panel hint has its text; a missing key would print the key itself.
+func TestHintKeysHaveTexts(t *testing.T) {
+	for kind, key := range hintKeys {
+		if i18n.T("en", key, "X") == key { // German: TestGermanCoversHints in i18n
+			t.Errorf("%v: %s has no text", kind, key)
 		}
 	}
 }
@@ -596,4 +615,52 @@ func modulestestInk(c *render.Canvas) (black, colour bool) {
 		}
 	}
 	return black, colour
+}
+
+// In the stacked layout a tile whose settings are broken shows its hint too, as on a grid.
+func TestStackedBrokenTileShowsHint(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "settings.json")
+	os.WriteFile(p, []byte(`{"model":"epd_7_in_5_v2_colour","modules":[
+		{"position":1,"name":"Dot","config":{"size":[480,200],"padding_x":10,"padding_y":10,"style":{"scale":3}}}]}`), 0o600)
+	s, err := config.Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, _, _, _ := testOptions(t)
+	o.Settings = s
+	out := runModules(context.Background(), o, o.Now(), nil)
+	if out[0].err == nil {
+		t.Fatal("want the style error")
+	}
+	if b, _ := modulestestInk(out[0].part.Img); !b {
+		t.Error("blank tile: want the hint")
+	}
+}
+
+// The kinds runModules itself produces, from the real code path.
+func TestRunModulesErrorKinds(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Widget", "Wait")
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) // stands in for the 60 s module limit
+	defer cancel()
+	out := runModules(ctx, o, o.Now(), nil)
+	if got := problem.Classify(out[0].err); got != problem.UnknownModule {
+		t.Errorf("unknown module: %v (%v)", got, out[0].err)
+	}
+	if got := problem.Classify(out[1].err); got != problem.Timeout {
+		t.Errorf("module limit: %v (%v)", got, out[1].err)
+	}
+}
+
+// Padding larger than the tile leaves no inner area: the hint uses the whole section.
+func TestStackedPaddingErrorShowsHint(t *testing.T) {
+	o, _, _, _ := testOptions(t)
+	o.Settings.Modules = []config.ModuleEntry{{Position: 1, Name: "Dot", Config: json.RawMessage(`{"size":[480,60],"padding_x":250,"padding_y":40}`)}}
+	out := runModules(context.Background(), o, o.Now(), nil)
+	if problem.Classify(out[0].err) != problem.Padding {
+		t.Fatalf("err %v", out[0].err)
+	}
+	if b, _ := modulestestInk(out[0].part.Img); !b {
+		t.Error("blank section: want the padding hint")
+	}
 }

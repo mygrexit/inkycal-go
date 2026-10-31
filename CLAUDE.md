@@ -30,6 +30,7 @@ internal/config/      settings.json (upstream-compatible), grid cells, Style/the
 internal/epd/         panel drivers, Panels() catalog, Inks(model); trace tests
 internal/render/      Canvas, fonts, Theme (font pairs, custom fonts with fallback), inks, AssembleGrid
 internal/modules/     one package per module + meta.go (Meta/Field) + modulestest
+internal/problem/     error kinds (Classify, Mark): one source for panel hints and builder advice
 internal/{fetch,ical,schedule,state,pisugar,sysinfo,timefmt,i18n,layout,picture}
 deploy/               install.sh, systemd unit, image/ and tuning/ notes
 tools/epdtrace/       regenerates driver byte traces from an upstream checkout
@@ -50,7 +51,7 @@ tools/wakebench/      cold-start comparison against a release
 
 - Register it in `internal/app/registry.go`; give it a `modules.Meta` (Group, Icon, MinW/MinH, Fields with Help).
 - Test with `modulestest.CheckMeta` and draw at every `modulestest.Shapes` size; too small → `CheckMinSize` error, not a crash.
-- Errors users can hit need a plain-language case in `builder/explain.go` and, for the panel, `app/hint.go` + `i18n` (en and de).
+- Errors users can hit get a kind: mark them where they arise with `problem.Mark(problem.<Kind>, err)` (network, HTTP status, missing files and JSON types are recognised by type). A new kind goes into `internal/problem`, with advice in `builder/explain.go`, a hint key in `app/hint.go` + `i18n` (en and de) — except `Placement`: an unplaced tile has nowhere to show one — and a test that takes the error from its real producer (`problem_test.go`, or the producer's own package when it is internal, e.g. `app`). Never match error text.
 - Field kinds the UI understands: text, secret, url, url_list, text_list, number, bool, select, multiline, place.
 
 ## Gotchas
