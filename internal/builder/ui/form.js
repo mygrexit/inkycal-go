@@ -84,7 +84,7 @@ export function normalize(name, config) {
     const source = config.text ? "text" : p.startsWith("http://") || p.startsWith("https://") ? "url" : p ? "file" : "text";
     return { ...config, source };
   }
-  if (name === "Weather" && !config.provider) {
+  if ((name === "Weather" || name === "Fullweather") && !config.provider) {
     return { ...config, provider: config.api_key ? "openweathermap" : "open-meteo" };
   }
   return config;

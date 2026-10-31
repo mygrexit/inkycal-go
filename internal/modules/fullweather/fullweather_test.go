@@ -10,9 +10,11 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -25,6 +27,7 @@ import (
 	"inkycal/internal/forecast"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
+	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -42,7 +45,6 @@ const fullCommon = `{"size":[984,1304],"padding_x":40,"padding_y":20,"fontsize":
 func TestNewUpstreamKeys(t *testing.T) {
 	common := modulestest.Common(t, fullCommon)
 	for name, raw := range map[string]string{
-		"no api_key":   `{"latitude":51.5,"longitude":-0.13}`,
 		"no latitude":  `{"api_key":"k","longitude":-0.13}`,
 		"no longitude": `{"api_key":"k","latitude":51.5}`,
 		"bad latitude": `{"api_key":"k","latitude":"north","longitude":1}`,
@@ -51,6 +53,9 @@ func TestNewUpstreamKeys(t *testing.T) {
 		if _, err := Def.New(common, json.RawMessage(raw)); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+	if _, err := Def.New(common, json.RawMessage(`{"provider":"openweathermap","latitude":51.5,"longitude":-0.13}`)); problem.Classify(err) != problem.Missing {
+		t.Errorf("OpenWeatherMap without api_key: %v", err)
 	}
 	tiny := modulestest.Common(t, `{"size":[300,60],"padding_x":0,"padding_y":0}`)
 	if _, err := Def.New(tiny, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1}`)); err == nil {
@@ -383,4 +388,62 @@ func writePNG(t *testing.T, path string, c *render.Canvas) {
 	if err := png.Encode(f, img); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Without an API key a tile reads Open-Meteo: five days, the UV index included.
+func TestGenerateWithOpenMeteo(t *testing.T) {
+	loc := berlin(t)
+	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
+	day := time.Date(2026, 10, 13, 0, 0, 0, 0, loc)
+	var times, temps, codes, precip, wind, isDay, rises, sets []string
+	for h := range 5 * 24 {
+		at := day.Add(time.Duration(h) * time.Hour)
+		times = append(times, strconv.FormatInt(at.Unix(), 10))
+		temps = append(temps, strconv.Itoa(4+h%24/3))
+		codes = append(codes, []string{"3", "61", "1"}[h/24%3])
+		precip = append(precip, []string{"0", "0.4", "0"}[h/24%3])
+		wind = append(wind, "3.5")
+		isDay = append(isDay, strconv.Itoa(boolInt(at.Hour() >= 7 && at.Hour() < 19)))
+	}
+	for d := range 5 {
+		rises = append(rises, strconv.FormatInt(day.AddDate(0, 0, d).Add(7*time.Hour+50*time.Minute).Unix(), 10))
+		sets = append(sets, strconv.FormatInt(day.AddDate(0, 0, d).Add(18*time.Hour+40*time.Minute).Unix(), 10))
+	}
+	j := func(s []string) string { return "[" + strings.Join(s, ",") + "]" }
+	body := `{"current":{"temperature_2m":7.6,"relative_humidity_2m":88,"apparent_temperature":5.2,"is_day":0,"weather_code":61,"wind_speed_10m":3.2,"wind_gusts_10m":6.4,"uv_index":0.4},` +
+		`"hourly":{"time":` + j(times) + `,"temperature_2m":` + j(temps) + `,"weather_code":` + j(codes) + `,"precipitation":` + j(precip) +
+		`,"wind_speed_10m":` + j(wind) + `,"wind_gusts_10m":` + j(wind) + `,"is_day":` + j(isDay) + `},` +
+		`"daily":{"sunrise":` + j(rises) + `,"sunset":` + j(sets) + `}}`
+	var query url.Values
+	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/forecast" {
+			t.Errorf("path %s: want Open-Meteo only", r.URL.Path)
+		}
+		query = r.URL.Query()
+		io.WriteString(w, body)
+	}))
+	m, err := Def.New(modulestest.Common(t, fullCommon), json.RawMessage(`{"location":"Köln","latitude":50.94,"longitude":6.96,"locale":"de_DE.UTF-8"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := m.Generate(context.Background(), &modules.Env{Now: now, Loc: loc, Fetch: fc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.Get("forecast_days") != "5" || !strings.Contains(query.Get("current"), "uv_index") {
+		t.Errorf("query %v", query)
+	}
+	if c.W != 904 || c.H != 1264 {
+		t.Fatalf("canvas = %dx%d", c.W, c.H)
+	}
+	if black, _ := modulestest.InkIn(c, 300, 0, 424, 124); !black {
+		t.Error("current icon missing")
+	}
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

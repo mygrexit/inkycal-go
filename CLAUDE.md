@@ -31,6 +31,7 @@ internal/epd/         panel drivers, Panels() catalog, Inks(model); trace tests
 internal/render/      Canvas, fonts, Theme (font pairs, custom fonts with fallback), inks, AssembleGrid
 internal/modules/     one package per module + meta.go (Meta/Field) + modulestest
 internal/problem/     error kinds (Classify, Mark): one source for panel hints and builder advice
+internal/forecast/    weather data for Weather and Fullweather: OpenWeatherMap or Open-Meteo, one model
 internal/{fetch,ical,schedule,state,pisugar,sysinfo,timefmt,i18n,layout,picture}
 deploy/               install.sh, systemd unit, image/ and tuning/ notes
 tools/epdtrace/       regenerates driver byte traces from an upstream checkout
@@ -41,7 +42,7 @@ tools/wakebench/      cold-start comparison against a release
 ## Rules
 
 - **Wake time must not get worse.** Check with `make bench` / `make wakebench` before a release. Nothing new on the device path unless a setting uses it; no network-online dependency in the unit; panel init and network wait run in parallel.
-- **Upstream settings keep working.** `internal/app/testdata/upstream-generator.json` must load and every module must accept its config (`compat_test.go`). New keys are optional with old behaviour as default (e.g. Weather with `api_key` stays on OpenWeatherMap, TextToDisplay with `filepath` unchanged).
+- **Upstream settings keep working.** `internal/app/testdata/upstream-generator.json` must load and every module must accept its config (`compat_test.go`). New keys are optional with old behaviour as default (e.g. Weather and Fullweather with `api_key` stay on OpenWeatherMap, TextToDisplay with `filepath` unchanged).
 - **Display drivers** must match upstream byte for byte: `internal/epd/testdata/trace/*.txt` via `trace_test.go`; regenerate only with `tools/epdtrace/regen.sh`.
 - **Red/yellow ink only for meaning** (today, alerts), never decoration. `colour_ink` is preview-only.
 - **No secrets** (API keys, tokens, Wi-Fi passwords) in logs, errors or API responses — use `fetch.Redact`; secret fields use `modules.KindSecret`.

@@ -75,6 +75,8 @@ test("normalize keeps upstream weather on OpenWeatherMap", async () => {
   assert.equal(normalize("Weather", { api_key: "k" }).provider, "openweathermap");
   assert.equal(normalize("Weather", { latitude: 1 }).provider, "open-meteo");
   assert.equal(normalize("Weather", { provider: "open-meteo", api_key: "k" }).provider, "open-meteo");
+  assert.equal(normalize("Fullweather", { api_key: "k", latitude: 1 }).provider, "openweathermap"); // upstream
+  assert.equal(normalize("Fullweather", { latitude: 1 }).provider, "open-meteo");
 });
 
 test("choosing Other… keeps the current value until something is typed", async () => {
