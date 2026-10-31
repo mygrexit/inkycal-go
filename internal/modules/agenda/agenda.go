@@ -26,7 +26,7 @@ type Agenda struct {
 	s      settings
 }
 
-// Def validates the config; defaults match the Python module.
+// Def builds Agenda; defaults match the Python module.
 var Def = modules.Define(Meta, func(c config.Common, s settings) (modules.Module, error) {
 	if s.DateFormat == "" {
 		s.DateFormat = "ddd D MMM"

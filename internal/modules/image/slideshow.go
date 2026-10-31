@@ -2,7 +2,6 @@ package image
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,16 +28,18 @@ type Slideshow struct {
 	look     look
 }
 
+type slideshowConfig struct {
+	Path     string         `json:"path"`
+	Interval config.FlexInt `json:"interval"`
+	rawLook
+}
+
 // SlideshowDef is the module registered as "Slideshow".
 //
 // Besides the upstream keys it reads "interval" (minutes, default 1440 = one image
 // per day). Set it to the time between wakes – e.g. 720 for update_times
 // ["06:00", "18:00"] or 60 for update_interval 60 – to show the next image on every update.
-var SlideshowDef = modules.Define(SlideshowMeta, func(c config.Common, cfg struct {
-	Path     string         `json:"path"`
-	Interval config.FlexInt `json:"interval"`
-	rawLook
-}) (modules.Module, error) {
+var SlideshowDef = modules.Define(SlideshowMeta, func(c config.Common, cfg slideshowConfig) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
 		return nil, modules.Missing("path")
 	}
@@ -99,7 +100,7 @@ func (m *Slideshow) Generate(ctx context.Context, env *modules.Env) (*render.Can
 		return nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no PNG or JPG images in %s", m.dir)
+		return nil, modules.Bad("no PNG or JPG images in %s", m.dir)
 	}
 	img, _, err := picture.Load(ctx, env.Fetch, pickSlide(files, env.Now, m.interval))
 	if err != nil {

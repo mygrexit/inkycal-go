@@ -16,7 +16,6 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/weather"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -54,7 +53,7 @@ var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Modu
 		return nil, modules.Missing("api_key")
 	}
 	if rc.Latitude == nil || rc.Longitude == nil {
-		return nil, problem.Mark(problem.Missing, errors.New("latitude and longitude are required"))
+		return nil, modules.Missing("latitude", "longitude")
 	}
 	lat, lon := float64(*rc.Latitude), float64(*rc.Longitude)
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {

@@ -134,11 +134,13 @@ type Image struct {
 	look   look
 }
 
-// ImageDef is the module registered as "Inkyimage".
-var ImageDef = modules.Define(ImageMeta, func(c config.Common, cfg struct {
+type imageConfig struct {
 	Path string `json:"path"`
 	rawLook
-}) (modules.Module, error) {
+}
+
+// ImageDef is the module registered as "Inkyimage".
+var ImageDef = modules.Define(ImageMeta, func(c config.Common, cfg imageConfig) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
 		return nil, modules.Missing("path")
 	}

@@ -9,7 +9,6 @@ import (
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -55,7 +54,7 @@ var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Modu
 		}
 	case "open-meteo":
 		if rc.Latitude == nil || rc.Longitude == nil {
-			return nil, problem.Mark(problem.Missing, errors.New("latitude and longitude are missing (search the place)"))
+			return nil, modules.Missing("latitude", "longitude") // the builder's place search writes them
 		}
 		m.lat, m.lon = float64(*rc.Latitude), float64(*rc.Longitude)
 	default:

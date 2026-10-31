@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"inkycal/internal/config"
 	"inkycal/internal/problem"
@@ -44,9 +45,12 @@ func Define[C any](m Meta, build func(c config.Common, cfg C) (Module, error)) D
 	}}
 }
 
-// Missing is a required setting that is empty.
-func Missing(key string) error {
-	return problem.Mark(problem.Missing, errors.New(key+" is missing"))
+// Missing is a required setting that is empty; several keys are missing together.
+func Missing(keys ...string) error {
+	if len(keys) == 1 {
+		return problem.Mark(problem.Missing, errors.New(keys[0]+" is missing"))
+	}
+	return problem.Mark(problem.Missing, fmt.Errorf("%s and %s are missing", strings.Join(keys[:len(keys)-1], ", "), keys[len(keys)-1]))
 }
 
 // Bad is a setting with a value the module cannot use.

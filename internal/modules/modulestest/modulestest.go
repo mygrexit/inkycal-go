@@ -3,7 +3,6 @@ package modulestest
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"reflect"
 	"slices"
@@ -53,8 +52,9 @@ func CheckMeta(t *testing.T, d modules.Def, inferred ...string) {
 			full[fl.Key] = sample(fl)
 		}
 	}
-	build := func(w, h int, drop string) error {
+	build := func(w, h int, drop string, set map[string]any) error {
 		vals := maps.Clone(full)
+		maps.Copy(vals, set)
 		delete(vals, drop)
 		vals["size"] = [2]int{w + 20, h + 20}
 		vals["padding_x"], vals["padding_y"], vals["fontsize"], vals["language"] = 10, 10, 14, "en"
@@ -69,28 +69,27 @@ func CheckMeta(t *testing.T, d modules.Def, inferred ...string) {
 		_, err = f(c, raw)
 		return err
 	}
-	if err := build(m.MinW, m.MinH, ""); err != nil {
+	if err := build(m.MinW, m.MinH, "", nil); err != nil {
 		t.Errorf("%s: defaults at the minimum size %dx%d: %v", m.Name, m.MinW, m.MinH, err)
 	}
-	if build(m.MinW-1, m.MinH, "") == nil || build(m.MinW, m.MinH-1, "") == nil {
+	if build(m.MinW-1, m.MinH, "", nil) == nil || build(m.MinW, m.MinH-1, "", nil) == nil {
 		t.Errorf("%s: accepted less than the minimum size %dx%d", m.Name, m.MinW, m.MinH)
 	}
 	for _, fl := range m.Fields {
-		if !fl.Required || slices.Contains(inferred, fl.Key) || !shown(fl, full) {
+		if !fl.Required || slices.Contains(inferred, fl.Key) {
 			continue
 		}
-		if err := build(m.MinW, m.MinH, fl.Key); problem.Classify(err) != problem.Missing {
-			t.Errorf("%s: required %q left out: %v, want it reported missing", m.Name, fl.Key, err)
+		var set map[string]any // the choice that shows the field, e.g. provider: openweathermap
+		if fl.ShowIf != nil {
+			set = map[string]any{fl.ShowIf.Key: fl.ShowIf.Values[0]}
+		}
+		if err := build(m.MinW, m.MinH, "", set); err != nil {
+			t.Errorf("%s: %v with samples: %v", m.Name, set, err)
+		}
+		if err := build(m.MinW, m.MinH, fl.Key, set); problem.Classify(err) != problem.Missing {
+			t.Errorf("%s: required %q left out (%v): %v, want it reported missing", m.Name, fl.Key, set, err)
 		}
 	}
-}
-
-// shown reports whether the builder shows f for these values (its ShowIf holds).
-func shown(f modules.Field, vals map[string]any) bool {
-	if f.ShowIf == nil {
-		return true
-	}
-	return slices.ContainsFunc(f.ShowIf.Values, func(v any) bool { return fmt.Sprint(v) == fmt.Sprint(vals[f.ShowIf.Key]) })
 }
 
 func sample(f modules.Field) any {

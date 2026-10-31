@@ -31,12 +31,14 @@ type Server struct {
 	look   look
 }
 
-// ServerDef is the module registered as "Inkyserver".
-var ServerDef = modules.Define(ServerMeta, func(c config.Common, cfg struct {
+type serverConfig struct {
 	Path     string            `json:"path"`
 	PathBody config.StringList `json:"path_body"`
 	rawLook
-}) (modules.Module, error) {
+}
+
+// ServerDef is the module registered as "Inkyserver".
+var ServerDef = modules.Define(ServerMeta, func(c config.Common, cfg serverConfig) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
 		return nil, modules.Missing("path")
 	}

@@ -3,7 +3,6 @@ package modules_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
@@ -71,7 +70,13 @@ func TestDefineKeepsMeta(t *testing.T) {
 }
 
 func TestMissingAndBadText(t *testing.T) {
-	if err := modules.Missing("api_key"); err.Error() != "api_key is missing" || !errors.Is(err, err) {
+	if err := modules.Missing("api_key"); err.Error() != "api_key is missing" {
+		t.Errorf("%v", err)
+	}
+	if err := modules.Missing("latitude", "longitude"); err.Error() != "latitude and longitude are missing" || problem.Classify(err) != problem.Missing {
+		t.Errorf("%v", err)
+	}
+	if err := modules.Bad("mode %q", "x"); err.Error() != `mode "x"` || problem.Classify(err) != problem.BadSetting {
 		t.Errorf("%v", err)
 	}
 }
