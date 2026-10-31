@@ -458,12 +458,14 @@ func Load(ctx context.Context, fc *fetch.Client, urls, files []string, from, to 
 		stale = true
 	}
 	for fi, path := range files {
-		f, err := os.Open(path)
+		body, err := os.ReadFile(path)
 		if err != nil {
 			return nil, false, err
 		}
-		ev, err := Parse(f, from, to, loc)
-		f.Close()
+		if err := checkCalendar(body); err != nil {
+			return nil, false, fmt.Errorf("%s: %w", path, err)
+		}
+		ev, err := Parse(bytes.NewReader(body), from, to, loc)
 		if err != nil {
 			return nil, false, fmt.Errorf("%s: %w", path, err)
 		}

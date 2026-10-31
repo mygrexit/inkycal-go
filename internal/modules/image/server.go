@@ -1,15 +1,11 @@
 package image
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	goimage "image"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -63,52 +59,31 @@ func (m *Server) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	w, h := m.common.InnerSize()
 	url := serverURL(m.path, w, h)
 	var img goimage.Image
+	var stale bool
 	var err error
 	if len(m.body) == 0 {
-		var stale bool
 		img, stale, err = picture.Load(ctx, env.Fetch, url)
-		env.Stale = env.Stale || stale
 	} else {
-		img, err = post(ctx, env.Fetch.HTTP, url, m.body)
+		img, stale, err = post(ctx, env.Fetch, url, m.body)
 	}
+	env.Stale = env.Stale || stale
 	if err != nil {
 		return nil, fmt.Errorf("server: %w", err)
 	}
 	return m.look.place(img, w, h, int(m.common.FontSize)), nil
 }
 
-const maxImage = 20 << 20
-
-// post sends items as a JSON list and decodes the image in the answer. fetch.Client
-// only does GET, so this request has no retry or cache fallback.
-func post(ctx context.Context, hc *http.Client, target string, items []string) (goimage.Image, error) {
+// post sends items as a JSON list and decodes the image in the answer; offline it is
+// the last image the server sent for the same items.
+func post(ctx context.Context, fc *fetch.Client, target string, items []string) (goimage.Image, bool, error) {
 	payload, err := json.Marshal(items)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(payload))
+	res, err := fc.Post(ctx, target, http.Header{"Content-Type": {"application/json"}}, payload)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "inkycal-go")
-	if hc == nil {
-		hc = http.DefaultClient
-	}
-	resp, err := hc.Do(req)
-	if err != nil {
-		if ue, ok := errors.AsType[*url.Error](err); ok {
-			err = fmt.Errorf("POST %s: %w", fetch.Redact(target), ue.Err) // url.Error would log tokens in the query
-		}
-		return nil, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxImage))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, problem.Mark(problem.ForStatus(resp.StatusCode), fmt.Errorf("POST: HTTP %d", resp.StatusCode))
-	}
-	return picture.Decode(data)
+	img, err := picture.Decode(res.Body)
+	return img, res.Stale, err
 }

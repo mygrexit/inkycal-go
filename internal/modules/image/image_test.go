@@ -370,3 +370,27 @@ func TestPreview(t *testing.T) {
 		writePNG(t, filepath.Join(dir, tc.name+".png"), out)
 	}
 }
+
+// Offline, a POSTed image comes from the cache like a fetched one: the panel keeps it.
+func TestServerPostFallsBackToCache(t *testing.T) {
+	data := pngBytes(t, scene(904, 140))
+	down := false
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if down {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Write(data)
+	}))
+	defer ts.Close()
+	m, _ := NewServer(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+ts.URL+`/panel","palette":"bw","path_body":"https://a/x.ics"}`))
+	env := newEnv(t)
+	env.Fetch.Backoff = time.Millisecond
+	if _, err := m.Generate(context.Background(), env); err != nil {
+		t.Fatal(err)
+	}
+	down = true
+	if _, err := m.Generate(context.Background(), env); err != nil || !env.Stale {
+		t.Errorf("server down: err %v stale %v, want the cached image", err, env.Stale)
+	}
+}

@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"inkycal/internal/fetch"
+	"inkycal/internal/problem"
 )
 
 // A web page (often a login page) instead of a calendar is reported, not shown as "no events".
@@ -35,5 +38,18 @@ func TestLoadAcceptsEmptyCalendar(t *testing.T) {
 	ev, _, err := Load(context.Background(), fetch.New(""), []string{srv.URL}, nil, now, now.AddDate(0, 1, 0), time.UTC)
 	if err != nil || len(ev) != 0 {
 		t.Errorf("empty body: %v %v", ev, err)
+	}
+}
+
+// A local file gets the same check: a saved web page is reported, not shown as "no events".
+func TestLoadRejectsLocalWebPage(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "family.ics")
+	if err := os.WriteFile(p, []byte("<!DOCTYPE html><html><body>Sign in</body></html>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	_, _, err := Load(context.Background(), fetch.New(""), nil, []string{p}, now, now.AddDate(0, 1, 0), time.UTC)
+	if problem.Classify(err) != problem.NotCalendar || !strings.Contains(err.Error(), p) {
+		t.Errorf("err %v, want a not-a-calendar error naming the file", err)
 	}
 }
