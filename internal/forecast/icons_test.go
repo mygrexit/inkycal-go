@@ -1,6 +1,7 @@
 package forecast
 
 import (
+	"inkycal/internal/forecast/forecasttest"
 	"testing"
 	"time"
 )
@@ -46,7 +47,7 @@ func TestWindLevel(t *testing.T) {
 }
 
 func TestDayIconPrefersPrecipitationOverMajority(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	at := func(h int, icon string) Point {
 		return Point{Time: time.Date(2026, 10, 13, h, 0, 0, 0, loc), Icon: icon}
 	}

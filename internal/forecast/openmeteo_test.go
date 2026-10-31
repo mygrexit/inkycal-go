@@ -11,39 +11,9 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/forecast/forecasttest"
 	"inkycal/internal/problem"
 )
-
-// omFixture is an Open-Meteo answer (timeformat=unixtime) starting at 06:00 local time,
-// 12 hourly values; rain 0.5 mm in the hours ending 07:00, 08:00 and 09:00.
-func omFixture(start time.Time) string {
-	var times, temps, codes, precip, wind, gust, isDay []string
-	for h := range 12 {
-		at := start.Add(time.Duration(h) * time.Hour)
-		times = append(times, fmt.Sprint(at.Unix()))
-		temps = append(temps, fmt.Sprintf("%.1f", 4+float64(h)/2))
-		code := "3"
-		if h >= 1 && h <= 3 {
-			code = "61"
-		}
-		codes = append(codes, code)
-		p := "0"
-		if h >= 1 && h <= 3 {
-			p = "0.5"
-		}
-		precip = append(precip, p)
-		wind = append(wind, "2.0")
-		gust = append(gust, "5.5")
-		isDay = append(isDay, "1")
-	}
-	j := func(s []string) string { return "[" + strings.Join(s, ",") + "]" }
-	day := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
-	return fmt.Sprintf(`{"current":{"time":%d,"temperature_2m":4.2,"relative_humidity_2m":81,"apparent_temperature":1.5,"is_day":1,"weather_code":61,"wind_speed_10m":3.1,"wind_gusts_10m":7.9},
-"hourly":{"time":%s,"temperature_2m":%s,"weather_code":%s,"precipitation":%s,"wind_speed_10m":%s,"wind_gusts_10m":%s,"is_day":%s},
-"daily":{"time":[%d],"temperature_2m_max":[9.5],"sunrise":[%d],"sunset":[%d]}}`,
-		start.Unix(), j(times), j(temps), j(codes), j(precip), j(wind), j(gust), j(isDay),
-		day.Unix(), day.Add(7*time.Hour+40*time.Minute).Unix(), day.Add(18*time.Hour+30*time.Minute).Unix())
-}
 
 func serveOpenMeteo(t *testing.T, body string) (*fetch.Client, *http.Request) {
 	t.Helper()
@@ -56,9 +26,9 @@ func serveOpenMeteo(t *testing.T, body string) (*fetch.Client, *http.Request) {
 }
 
 func TestOpenMeteoMapsToTheSameModel(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	start := time.Date(2026, 10, 13, 6, 0, 0, 0, loc)
-	fc, req := serveOpenMeteo(t, omFixture(start))
+	fc, req := serveOpenMeteo(t, forecasttest.OpenMeteo(start, 12))
 	r, err := openMeteo{lat: 52.52, lon: 13.41, lang: "de"}.fetch(context.Background(), fc, loc, Want{})
 	if err != nil || r.Stale || r.UV != nil {
 		t.Fatalf("err %v stale %v uv %v", err, r.Stale, r.UV)
@@ -89,9 +59,8 @@ func TestOpenMeteoMapsToTheSameModel(t *testing.T) {
 
 // Fullweather asks for five days and the UV index, which Open-Meteo has for free.
 func TestOpenMeteoDaysAndUV(t *testing.T) {
-	loc := berlin(t)
-	body := strings.Replace(omFixture(time.Date(2026, 10, 13, 6, 0, 0, 0, loc)), `"wind_gusts_10m":7.9}`, `"wind_gusts_10m":7.9,"uv_index":3.4}`, 1)
-	fc, req := serveOpenMeteo(t, body)
+	loc := forecasttest.Berlin(t)
+	fc, req := serveOpenMeteo(t, forecasttest.OpenMeteo(time.Date(2026, 10, 13, 6, 0, 0, 0, loc), 5*24))
 	r, err := openMeteo{lat: 52.52, lon: 13.41, lang: "en"}.fetch(context.Background(), fc, loc, Want{Days: 5, UV: true})
 	if err != nil {
 		t.Fatal(err)
@@ -127,11 +96,12 @@ func TestSourceChoosesTheService(t *testing.T) {
 		{Settings{APIKey: "k", Location: "Berlin"}, "owm"},
 		{Settings{APIKey: "k", Latitude: ptr(50.9), Longitude: ptr(6.9)}, "owm"}, // upstream Fullweather
 		{Settings{Latitude: ptr(52.5), Longitude: ptr(13.4), Location: "Berlin"}, "openMeteo"},
-		{Settings{Provider: "open-meteo", Location: "Berlin"}, "latitude and longitude are missing"},
-		{Settings{Provider: "openweathermap", Location: "Berlin"}, "api_key is missing"},
-		{Settings{Provider: "openweathermap", APIKey: "k"}, "location is missing"},
+		{Settings{Provider: OpenMeteo, Location: "Berlin"}, "latitude and longitude are missing"},
+		{Settings{Provider: OpenWeatherMap, Location: "Berlin"}, "api_key is missing"},
+		{Settings{Provider: OpenWeatherMap, APIKey: "k"}, "location is missing"},
 		{Settings{Provider: "met.no"}, `provider "met.no"`},
 		{Settings{Latitude: ptr(91), Longitude: ptr(0)}, "out of range"},
+		{Settings{APIKey: "k", Location: "Berlin", Latitude: ptr(91), Longitude: ptr(0)}, "owm"}, // by name: coordinates unused
 	}
 	for _, c := range cases {
 		src, err := c.s.Source("en", Want{})
@@ -145,5 +115,31 @@ func TestSourceChoosesTheService(t *testing.T) {
 		if !strings.Contains(got, c.want) {
 			t.Errorf("%+v: %s, want %s", c.s, got, c.want)
 		}
+	}
+}
+
+// Fullweather goes by coordinates (Want.ByCoords) and reports in its old order:
+// api_key, then the coordinates, then their range.
+func TestSourceByCoords(t *testing.T) {
+	cases := []struct {
+		s    Settings
+		want string
+	}{
+		{Settings{Provider: OpenWeatherMap}, "api_key is missing"},
+		{Settings{APIKey: "k", Location: "Köln"}, "latitude and longitude are missing"},
+		{Settings{APIKey: "k", Latitude: ptr(95), Longitude: ptr(1)}, "out of range"},
+		{Settings{Latitude: ptr(1)}, "latitude and longitude are missing"},
+	}
+	for _, c := range cases {
+		if _, err := c.s.Source("en", Want{ByCoords: true}); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%+v: %v, want %q", c.s, err, c.want)
+		}
+	}
+	src, err := Settings{APIKey: "k", Location: "Köln", Latitude: ptr(50.9), Longitude: ptr(6.9)}.Source("en", Want{ByCoords: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o := src.p.(owm); o.place != "" || !o.hasCoords {
+		t.Errorf("by coordinates: %+v", o)
 	}
 }

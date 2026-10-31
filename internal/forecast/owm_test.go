@@ -11,46 +11,9 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"inkycal/internal/fetch"
 	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/forecast/forecasttest"
 )
-
-func berlin(t *testing.T) *time.Location {
-	t.Helper()
-	loc, err := time.LoadLocation("Europe/Berlin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return loc
-}
-
-// serveOWM answers OpenWeatherMap's /weather and /forecast.
-func serveOWM(t *testing.T, currentBody, forecastBody string) *fetch.Client {
-	t.Helper()
-	return fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("units"); got != "metric" {
-			t.Errorf("units = %q, want metric", got)
-		}
-		switch r.URL.Path {
-		case "/data/2.5/weather":
-			io.WriteString(w, currentBody)
-		case "/data/2.5/forecast":
-			io.WriteString(w, forecastBody)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-}
-
-// currentFixture builds a /weather body; gust "" omits the gust field.
-func currentFixture(icon, gust string, sunrise, sunset time.Time) string {
-	wind := `{"speed":3.1}`
-	if gust != "" {
-		wind = `{"speed":3.1,"gust":` + gust + `}`
-	}
-	return fmt.Sprintf(`{"weather":[{"icon":%q}],"main":{"temp":-1.6,"temp_max":2.4,"humidity":81},"wind":%s,"sys":{"sunrise":%d,"sunset":%d}}`,
-		icon, wind, sunrise.Unix(), sunset.Unix())
-}
 
 func TestOWMURL(t *testing.T) {
 	u, err := url.Parse(owm{apiKey: "key", place: "4893171", lang: "de"}.url("weather"))
@@ -67,7 +30,11 @@ func TestOWMURL(t *testing.T) {
 	if !strings.HasSuffix(u.Path, "/weather") {
 		t.Errorf("path = %q", u.Path)
 	}
-	u2, err := url.Parse(owm{apiKey: "key", place: " Berlin, DE ", lang: "en"}.url("forecast"))
+	src, err := Settings{APIKey: "key", Location: " Berlin, DE "}.Source("en", Want{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	u2, err := url.Parse(src.p.(owm).url("forecast"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,10 +52,10 @@ func TestOWMURL(t *testing.T) {
 }
 
 func TestFetchCurrentUsesGust(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	sunrise := time.Date(2026, 10, 10, 7, 30, 0, 0, loc)
 	sunset := time.Date(2026, 10, 10, 18, 45, 0, 0, loc)
-	fc := serveOWM(t, currentFixture("04d", "7.9", sunrise, sunset), `{"list":[]}`)
+	fc := forecasttest.OWM(t, forecasttest.OWMCurrent("04d", "7.9", sunrise, sunset), `{"list":[]}`)
 
 	cur, stale, err := getCurrent(context.Background(), fc, owm{apiKey: "k", place: "Berlin"}.url("weather"), loc)
 	if err != nil {
@@ -109,9 +76,9 @@ func TestFetchCurrentUsesGust(t *testing.T) {
 }
 
 func TestFetchCurrentFallsBackToSpeed(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 10, 9, 0, 0, 0, loc)
-	fc := serveOWM(t, currentFixture("01d", "", now, now), `{"list":[]}`)
+	fc := forecasttest.OWM(t, forecasttest.OWMCurrent("01d", "", now, now), `{"list":[]}`)
 
 	cur, _, err := getCurrent(context.Background(), fc, owm{apiKey: "k", place: "Berlin"}.url("weather"), loc)
 	if err != nil {
@@ -123,11 +90,11 @@ func TestFetchCurrentFallsBackToSpeed(t *testing.T) {
 }
 
 func TestFetchForecastSkipsEntriesWithoutWeather(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	t1 := time.Date(2026, 10, 10, 12, 0, 0, 0, loc)
 	body := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}]},{"dt":%d,"main":{"temp":4.0},"weather":[]}]}`,
 		t1.Unix(), t1.Add(3*time.Hour).Unix())
-	fc := serveOWM(t, `{}`, body)
+	fc := forecasttest.OWM(t, `{}`, body)
 
 	points, _, err := getForecast(context.Background(), fc, owm{apiKey: "k", place: "Berlin"}.url("forecast"), loc)
 	if err != nil {
@@ -144,7 +111,7 @@ func TestFetchForecastSkipsEntriesWithoutWeather(t *testing.T) {
 // The fields Fullweather needs: description, feels-like, gusts and rain + snow; and the
 // UV index from One Call 3.0 only when the key may use it.
 func TestOWMReport(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	t1 := time.Date(2026, 10, 10, 12, 0, 0, 0, loc)
 	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

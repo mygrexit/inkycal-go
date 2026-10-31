@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -25,20 +24,12 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/fetch/fetchtest"
 	"inkycal/internal/forecast"
+	"inkycal/internal/forecast/forecasttest"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
-
-func berlin(t *testing.T) *time.Location {
-	t.Helper()
-	loc, err := time.LoadLocation("Europe/Berlin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return loc
-}
 
 const fullCommon = `{"size":[984,1304],"padding_x":40,"padding_y":20,"fontsize":22,"language":"en"}`
 
@@ -97,7 +88,7 @@ func TestNewUpstreamKeys(t *testing.T) {
 func source(t *testing.T, lat, lon float64, lang string, oneCall bool) forecast.Source {
 	t.Helper()
 	la, lo := config.FlexFloat(lat), config.FlexFloat(lon)
-	src, err := forecast.Settings{Provider: "openweathermap", APIKey: "k", Latitude: &la, Longitude: &lo}.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: oneCall})
+	src, err := forecast.Settings{Provider: forecast.OpenWeatherMap, APIKey: "k", Latitude: &la, Longitude: &lo}.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: oneCall, ByCoords: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +182,7 @@ func sampleForecast(now time.Time) []forecast.Point {
 }
 
 func TestBuildView(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	cur := forecast.Current{Icon: "10d", Description: "leichter Regen", Temp: 7.6, FeelsLike: 5.2, Humidity: 88,
 		WindMean: 3, WindMPS: 6, Sunrise: now.Add(2 * time.Hour), Sunset: now.Add(12 * time.Hour)}
@@ -291,7 +282,7 @@ func generate(t *testing.T, fc *fetch.Client, common, raw string, now time.Time)
 }
 
 func TestGenerate(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	var hits atomic.Int32
 	fc := serveOWM(t, now, &hits)
@@ -330,7 +321,7 @@ func TestGenerate(t *testing.T) {
 
 // Every supported shape draws something sensible and never panics.
 func TestDrawShapes(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 21, 40, 0, 0, loc) // late: today has few slots left
 	cur := forecast.Current{Icon: "01n", Description: "clear sky", Temp: 4, FeelsLike: 1, Humidity: 70, WindMean: 15, WindMPS: 22}
 	v := buildView(settings{Wind: windMPS, Gusts: true, Lang: "en", MinMax: true}, cur, sampleForecast(now), nil, now)
@@ -349,7 +340,7 @@ func TestPreview(t *testing.T) {
 	if dir == "" {
 		t.Skip("INKYCAL_PREVIEW_DIR not set")
 	}
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	var hits atomic.Int32
 	fc := serveOWM(t, now, &hits)
@@ -392,28 +383,9 @@ func writePNG(t *testing.T, path string, c *render.Canvas) {
 
 // Without an API key a tile reads Open-Meteo: five days, the UV index included.
 func TestGenerateWithOpenMeteo(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	day := time.Date(2026, 10, 13, 0, 0, 0, 0, loc)
-	var times, temps, codes, precip, wind, isDay, rises, sets []string
-	for h := range 5 * 24 {
-		at := day.Add(time.Duration(h) * time.Hour)
-		times = append(times, strconv.FormatInt(at.Unix(), 10))
-		temps = append(temps, strconv.Itoa(4+h%24/3))
-		codes = append(codes, []string{"3", "61", "1"}[h/24%3])
-		precip = append(precip, []string{"0", "0.4", "0"}[h/24%3])
-		wind = append(wind, "3.5")
-		isDay = append(isDay, strconv.Itoa(boolInt(at.Hour() >= 7 && at.Hour() < 19)))
-	}
-	for d := range 5 {
-		rises = append(rises, strconv.FormatInt(day.AddDate(0, 0, d).Add(7*time.Hour+50*time.Minute).Unix(), 10))
-		sets = append(sets, strconv.FormatInt(day.AddDate(0, 0, d).Add(18*time.Hour+40*time.Minute).Unix(), 10))
-	}
-	j := func(s []string) string { return "[" + strings.Join(s, ",") + "]" }
-	body := `{"current":{"temperature_2m":7.6,"relative_humidity_2m":88,"apparent_temperature":5.2,"is_day":0,"weather_code":61,"wind_speed_10m":3.2,"wind_gusts_10m":6.4,"uv_index":0.4},` +
-		`"hourly":{"time":` + j(times) + `,"temperature_2m":` + j(temps) + `,"weather_code":` + j(codes) + `,"precipitation":` + j(precip) +
-		`,"wind_speed_10m":` + j(wind) + `,"wind_gusts_10m":` + j(wind) + `,"is_day":` + j(isDay) + `},` +
-		`"daily":{"sunrise":` + j(rises) + `,"sunset":` + j(sets) + `}}`
+	body := forecasttest.OpenMeteo(time.Date(2026, 10, 13, 0, 0, 0, 0, loc), 5*24)
 	var query url.Values
 	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/forecast" {
@@ -439,11 +411,4 @@ func TestGenerateWithOpenMeteo(t *testing.T) {
 	if black, _ := modulestest.InkIn(c, 300, 0, 424, 124); !black {
 		t.Error("current icon missing")
 	}
-}
-
-func boolInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

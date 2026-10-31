@@ -59,7 +59,7 @@ func (o openMeteo) fetch(ctx context.Context, fc *fetch.Client, loc *time.Locati
 	q.Set("longitude", strconv.FormatFloat(o.lon, 'f', -1, 64))
 	q.Set("current", cur)
 	q.Set("hourly", "temperature_2m,weather_code,precipitation,wind_speed_10m,wind_gusts_10m,is_day")
-	q.Set("daily", "sunrise,sunset")
+	q.Set("daily", "temperature_2m_max,sunrise,sunset") // as before: the URL keys the offline cache
 	q.Set("wind_speed_unit", "ms")
 	q.Set("timezone", "auto")
 	q.Set("timeformat", "unixtime")

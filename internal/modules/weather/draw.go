@@ -52,10 +52,12 @@ func drawDay(c *render.Canvas, v dayView, lang string) {
 	colX := right - u(170)
 	iconW := u(44)
 	drawWind(c, colX, u(6), iconW, u(36), v.Wind)
-	c.Icon(colX, u(46), iconW, u(36), forecast.GlyphSunrise, render.FontWeather, render.InkBlack, 0.95)
-	c.Text(colX+iconW+u(14), u(74), v.Sunrise, small, render.InkBlack)
-	c.Icon(colX, u(88), iconW, u(36), forecast.GlyphSunset, render.FontWeather, render.InkBlack, 0.95)
-	c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
+	if v.Sunrise != "" { // none in polar day or night
+		c.Icon(colX, u(46), iconW, u(36), forecast.GlyphSunrise, render.FontWeather, render.InkBlack, 0.95)
+		c.Text(colX+iconW+u(14), u(74), v.Sunrise, small, render.InkBlack)
+		c.Icon(colX, u(88), iconW, u(36), forecast.GlyphSunset, render.FontWeather, render.InkBlack, 0.95)
+		c.Text(colX+iconW+u(14), u(116), v.Sunset, small, render.InkBlack)
+	}
 
 	// Timeline: the observation plus the coming 3-hour slots of today.
 	label := render.Style{Font: render.FontRegular, Size: c.SizeForCap(render.FontRegular, u(15))}

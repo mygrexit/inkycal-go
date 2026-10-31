@@ -24,7 +24,7 @@ type Module struct {
 // rawConfig mirrors the upstream keys. orientation, keep_history, font, chart_title,
 // weekly_title and icon_outline are accepted and ignored (see the package report).
 type rawConfig struct {
-	forecast.Settings // upstream has api_key, latitude and longitude: OpenWeatherMap by coordinates
+	forecast.Settings                   // upstream has api_key, latitude and longitude: OpenWeatherMap by coordinates
 	APIVersion        config.FlexString `json:"api_version"`
 	TempUnit          string            `json:"temp_unit"`
 	WindUnit          string            `json:"wind_unit"`
@@ -35,17 +35,14 @@ type rawConfig struct {
 }
 
 var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
-	if rc.Latitude == nil || rc.Longitude == nil {
-		return nil, modules.Missing("latitude", "longitude")
-	}
-	rc.Location = "" // the place's name is for the builder's search; the view goes by coordinates
 	lang := c.Language
 	// Upstream takes the language from the locale, e.g. "de_DE.UTF-8".
 	if parts := strings.FieldsFunc(rc.Locale, func(r rune) bool { return r == '_' || r == '-' || r == '.' || r == ' ' }); len(parts) > 0 {
 		lang = strings.ToLower(parts[0])
 	}
 	v, _ := strconv.ParseFloat(strings.TrimSpace(string(rc.APIVersion)), 64)
-	src, err := rc.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: v == 3})
+	// The place's name is for the builder's search; the view goes by coordinates, like upstream.
+	src, err := rc.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: v == 3, ByCoords: true})
 	if err != nil {
 		return nil, err
 	}

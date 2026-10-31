@@ -23,3 +23,9 @@ converged on a package shared by both weather views.
    `api_version` only for OpenWeatherMap, the builder infers the provider for Fullweather like for Weather.
    Upstream Fullweather (api_key + coordinates) stays on OpenWeatherMap by coordinates.
 8. No sunrise (polar day/night) is a zero time in the model; neither view prints a 1970 clock.
+
+## Accepted after review
+
+- An upstream Fullweather with an empty `api_key` used to fail ("api_key is missing"); with no provider it now runs
+  on Open-Meteo by its coordinates, like Weather. It needs no key, so working beats refusing.
+- Open-Meteo keeps asking for `temperature_2m_max` it no longer reads: the URL keys the offline cache.

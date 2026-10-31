@@ -2,13 +2,14 @@ package weather
 
 import (
 	"inkycal/internal/forecast"
+	"inkycal/internal/forecast/forecasttest"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestBuildDay(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	cur := forecast.Current{Icon: "04n", Temp: 7.6, WindMean: 3, Sunrise: time.Date(2026, 10, 13, 7, 54, 0, 0, loc), Sunset: time.Date(2026, 10, 13, 18, 48, 0, 0, loc)}
 	var pts []forecast.Point
@@ -59,7 +60,7 @@ func TestBuildDay(t *testing.T) {
 }
 
 func TestHourLabel12h(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	for h, want := range map[int]string{0: "12am", 6: "6am", 12: "12pm", 17: "5pm"} {
 		if got := (settings{Hour12: true}).hourLabel(time.Date(2026, 10, 13, h, 0, 0, 0, loc)); got != want {
 			t.Errorf("%d → %s, want %s", h, got, want)

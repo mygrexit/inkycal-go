@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,29 +17,6 @@ const (
 	owmBaseURL     = "https://api.openweathermap.org/data/2.5"
 	oneCallBaseURL = "https://api.openweathermap.org/data/3.0/onecall"
 )
-
-// Current is the weather now (metric units, OpenWeatherMap icon codes).
-type Current struct {
-	Icon        string
-	Description string // localised condition text, e.g. "leichter Regen"
-	Temp        float64
-	FeelsLike   float64
-	Humidity    int
-	WindMPS     float64 // gust if reported, else mean speed (as in Python)
-	WindMean    float64 // mean speed, m/s
-	Sunrise     time.Time
-	Sunset      time.Time // both zero when the service has none (polar day or night)
-}
-
-// Point is one 3-hour forecast slot (metric units).
-type Point struct {
-	Time   time.Time
-	Temp   float64
-	Icon   string
-	Wind   float64 // mean speed, m/s
-	Gust   float64 // gust if reported, else mean speed, m/s
-	Precip float64 // rain + snow of the 3-hour slot, mm
-}
 
 type owmWeather struct {
 	Icon        string `json:"icon"`
@@ -88,14 +64,15 @@ type owmForecast struct {
 type owm struct {
 	apiKey, place, lang string
 	lat, lon            float64
-	oneCall             bool // the key may use One Call 3.0 (for the UV index)
+	hasCoords           bool
+	oneCall             bool // the key may use One Call 3.0 (for the UV index, by coordinates)
 }
 
 // url builds a request URL for endpoint ("weather", "forecast"). Purely numeric
 // places are city IDs.
 func (o owm) url(endpoint string) string {
 	q := url.Values{}
-	if place := strings.TrimSpace(o.place); place == "" {
+	if place := o.place; place == "" {
 		q.Set("lat", strconv.FormatFloat(o.lat, 'f', -1, 64))
 		q.Set("lon", strconv.FormatFloat(o.lon, 'f', -1, 64))
 	} else if _, err := strconv.ParseUint(place, 10, 64); err == nil {
@@ -119,7 +96,7 @@ func (o owm) fetch(ctx context.Context, fc *fetch.Client, loc *time.Location, w 
 	)
 	wg.Go(func() { r.Now, staleC, errC = getCurrent(ctx, fc, o.url("weather"), loc) })
 	wg.Go(func() { r.Points, staleF, errF = getForecast(ctx, fc, o.url("forecast"), loc) })
-	if w.UV && o.oneCall {
+	if w.UV && o.oneCall && o.hasCoords {
 		wg.Go(func() { r.UV = fetchUVI(ctx, fc, o.apiKey, o.lat, o.lon) })
 	}
 	wg.Wait()

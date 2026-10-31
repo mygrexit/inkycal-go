@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"inkycal/internal/fetch/fetchtest"
 	"inkycal/internal/forecast"
+	"inkycal/internal/forecast/forecasttest"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
@@ -43,11 +42,11 @@ func TestNewValidation(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	list := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
 		now.Add(3*time.Hour).Unix(), now.Add(6*time.Hour).Unix())
-	fc := serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), list)
+	fc := forecasttest.OWM(t, forecasttest.OWMCurrent("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), list)
 
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
 	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
@@ -80,7 +79,7 @@ func TestGenerate(t *testing.T) {
 
 // Narrow or short bands scale the whole layout instead of overlapping or being rejected.
 func TestDrawDayFitsOtherShapes(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	v := buildDay(settings{Lang: "de"}, forecast.Current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
 
@@ -101,17 +100,9 @@ func TestDrawDayFitsOtherShapes(t *testing.T) {
 
 // Without an API key a new tile gets Open-Meteo and draws its band.
 func TestGenerateWithOpenMeteo(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	var times, temps, codes, zeros, ones []string
-	for h := range 12 {
-		times = append(times, strconv.FormatInt(now.Truncate(time.Hour).Add(time.Duration(h)*time.Hour).Unix(), 10))
-		temps, codes, zeros, ones = append(temps, "5.5"), append(codes, "61"), append(zeros, "0"), append(ones, "1")
-	}
-	j := func(s []string) string { return "[" + strings.Join(s, ",") + "]" }
-	body := `{"current":{"temperature_2m":4.2,"relative_humidity_2m":81,"apparent_temperature":1.5,"is_day":1,"weather_code":61,"wind_speed_10m":3.1,"wind_gusts_10m":7.9},` +
-		`"hourly":{"time":` + j(times) + `,"temperature_2m":` + j(temps) + `,"weather_code":` + j(codes) + `,"precipitation":` + j(zeros) +
-		`,"wind_speed_10m":` + j(ones) + `,"wind_gusts_10m":` + j(ones) + `,"is_day":` + j(ones) + `}}`
+	body := forecasttest.OpenMeteo(now.Truncate(time.Hour), 12)
 	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/forecast" {
 			t.Errorf("path %s", r.URL.Path)

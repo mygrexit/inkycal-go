@@ -19,3 +19,5 @@ Domain words used in code, issues and reviews. German UI words in brackets.
 **Lenient / strict**: how settings are taken. The device is lenient (`config.Load`): a broken tile fails on its own and the rest of the page is drawn. The builder is strict (`config.Parse`): it refuses to save settings with a broken tile.
 
 **Hint**: the plain-language text a failed tile shows in its section on the panel (`app/hint.go`, i18n). The builder's longer English text is its **advice** (`builder/explain.go`). Both come from the error's **kind** (`internal/problem`).
+
+**Weather service** [Wetterdienst]: where a weather tile's data comes from, `provider` in its config: Open-Meteo (free, by coordinates) or OpenWeatherMap (needs `api_key`; by place name or coordinates). Upstream settings with an `api_key` and no `provider` mean OpenWeatherMap. `internal/forecast` reads both into one **report**: the weather now and 3-hour **slots** ahead.
