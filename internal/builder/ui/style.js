@@ -33,7 +33,10 @@ export function effective(page, tile) {
   const out = { font: "", scale: 0, custom_fonts: {}, colors: { ...DEFAULT_COLORS } };
   for (const s of [page, tile]) {
     if (!s) continue;
-    if (s.font) out.font = s.font;
+    if (s.font) {
+      out.font = s.font;
+      if (s.font !== "custom") out.custom_fonts = {}; // a font pair replaces the inherited custom fonts (as in Go)
+    }
     if (s.scale) out.scale = s.scale;
     Object.assign(out.custom_fonts, s.custom_fonts || {});
     for (const k of Object.keys(DEFAULT_COLORS)) if (s.colors && s.colors[k]) out.colors[k] = s.colors[k];

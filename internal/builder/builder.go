@@ -186,16 +186,16 @@ func (s *Server) catalog(w http.ResponseWriter, _ *http.Request) {
 		panels[p.Model] = p
 	}
 	writeJSON(w, map[string]any{
-		"examples":         s.formatExamples(),
-		"guides":           guides,
-		"templates":        templates,
-		"template_padding": [2]int{templatePadX, templatePadY},
-		"models":           epd.Models,
-		"panels":           panels,
-		"panel_list":       list,
-		"modules":          catalogModules(s.cfg.Catalog),
-		"grid":             layout.Default,
-		"font_rule":        map[string]int{"h_div": 9, "w_div": 40, "min": 12, "max": 32}, // modules.AutoFontSize
+		"examples":     s.formatExamples(),
+		"guides":       guides,
+		"templates":    templates,
+		"tile_padding": [2]int{tilePadX, tilePadY},
+		"models":       epd.Models,
+		"panels":       panels,
+		"panel_list":   list,
+		"modules":      catalogModules(s.cfg.Catalog),
+		"grid":         layout.Default,
+		"font_rule":    modules.AutoFont,
 	})
 }
 

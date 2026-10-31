@@ -25,7 +25,7 @@ Modes: `run | once | dry-run | clear | builder`.
 cmd/inkycal/          flags, mode dispatch
 internal/app/         RunCycle, Compose (shared by device and builder), Registry, hints
 internal/builder/     HTTP API (catalog, settings, preview, fonts, geocode, test-calendar), explain(), templates
-internal/builder/ui/  plain ES modules; pure logic in grid/form/paper/style/panels/palette/wizard.js
+internal/builder/ui/  plain ES modules; pure logic in grid/form/paper/style/panels/palette/wizard/tile.js
 internal/config/      settings.json (upstream-compatible), grid cells, Style/theme
 internal/epd/         panel drivers, Panels() catalog, Inks(model); trace tests
 internal/render/      Canvas, fonts, Theme (font pairs, custom fonts with fallback), inks, AssembleGrid
@@ -63,6 +63,7 @@ tools/wakebench/      cold-start comparison against a release
 - Grid cells: a page has cells on all tiles or none; a tile without one on a grid page is unplaced.
 - Device and builder take settings differently: `config.Load` and `Compose` are lenient (a broken tile fails on its own, a bad theme falls back to the default); `config.Parse` (builder) rejects a broken theme, cell or style, so the builder never saves one.
 - Builder writes settings atomically and keeps file mode; never loosen permissions of settings or `.bak`.
+- The builder's JS takes Go's numbers from the catalog (`tile_padding`, `grid`, `font_rule`), never as literals; new tiles come from `ui/tile.js`. `ui/testdata/autofont.json` is checked by `go test` and `node --test`: change it with the rule.
 - Font cache keys custom fonts by path+size+mtime; only regular files ≤ 20 MiB.
 - `go.mod` pins a patched `toolchain`; raise it when govulncheck reports standard-library issues — release binaries ship that stdlib.
 - `.claude/settings.json` runs `goimports -w` after every edit of a `.go` file; don't hand-format.

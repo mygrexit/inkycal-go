@@ -113,15 +113,21 @@ func TestCatalog(t *testing.T) {
 	s, _ := newTestServer(t, gridSettings)
 	rec := do(t, s, "GET", "/api/catalog", "", true)
 	var got struct {
-		Models  map[string][2]int `json:"models"`
-		Modules []modules.Meta    `json:"modules"`
-		Grid    struct{ Columns, Rows int }
+		Models      map[string][2]int `json:"models"`
+		Modules     []modules.Meta    `json:"modules"`
+		Grid        struct{ Columns, Rows int }
+		TilePadding [2]int           `json:"tile_padding"`
+		FontRule    modules.FontRule `json:"font_rule"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
 	if got.Models["epd_12_in_48_colour_V2"] != [2]int{1304, 984} || len(got.Modules) != 2 || got.Grid.Columns != 12 {
 		t.Errorf("catalog %+v", got)
+	}
+	// what tile.js makes new tiles with
+	if got.TilePadding != [2]int{tilePadX, tilePadY} || got.FontRule != modules.AutoFont {
+		t.Errorf("tile_padding %v font_rule %+v", got.TilePadding, got.FontRule)
 	}
 }
 
@@ -478,8 +484,8 @@ func TestTemplatesFit(t *testing.T) {
 					t.Fatalf("%s: unknown module %s", tpl.ID, m.Name)
 				}
 				r := layout.Default.Rect(m.Cell, pageW, areaH)
-				if r.W-2*templatePadX < meta.MinW || r.H-2*templatePadY < meta.MinH {
-					t.Errorf("%s on %s: %s gets %dx%d, needs %dx%d", tpl.ID, model, m.Name, r.W-2*templatePadX, r.H-2*templatePadY, meta.MinW, meta.MinH)
+				if r.W-2*tilePadX < meta.MinW || r.H-2*tilePadY < meta.MinH {
+					t.Errorf("%s on %s: %s gets %dx%d, needs %dx%d", tpl.ID, model, m.Name, r.W-2*tilePadX, r.H-2*tilePadY, meta.MinW, meta.MinH)
 				}
 				cells = append(cells, m.Cell)
 			}
@@ -496,5 +502,29 @@ func TestCatalogFieldsAreLists(t *testing.T) {
 	s.cfg.Catalog = []modules.Meta{{Name: "Dot", Title: "Dot"}}
 	if rec := do(t, s, "GET", "/api/catalog", "", true); strings.Contains(rec.Body.String(), `"fields":null`) {
 		t.Errorf("%.200s", rec.Body)
+	}
+}
+
+// The builder sizes text in JS with the rule the catalog sends; both sides check the
+// same table, so a change on one side fails the other's tests.
+func TestAutoFontFixture(t *testing.T) {
+	data, err := os.ReadFile("ui/testdata/autofont.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fx struct {
+		Rule  modules.FontRule `json:"rule"`
+		Cases [][3]int         `json:"cases"`
+	}
+	if err := json.Unmarshal(data, &fx); err != nil {
+		t.Fatal(err)
+	}
+	if fx.Rule != modules.AutoFont {
+		t.Errorf("fixture rule %+v, Go has %+v: update ui/testdata/autofont.json and grid.js", fx.Rule, modules.AutoFont)
+	}
+	for _, c := range fx.Cases {
+		if got := modules.AutoFontSize(c[0], c[1]); got != c[2] {
+			t.Errorf("AutoFontSize(%d, %d) = %d, fixture says %d", c[0], c[1], got, c[2])
+		}
 	}
 }

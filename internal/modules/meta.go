@@ -75,8 +75,22 @@ func CheckMinSize(c config.Common, m Meta) error {
 	return nil
 }
 
-// AutoFontSize suggests a body size for a module's inner area: about nine lines high
-// and 40 characters wide, between 12 and 32 px. The builder writes it as "fontsize".
-func AutoFontSize(innerW, innerH int) int {
-	return max(12, min(32, innerH/9, innerW/40))
+// FontRule sizes body text for an inner area: about HDiv lines high and WDiv
+// characters wide, between Min and Max px. The builder gets it in its catalog.
+type FontRule struct {
+	HDiv int `json:"h_div"`
+	WDiv int `json:"w_div"`
+	Min  int `json:"min"`
+	Max  int `json:"max"`
 }
+
+// AutoFont is the rule the builder writes "fontsize" with.
+var AutoFont = FontRule{HDiv: 9, WDiv: 40, Min: 12, Max: 32}
+
+// Size is the rule's body size for an inner area.
+func (r FontRule) Size(innerW, innerH int) int {
+	return max(r.Min, min(r.Max, innerH/r.HDiv, innerW/r.WDiv))
+}
+
+// AutoFontSize suggests a body size for a module's inner area (AutoFont).
+func AutoFontSize(innerW, innerH int) int { return AutoFont.Size(innerW, innerH) }
