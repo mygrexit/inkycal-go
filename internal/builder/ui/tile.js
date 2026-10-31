@@ -1,4 +1,4 @@
-// Making a tile: what the palette and the templates both write for a new module. The
+// Making a tile: what the palette and the templates both write for a new tile. The
 // numbers (padding, grid, font rule) come from Go in the catalog; nothing here repeats them.
 import { cellRect, autoFont } from "./grid.js";
 
@@ -20,8 +20,13 @@ export function placeTile(catalog, grid, config, cell, pageW, areaH) {
   config.fontsize = autoFontOf(catalog, grid, config, pageW, areaH);
 }
 
+// innerOf is the area config's tile draws in where it is now: its cell minus padding.
+export function innerOf(grid, config, pageW, areaH) {
+  const r = cellRect(grid, config.cell, pageW, areaH);
+  return [r.w - 2 * (Number(config.padding_x) || 0), r.h - 2 * (Number(config.padding_y) || 0)];
+}
+
 // autoFontOf is the automatic font size for config's tile where it is now.
 export function autoFontOf(catalog, grid, config, pageW, areaH) {
-  const r = cellRect(grid, config.cell, pageW, areaH);
-  return autoFont(catalog.font_rule, r.w - 2 * (Number(config.padding_x) || 0), r.h - 2 * (Number(config.padding_y) || 0));
+  return autoFont(catalog.font_rule, ...innerOf(grid, config, pageW, areaH));
 }

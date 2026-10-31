@@ -113,7 +113,7 @@ export function resizeCell(cell, edge, dc, dr, min, grid) {
   return [c, r, cs, rs];
 }
 
-// autoFont mirrors modules.AutoFontSize.
+// autoFont mirrors modules.FontRule.Size; the rule comes in the catalog (font_rule).
 export function autoFont(rule, innerW, innerH) {
   return Math.max(rule.min, Math.min(rule.max, Math.floor(innerH / rule.h_div), Math.floor(innerW / rule.w_div)));
 }

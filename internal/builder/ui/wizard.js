@@ -1,6 +1,5 @@
 // The first-run assistant: battery estimate, update schedules and templates.
-import { cellRect } from "./grid.js";
-import { newTile, placeTile } from "./tile.js";
+import { newTile, placeTile, innerOf } from "./tile.js";
 
 // refreshSeconds: how long a full panel refresh takes (measured: 12.48″ colour 51 s).
 export function refreshSeconds(panel) {
@@ -69,12 +68,12 @@ export function applySchedule(settings, schedule) {
 
 // templateFits: every module of the template gets at least its minimum inner size.
 export function templateFits(tpl, catalog, pageW, areaH) {
-  const [px, py] = catalog.tile_padding;
   return tpl.modules.every(m => {
     const meta = catalog.modules.find(x => x.name === m.name);
     if (!meta) return false;
-    const r = cellRect(catalog.grid, m.cell, pageW, areaH);
-    return r.w - 2 * px >= (meta.min_w || 1) && r.h - 2 * py >= (meta.min_h || 1);
+    const { config } = newTile(catalog, m.name, m.config || {}, "en");
+    const [w, h] = innerOf(catalog.grid, { ...config, cell: m.cell }, pageW, areaH);
+    return w >= (meta.min_w || 1) && h >= (meta.min_h || 1);
   });
 }
 

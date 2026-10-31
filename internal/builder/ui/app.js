@@ -1,6 +1,6 @@
 // inkycal builder: places modules on the grid and shows the page as the panel renders it.
 import { cellRect, fits, minSpans, bestFree, makeRoom, nudge, fromLegacy, moveCell, resizeCell } from "./grid.js";
-import { newTile, placeTile, autoFontOf } from "./tile.js";
+import { newTile, placeTile, autoFontOf, innerOf } from "./tile.js";
 import { coerce, display, missing, partition, optionLabel, normalize, selectRead } from "./form.js";
 import { toPaper } from "./paper.js";
 import { groupPanels, ORIENTATIONS } from "./panels.js";
@@ -104,9 +104,8 @@ function spansFor(entry) {
 }
 
 function innerSize(entry) {
-  const p = page(), r = cellRect(grid(), entry.config.cell, p.pageW, p.areaH);
-  const c = entry.config;
-  return [r.w - 2 * (Number(c.padding_x) || 0), r.h - 2 * (Number(c.padding_y) || 0)];
+  const p = page();
+  return innerOf(grid(), entry.config, p.pageW, p.areaH);
 }
 
 // syncSizes writes each module's pixel size next to its cell (upstream Inkycal reads it).
@@ -676,8 +675,8 @@ function renderInspector() {
   }
 
   const [iw, ih] = innerSize(entry);
-  const p = page();
-  const auto = autoFontOf(state.catalog, grid(), entry.config, p.pageW, p.areaH);
+  const pg = page();
+  const auto = autoFontOf(state.catalog, grid(), entry.config, pg.pageW, pg.areaH);
   const num = (key, label) => fieldInput({ key, label, kind: "number" }, values[key], edits(values, key));
   more.append(num("padding_x", "Inner margin left/right (px)"), num("padding_y", "Inner margin top/bottom (px)"));
   const font = num("fontsize", "Base text size (px)");

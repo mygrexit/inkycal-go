@@ -520,7 +520,7 @@ func TestAutoFontFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	if fx.Rule != modules.AutoFont {
-		t.Errorf("fixture rule %+v, Go has %+v: update ui/testdata/autofont.json and grid.js", fx.Rule, modules.AutoFont)
+		t.Errorf("fixture rule %+v, Go has %+v: update ui/testdata/autofont.json (and autoFont in ui/grid.js if the formula changed)", fx.Rule, modules.AutoFont)
 	}
 	for _, c := range fx.Cases {
 		if got := modules.AutoFontSize(c[0], c[1]); got != c[2] {
