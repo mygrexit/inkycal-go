@@ -161,3 +161,27 @@ func TestReviewFixes(t *testing.T) {
 		t.Errorf("event without end shows %q", r.Time)
 	}
 }
+
+// With three family calendars a shared event names the calendars it is in, in their
+// order; "both" is only for two.
+func TestMergeSourcesThreeCalendars(t *testing.T) {
+	at := func(h int) time.Time { return time.Date(2026, 10, 13, h, 0, 0, 0, time.UTC) }
+	events := []ical.Event{
+		{Title: "Elternabend", Start: at(19), End: at(20), Source: 2},
+		{Title: "Elternabend", Start: at(19), End: at(20), Source: 0},
+		{Title: "Laternenumzug", Start: at(17), End: at(18), Source: 0},
+		{Title: "Laternenumzug", Start: at(17), End: at(18), Source: 1},
+		{Title: "Laternenumzug", Start: at(17), End: at(18), Source: 2},
+		{Title: "Turnen", Start: at(15), End: at(16), Source: 1},
+	}
+	got := mergeSources(events, []string{"Alex", "Sam", "Kita"}, true, "de")
+	want := map[string]string{"Elternabend": "Alex+Kita", "Laternenumzug": "Alex+Sam+Kita", "Turnen": "Sam"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d events: %+v", len(got), got)
+	}
+	for _, e := range got {
+		if want[e.Title] != e.Label {
+			t.Errorf("%s: label %q, want %q", e.Title, e.Label, want[e.Title])
+		}
+	}
+}

@@ -100,3 +100,20 @@ func TestServerDown(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+// The clock commands of pisugar-server: at boot, before any network, the system clock
+// comes from the RTC; after an NTP sync it goes back. A wrong word means a wrong clock
+// and a wrong wake-up.
+func TestClockSyncCommands(t *testing.T) {
+	s := startFake(t, map[string]string{"rtc_rtc2pi": "rtc_rtc2pi: done\n", "rtc_pi2rtc": "rtc_pi2rtc: done\n"})
+	c := client(s)
+	if err := c.RTCToPi(); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.PiToRTC(); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.got) != 2 || s.got[0] != "rtc_rtc2pi" || s.got[1] != "rtc_pi2rtc" {
+		t.Errorf("sent %q", s.got)
+	}
+}
