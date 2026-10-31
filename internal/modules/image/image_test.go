@@ -383,7 +383,7 @@ func TestServerPostFallsBackToCache(t *testing.T) {
 		w.Write(data)
 	}))
 	defer ts.Close()
-	m, _ := NewServer(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+ts.URL+`/panel","palette":"bw","path_body":"https://a/x.ics"}`))
+	m, _ := ServerDef.New(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+ts.URL+`/panel","palette":"bw","path_body":"https://a/x.ics"}`))
 	env := newEnv(t)
 	env.Fetch.Backoff = time.Millisecond
 	if _, err := m.Generate(context.Background(), env); err != nil {

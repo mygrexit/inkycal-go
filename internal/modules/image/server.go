@@ -3,7 +3,6 @@ package image
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	goimage "image"
 	"net/http"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
 	"inkycal/internal/picture"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
