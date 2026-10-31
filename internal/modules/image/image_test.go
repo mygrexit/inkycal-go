@@ -115,7 +115,7 @@ func inkBox(c *render.Canvas) (r goimage.Rectangle, red bool) {
 
 func TestParseUpstreamKeys(t *testing.T) {
 	c := mustCommon(t, 400, 200)
-	m, err := NewImage(c, json.RawMessage(`{"path":"/x.png","palette":"bwr","autoflip":"True","orientation":"vertical",
+	m, err := ImageDef.New(c, json.RawMessage(`{"path":"/x.png","palette":"bwr","autoflip":"True","orientation":"vertical",
 		"max_width_percent":"50.7","max_height_percent":80,"dither":false}`))
 	if err != nil {
 		t.Fatal(err)
@@ -126,22 +126,22 @@ func TestParseUpstreamKeys(t *testing.T) {
 		t.Fatalf("look = %+v, want %+v", got, want)
 	}
 	// Defaults: dither on for Inkyimage, off for Inkyserver; 100 %; 16gray → bw.
-	m, _ = NewImage(c, json.RawMessage(`{"path":"a.jpg","palette":"16gray","autoflip":false,"orientation":"horizontal","dither":null}`))
+	m, _ = ImageDef.New(c, json.RawMessage(`{"path":"a.jpg","palette":"16gray","autoflip":false,"orientation":"horizontal","dither":null}`))
 	if l := m.(*Image).look; !l.dither || l.maxW != 100 || l.maxH != 100 || l.palette != picture.BW {
 		t.Fatalf("defaults: %+v", l)
 	}
-	s, err := NewServer(c, json.RawMessage(`{"path":"http://h/{width}x{height}","palette":"bw","path_body":"a, b,c","dither":false}`))
+	s, err := ServerDef.New(c, json.RawMessage(`{"path":"http://h/{width}x{height}","palette":"bw","path_body":"a, b,c","dither":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if srv := s.(*Server); srv.look.dither || strings.Join(srv.body, "|") != "a|b|c" {
 		t.Fatalf("server: %+v", srv)
 	}
-	s, _ = NewServer(c, json.RawMessage(`{"path":"http://h/","palette":"bwr","path_body":["https://x/a.ics","https://x/b.ics"],"dither":true}`))
+	s, _ = ServerDef.New(c, json.RawMessage(`{"path":"http://h/","palette":"bwr","path_body":["https://x/a.ics","https://x/b.ics"],"dither":true}`))
 	if srv := s.(*Server); !srv.look.dither || len(srv.body) != 2 {
 		t.Fatalf("server list body: %+v", srv)
 	}
-	if ss, err := NewSlideshow(c, json.RawMessage(`{"path":"/pics","palette":"bwy","autoflip":true,"orientation":"horizontal"}`)); err != nil || ss.(*Slideshow).interval != 1440 {
+	if ss, err := SlideshowDef.New(c, json.RawMessage(`{"path":"/pics","palette":"bwy","autoflip":true,"orientation":"horizontal"}`)); err != nil || ss.(*Slideshow).interval != 1440 {
 		t.Fatalf("slideshow: %v %+v", err, ss)
 	}
 	for _, bad := range []string{
@@ -153,11 +153,11 @@ func TestParseUpstreamKeys(t *testing.T) {
 		`{"path":"x","palette":"bw","max_height_percent":"lots"}`,
 		`{"path":"x","palette":"bw","dither":"maybe"}`,
 	} {
-		if _, err := NewImage(c, json.RawMessage(bad)); err == nil {
-			t.Errorf("NewImage(%s): want error", bad)
+		if _, err := ImageDef.New(c, json.RawMessage(bad)); err == nil {
+			t.Errorf("ImageDef.New(%s): want error", bad)
 		}
 	}
-	if _, err := NewSlideshow(c, json.RawMessage(`{"path":"x","interval":2000}`)); err == nil {
+	if _, err := SlideshowDef.New(c, json.RawMessage(`{"path":"x","interval":2000}`)); err == nil {
 		t.Error("slideshow interval 2000: want error")
 	}
 }
@@ -250,7 +250,7 @@ func TestImageGenerateFromURLAndFile(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "p.png")
 	os.WriteFile(file, data, 0o644)
 	for _, path := range []string{ts.URL + "/p.png", file} {
-		m, err := NewImage(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+path+`","palette":"bwr"}`))
+		m, err := ImageDef.New(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+path+`","palette":"bwr"}`))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -265,7 +265,7 @@ func TestImageGenerateFromURLAndFile(t *testing.T) {
 			t.Fatalf("%s: nothing drawn (%v, red=%v)", path, box, red)
 		}
 	}
-	m, _ := NewImage(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+ts.URL+`/missing","palette":"bw"}`))
+	m, _ := ImageDef.New(mustCommon(t, 904, 140), json.RawMessage(`{"path":"`+ts.URL+`/missing","palette":"bw"}`))
 	ts.Config.Handler = http.NotFoundHandler()
 	if _, err := m.Generate(context.Background(), newEnv(t)); err == nil {
 		t.Fatal("404: want error")
@@ -281,7 +281,7 @@ func TestSlideshowGenerate(t *testing.T) {
 		black.Pix[i] = 255
 	}
 	writePNG(t, filepath.Join(dir, "2.png"), black)
-	m, err := NewSlideshow(mustCommon(t, 300, 300), json.RawMessage(`{"path":"`+dir+`","palette":"bw","interval":60}`))
+	m, err := SlideshowDef.New(mustCommon(t, 300, 300), json.RawMessage(`{"path":"`+dir+`","palette":"bw","interval":60}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestSlideshowGenerate(t *testing.T) {
 	if len(seen) != 2 {
 		t.Fatal("consecutive hours showed the same slide")
 	}
-	empty, _ := NewSlideshow(mustCommon(t, 300, 300), json.RawMessage(`{"path":"`+t.TempDir()+`","palette":"bw"}`))
+	empty, _ := SlideshowDef.New(mustCommon(t, 300, 300), json.RawMessage(`{"path":"`+t.TempDir()+`","palette":"bw"}`))
 	if _, err := empty.Generate(context.Background(), env); err == nil {
 		t.Fatal("empty folder: want error")
 	}
@@ -316,14 +316,14 @@ func TestServerGenerateGetAndPost(t *testing.T) {
 	}))
 	defer ts.Close()
 	c := mustCommon(t, 904, 140)
-	m, _ := NewServer(c, json.RawMessage(`{"path":"`+ts.URL+`/panel?width={width}&height={height}","palette":"bw","path_body":"","dither":false}`))
+	m, _ := ServerDef.New(c, json.RawMessage(`{"path":"`+ts.URL+`/panel?width={width}&height={height}","palette":"bw","path_body":"","dither":false}`))
 	if _, err := m.Generate(context.Background(), newEnv(t)); err != nil {
 		t.Fatal(err)
 	}
 	if gotMethod != http.MethodGet || gotQuery != "width=904&height=140" {
 		t.Fatalf("GET: %s %q", gotMethod, gotQuery)
 	}
-	m, _ = NewServer(c, json.RawMessage(`{"path":"`+ts.URL+`/panel","palette":"bwr","path_body":"https://a/x.ics,https://b/y.ics","dither":true}`))
+	m, _ = ServerDef.New(c, json.RawMessage(`{"path":"`+ts.URL+`/panel","palette":"bwr","path_body":"https://a/x.ics,https://b/y.ics","dither":true}`))
 	out, err := m.Generate(context.Background(), newEnv(t))
 	if err != nil {
 		t.Fatal(err)

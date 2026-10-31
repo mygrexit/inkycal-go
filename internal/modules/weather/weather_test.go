@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"testing"
 	"time"
 
-	"inkycal/internal/fetch"
+	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/forecast"
+	"inkycal/internal/forecast/forecasttest"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
@@ -15,25 +19,22 @@ import (
 
 func TestNewValidation(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":14,"language":"en"}`)
-	if _, err := New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
+	if _, err := Def.New(common, json.RawMessage(`{"location":"Berlin,DE"}`)); err == nil {
 		t.Error("missing api_key accepted")
 	}
-	if _, err := New(common, json.RawMessage(`{"api_key":"k"}`)); err == nil {
+	if _, err := Def.New(common, json.RawMessage(`{"api_key":"k"}`)); err == nil {
 		t.Error("missing location accepted")
 	}
 	tiny := modulestest.Common(t, `{"size":[60,30],"padding_x":0,"padding_y":0,"fontsize":14}`)
-	if _, err := New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
+	if _, err := Def.New(tiny, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err == nil {
 		t.Error("60x30 accepted, too small for the today band")
 	}
 
-	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"imperial","use_beaufort":"True","hour_format":"12","forecast_interval":"daily","round_windspeed":true}`))
+	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"imperial","use_beaufort":"True","hour_format":"12","forecast_interval":"daily","round_windspeed":true}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	mod := m.(*Module)
-	if mod.location != "4893171" {
-		t.Errorf("numeric location = %q", mod.location)
-	}
 	want := settings{Fahrenheit: true, Hour12: true, Lang: "en"}
 	if mod.set != want {
 		t.Errorf("settings = %+v, want %+v", mod.set, want)
@@ -41,18 +42,18 @@ func TestNewValidation(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	forecast := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
+	list := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
 		now.Add(3*time.Hour).Unix(), now.Add(6*time.Hour).Unix())
-	serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), forecast)
+	fc := forecasttest.OWM(t, forecasttest.OWMCurrent("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), list)
 
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
-	m, err := New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
+	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := &modules.Env{Now: now, Loc: loc, Fetch: fetch.New("")}
+	env := &modules.Env{Now: now, Loc: loc, Fetch: fc}
 
 	c, err := m.Generate(context.Background(), env)
 	if err != nil {
@@ -78,9 +79,9 @@ func TestGenerate(t *testing.T) {
 
 // Narrow or short bands scale the whole layout instead of overlapping or being rejected.
 func TestDrawDayFitsOtherShapes(t *testing.T) {
-	loc := berlin(t)
+	loc := forecasttest.Berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	v := buildDay(settings{Lang: "de"}, current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
+	v := buildDay(settings{Lang: "de"}, forecast.Current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
 
 	narrow := render.NewCanvas(400, 200, render.FontDefault, 14) // width-limited: 400*250/904 ≈ 110 px tall
 	drawDay(narrow, v, "de")
@@ -92,7 +93,32 @@ func TestDrawDayFitsOtherShapes(t *testing.T) {
 	}
 
 	common := modulestest.Common(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
-	if _, err := New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
+	if _, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
 		t.Errorf("7.5\" sized band rejected: %v", err)
+	}
+}
+
+// Without an API key a new tile gets Open-Meteo and draws its band.
+func TestGenerateWithOpenMeteo(t *testing.T) {
+	loc := forecasttest.Berlin(t)
+	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
+	body := forecasttest.OpenMeteo(now.Truncate(time.Hour), 12)
+	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/forecast" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		io.WriteString(w, body)
+	}))
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	m, err := Def.New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := m.Generate(context.Background(), &modules.Env{Now: now, Loc: loc, Fetch: fc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
+		t.Error("date numeral missing")
 	}
 }

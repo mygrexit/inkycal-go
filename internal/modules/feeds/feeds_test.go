@@ -140,7 +140,7 @@ func TestArrange(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
 	in := []item{{Title: "1"}, {Title: "2"}, {Title: "3"}, {Title: "4"}, {Title: "5"}, {Title: "6"}}
 
-	m, err := New(common, json.RawMessage(`{"feed_urls":"http://x/feed","shuffle_feeds":false}`))
+	m, err := Def.New(common, json.RawMessage(`{"feed_urls":"http://x/feed","shuffle_feeds":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestArrange(t *testing.T) {
 		t.Errorf("shuffle off changed order: %+v", got)
 	}
 
-	m2, err := New(common, json.RawMessage(`{"feed_urls":"http://x/feed"}`)) // default: shuffle on
+	m2, err := Def.New(common, json.RawMessage(`{"feed_urls":"http://x/feed"}`)) // default: shuffle on
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestGenerate(t *testing.T) {
 	}))
 	defer srv.Close()
 	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14,"language":"en"}`)
-	m, err := New(common, json.RawMessage(`{"feed_urls":"`+srv.URL+`/a.xml, `+srv.URL+`/b.xml","shuffle_feeds":false}`))
+	m, err := Def.New(common, json.RawMessage(`{"feed_urls":"`+srv.URL+`/a.xml, `+srv.URL+`/b.xml","shuffle_feeds":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestGenerate(t *testing.T) {
 
 func TestNewRequiresURLs(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[480,120],"padding_x":10,"padding_y":10,"fontsize":14}`)
-	if _, err := New(common, json.RawMessage(`{"feed_urls":""}`)); err == nil {
+	if _, err := Def.New(common, json.RawMessage(`{"feed_urls":""}`)); err == nil {
 		t.Error("empty feed_urls accepted")
 	}
 }

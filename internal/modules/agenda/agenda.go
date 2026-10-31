@@ -3,8 +3,6 @@ package agenda
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"sort"
 	"time"
 
@@ -28,12 +26,8 @@ type Agenda struct {
 	s      settings
 }
 
-// New validates the config; defaults match the Python module.
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var s settings
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return nil, fmt.Errorf("agenda: %w", err)
-	}
+// Def builds Agenda; defaults match the Python module.
+var Def = modules.Define(Meta, func(c config.Common, s settings) (modules.Module, error) {
 	if s.DateFormat == "" {
 		s.DateFormat = "ddd D MMM"
 	}
@@ -44,13 +38,10 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		s.Columns = 1
 	}
 	if s.Columns < 1 || s.Columns > 2 {
-		return nil, fmt.Errorf("agenda: columns must be 1 or 2, got %d", s.Columns)
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Bad("columns must be 1 or 2, got %d", s.Columns)
 	}
 	return &Agenda{common: c, s: s}, nil
-}
+})
 
 type item struct {
 	isDate bool

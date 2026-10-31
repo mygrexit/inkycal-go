@@ -3,15 +3,12 @@ package todoist
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 
 	"inkycal/internal/config"
 	"inkycal/internal/modules"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -28,23 +25,16 @@ type rawConfig struct {
 	ShowPriority  *config.FlexBool  `json:"show_priority"`
 }
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		return nil, fmt.Errorf("todoist: config: %w", err)
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, problem.Mark(problem.Missing, errors.New("todoist: api_key is missing"))
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Missing("api_key")
 	}
 	m := &Module{common: c, token: rc.APIKey, filter: []string(rc.ProjectFilter), showPriority: true}
 	if rc.ShowPriority != nil {
 		m.showPriority = bool(*rc.ShowPriority)
 	}
 	return m, nil
-}
+})
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
 	var (

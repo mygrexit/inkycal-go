@@ -71,11 +71,11 @@ func TestSplit(t *testing.T) {
 
 func TestNewIgnoresUnknownKeys(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
-	if _, err := New(common, json.RawMessage(`{"whatever":1}`)); err != nil {
+	if _, err := Def.New(common, json.RawMessage(`{"whatever":1}`)); err != nil {
 		t.Fatal(err)
 	}
 	tiny := modulestest.Common(t, `{"size":[60,20],"padding_x":0,"padding_y":0}`)
-	if _, err := New(tiny, nil); err == nil {
+	if _, err := Def.New(tiny, nil); err == nil {
 		t.Error("tiny module accepted")
 	}
 }
@@ -113,7 +113,7 @@ func TestGenerate(t *testing.T) {
 	}))
 	defer srv.Close()
 	common := modulestest.Common(t, `{"size":[924,180],"padding_x":10,"padding_y":20,"fontsize":20,"language":"en"}`)
-	m, err := New(common, nil)
+	m, err := Def.New(common, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestGenerateEmptyJoke(t *testing.T) {
 	}))
 	defer srv.Close()
 	common := modulestest.Common(t, `{"size":[480,160],"padding_x":10,"padding_y":10,"fontsize":14}`)
-	m, _ := New(common, nil)
+	m, _ := Def.New(common, nil)
 	m.(*Module).url = srv.URL
 	if _, err := m.Generate(context.Background(), &modules.Env{Fetch: fetch.New("")}); err == nil {
 		t.Error("empty joke accepted")

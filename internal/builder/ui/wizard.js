@@ -1,5 +1,5 @@
 // The first-run assistant: battery estimate, update schedules and templates.
-import { cellRect, autoFont } from "./grid.js";
+import { newTile, placeTile, innerOf } from "./tile.js";
 
 // refreshSeconds: how long a full panel refresh takes (measured: 12.48″ colour 51 s).
 export function refreshSeconds(panel) {
@@ -66,31 +66,24 @@ export function applySchedule(settings, schedule) {
   return out;
 }
 
-const pad = catalog => catalog.template_padding || [16, 12];
-
 // templateFits: every module of the template gets at least its minimum inner size.
 export function templateFits(tpl, catalog, pageW, areaH) {
-  const g = { columns: 12, rows: 16 };
-  const [px, py] = pad(catalog);
   return tpl.modules.every(m => {
     const meta = catalog.modules.find(x => x.name === m.name);
     if (!meta) return false;
-    const r = cellRect(g, m.cell, pageW, areaH);
-    return r.w - 2 * px >= (meta.min_w || 1) && r.h - 2 * py >= (meta.min_h || 1);
+    const { config } = newTile(catalog, m.name, m.config || {}, "en");
+    const [w, h] = innerOf(catalog.grid, { ...config, cell: m.cell }, pageW, areaH);
+    return w >= (meta.min_w || 1) && h >= (meta.min_h || 1);
   });
 }
 
-// applyTemplate replaces the modules with the template's (other settings stay).
+// applyTemplate replaces the modules with the template's (other settings stay); the
+// template is laid out on the catalog's grid.
 export function applyTemplate(settings, tpl, catalog, lang, pageW, areaH) {
-  const g = { columns: 12, rows: 16 };
-  const [px, py] = pad(catalog);
   const modules = tpl.modules.map((m, i) => {
-    const meta = catalog.modules.find(x => x.name === m.name) || { fields: [] };
-    const defaults = Object.fromEntries((meta.fields || []).filter(f => f.default !== undefined).map(f => [f.key, f.default]));
-    const r = cellRect(g, m.cell, pageW, areaH);
-    const config = { ...defaults, ...(m.config || {}), cell: [...m.cell], size: [r.w, r.h], padding_x: px, padding_y: py, language: lang };
-    if (catalog.font_rule) config.fontsize = autoFont(catalog.font_rule, r.w - 2 * px, r.h - 2 * py);
-    return { position: i + 1, name: m.name, config };
+    const t = newTile(catalog, m.name, m.config || {}, lang);
+    placeTile(catalog, catalog.grid, t.config, m.cell, pageW, areaH);
+    return { ...t, position: i + 1 };
   });
-  return { ...settings, grid: { ...g }, modules };
+  return { ...settings, grid: { ...catalog.grid }, modules };
 }

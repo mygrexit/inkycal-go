@@ -8,8 +8,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"inkycal/internal/forecast"
 	"inkycal/internal/i18n"
-	"inkycal/internal/modules/weather"
 	"inkycal/internal/timefmt"
 )
 
@@ -47,7 +47,7 @@ func (u windUnit) convert(mps float64) float64 {
 	case windKnots:
 		return mps * 1.94384
 	case windBft:
-		return float64(weather.Beaufort(mps))
+		return float64(forecast.Beaufort(mps))
 	}
 	return mps
 }
@@ -68,7 +68,7 @@ type settings struct {
 
 func (s settings) temp(celsius float64) float64 {
 	if s.Fahrenheit {
-		return weather.ToFahrenheit(celsius)
+		return forecast.Fahrenheit(celsius)
 	}
 	return celsius
 }
@@ -167,7 +167,7 @@ func (s settings) windText(mean, gust float64) string {
 }
 
 // buildView condenses the observation and the 3-hour forecasts into the view.
-func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, uvi *float64, now time.Time) view {
+func buildView(s settings, cur forecast.Current, points []forecast.Point, uvi *float64, now time.Time) view {
 	de := s.german()
 	v := view{
 		Date:        now,
@@ -186,7 +186,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 	if s.Hour12 {
 		clock = "h:mm a"
 	}
-	if cur.Sunrise.Unix() != 0 { // OWM sends 0 in polar day/night
+	if !cur.Sunrise.IsZero() { // none in polar day or night
 		v.Sunrise = timefmt.Format(cur.Sunrise.In(now.Location()), clock, "en")
 		v.Sunset = timefmt.Format(cur.Sunset.In(now.Location()), clock, "en")
 	}
@@ -207,7 +207,7 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 		}
 	}
 	v.Wind = s.windText(mean, gust)
-	v.WindStrong = weather.WindLevel(mean) >= 3
+	v.WindStrong = forecast.WindLevel(mean) >= 3
 
 	end := now.Add(chartHours * time.Hour)
 	for _, p := range points {
@@ -219,9 +219,9 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 	y, mo, d := now.Date()
 	for i := range maxDays {
 		start := time.Date(y, mo, d+i, 0, 0, 0, 0, now.Location())
-		var day []weather.ForecastPoint
+		var day []forecast.Point
 		for _, p := range points {
-			if weather.SameDay(p.Time, start) && (i > 0 || p.Time.After(now.Add(-90*time.Minute))) {
+			if forecast.SameDay(p.Time, start) && (i > 0 || p.Time.After(now.Add(-90*time.Minute))) {
 				day = append(day, p)
 			}
 		}
@@ -232,10 +232,10 @@ func buildView(s settings, cur weather.Current, points []weather.ForecastPoint, 
 		hi, lo, rain := math.Inf(-1), math.Inf(1), 0.0
 		if i == 0 {
 			hi, lo = cur.Temp, cur.Temp
-			col.Icon = weather.DayIcon(points, cur.Icon, now)
+			col.Icon = forecast.DayIcon(points, cur.Icon, now)
 			col.Label = i18n.T(s.Lang, "today")
 		} else {
-			col.Icon = weather.DayIcon(points, day[0].Icon, start)
+			col.Icon = forecast.DayIcon(points, day[0].Icon, start)
 			col.Label = timefmt.Format(start, "ddd", s.Lang)
 		}
 		for _, p := range day {

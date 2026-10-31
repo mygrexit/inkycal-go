@@ -9,7 +9,7 @@ func TestEffectiveStyleModuleOverridesPage(t *testing.T) {
 	page := &Style{Font: "serif", Scale: 1.2, Colors: Colors{Paper: "white", Ink: "black", Accent: "colour"},
 		CustomFonts: map[string]string{"text": "fonts/a.ttf", "bold": "fonts/b.ttf"}}
 	mod := &Style{Font: "mono", Colors: Colors{Paper: "black", Ink: "white"}, CustomFonts: map[string]string{"bold": "fonts/c.ttf"}}
-	got := Effective(page, mod)
+	got := effective(page, mod)
 	if got.Font != "mono" || got.Scale != 1.2 || got.Colors != (Colors{"black", "white", "colour"}) {
 		t.Errorf("effective %+v", got)
 	}
@@ -17,7 +17,7 @@ func TestEffectiveStyleModuleOverridesPage(t *testing.T) {
 	if got.CustomFonts["text"] != "" || got.CustomFonts["bold"] != "fonts/c.ttf" {
 		t.Errorf("custom fonts %v", got.CustomFonts)
 	}
-	if e := Effective(nil, nil); e.Font != "" || e.Scale != 0 {
+	if e := effective(nil, nil); e.Font != "" || e.Scale != 0 {
 		t.Errorf("empty %+v", e)
 	}
 	// the page's map is not modified by the merge
@@ -53,12 +53,12 @@ func TestParseValidatesStyles(t *testing.T) {
 func TestTileFontLeavesPageCustomFont(t *testing.T) {
 	page := &Style{Font: "custom", CustomFonts: map[string]string{"text": "fonts/x.ttf", "bold": "fonts/x.ttf"}}
 	for _, f := range []string{"serif", "sans", "mono"} {
-		got := Effective(page, &Style{Font: f})
+		got := effective(page, &Style{Font: f})
 		if got.Font != f || len(got.CustomFonts) != 0 {
 			t.Errorf("tile %s: %+v", f, got)
 		}
 	}
-	if got := Effective(page, &Style{Scale: 1.2}); got.CustomFonts["text"] != "fonts/x.ttf" {
+	if got := effective(page, &Style{Scale: 1.2}); got.CustomFonts["text"] != "fonts/x.ttf" {
 		t.Errorf("a tile without a font keeps the page font: %+v", got)
 	}
 }

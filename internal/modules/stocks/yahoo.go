@@ -88,13 +88,13 @@ func chartURL(ticker string) string {
 func parseChart(ticker string, body []byte) (quote, error) {
 	var r chartResponse
 	if err := json.Unmarshal(body, &r); err != nil {
-		return quote{}, problem.Mark(problem.BadResponse, fmt.Errorf("stocks: %s: invalid JSON: %w", ticker, err))
+		return quote{}, problem.Mark(problem.BadResponse, fmt.Errorf("%s: invalid JSON: %w", ticker, err))
 	}
 	if e := r.Chart.Error; e != nil {
-		return quote{}, fmt.Errorf("stocks: %s: %s: %s", ticker, e.Code, e.Description)
+		return quote{}, fmt.Errorf("%s: %s: %s", ticker, e.Code, e.Description)
 	}
 	if len(r.Chart.Result) == 0 {
-		return quote{}, fmt.Errorf("stocks: %s: no data", ticker)
+		return quote{}, fmt.Errorf("%s: no data", ticker)
 	}
 	res := r.Chart.Result[0]
 	m := res.Meta
@@ -126,7 +126,7 @@ func parseChart(ticker string, body []byte) (quote, error) {
 		}
 	}
 	if len(q.Closes) == 0 {
-		return quote{}, fmt.Errorf("stocks: %s: no prices", ticker)
+		return quote{}, fmt.Errorf("%s: no prices", ticker)
 	}
 	// Minor units (London pence "GBp", Johannesburg cents "ZAc", Tel Aviv agorot "ILA")
 	// are shown in the main currency, as one would read the price.

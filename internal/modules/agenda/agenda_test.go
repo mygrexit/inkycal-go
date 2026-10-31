@@ -105,7 +105,7 @@ func TestLayoutStopsWhenColumnsFull(t *testing.T) {
 
 func TestNewValidatesColumns(t *testing.T) {
 	c := config.Common{Size: [2]int{400, 300}, FontSize: 14, Language: "en"}
-	if _, err := New(c, json.RawMessage(`{"ical_urls":"x","columns":3}`)); err == nil {
+	if _, err := Def.New(c, json.RawMessage(`{"ical_urls":"x","columns":3}`)); err == nil {
 		t.Fatal("expected error for columns=3")
 	}
 }
@@ -117,7 +117,7 @@ func TestGenerate(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := config.Common{Size: [2]int{480, 300}, PaddingX: 10, PaddingY: 10, FontSize: 14, Language: "de"}
-	m, err := New(c, json.RawMessage(`{"ical_urls":"`+srv.URL+`"}`))
+	m, err := Def.New(c, json.RawMessage(`{"ical_urls":"`+srv.URL+`"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

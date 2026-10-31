@@ -139,7 +139,7 @@ func RunCycle(ctx context.Context, o *Options) (Result, error) {
 		}
 	}
 
-	composed, err := Compose(ctx, o, now)
+	composed, err := Compose(ctx, o.composeOptions(), now)
 	if err != nil {
 		release()
 		return res, err

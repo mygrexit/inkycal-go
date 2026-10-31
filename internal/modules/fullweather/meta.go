@@ -1,15 +1,24 @@
 package fullweather
 
-import "inkycal/internal/modules"
+import (
+	"inkycal/internal/forecast"
+	"inkycal/internal/modules"
+)
 
 var Meta = modules.Meta{
 	Name: "Fullweather", Title: "Weather (full)", Description: "Current conditions, a temperature and rain chart and a 5-day forecast.", Group: "weather", Icon: "🌦",
 	MinW: 400, MinH: 80,
 	Fields: []modules.Field{
-		{Key: "api_key", Label: "OpenWeatherMap API key", Kind: modules.KindSecret, Required: true},
-		{Key: "latitude", Label: "Latitude", Kind: modules.KindNumber, Required: true},
-		{Key: "longitude", Label: "Longitude", Kind: modules.KindNumber, Required: true},
-		{Key: "api_version", Label: "API", Help: "3.0 needs a One Call subscription", Kind: modules.KindSelect, Options: []any{"2.5", "3.0"}, Default: "2.5", Advanced: true},
+		{Key: "location", Label: "Place", Help: "Type your town and pick it from the list", Kind: modules.KindPlace},
+		{Key: "provider", Label: "Weather service", Kind: modules.KindSelect, Options: []any{forecast.OpenMeteo, forecast.OpenWeatherMap},
+			Labels:  map[string]string{forecast.OpenMeteo: "Open-Meteo (free, no account)", forecast.OpenWeatherMap: "OpenWeatherMap (needs an API key)"},
+			Default: forecast.OpenMeteo, Advanced: true},
+		{Key: "api_key", Label: "OpenWeatherMap API key", Kind: modules.KindSecret, Required: true,
+			ShowIf: &modules.Cond{Key: "provider", Values: []any{forecast.OpenWeatherMap}}},
+		{Key: "latitude", Label: "Latitude", Kind: modules.KindNumber, Required: true, Advanced: true},
+		{Key: "longitude", Label: "Longitude", Kind: modules.KindNumber, Required: true, Advanced: true},
+		{Key: "api_version", Label: "API", Help: "3.0 needs a One Call subscription (for the UV index)", Kind: modules.KindSelect, Options: []any{"2.5", "3.0"}, Default: "2.5", Advanced: true,
+			ShowIf: &modules.Cond{Key: "provider", Values: []any{forecast.OpenWeatherMap}}},
 		{Key: "temp_unit", Label: "Temperature", Kind: modules.KindSelect, Options: []any{"celsius", "fahrenheit"}, Default: "celsius"},
 		{Key: "wind_unit", Label: "Wind", Kind: modules.KindSelect, Options: []any{"meters_sec", "km_hour", "miles_hour", "knots", "beaufort"}, Default: "meters_sec"},
 		{Key: "wind_gusts", Label: "Show gusts", Kind: modules.KindBool, Default: true, Advanced: true},

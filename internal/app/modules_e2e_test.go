@@ -18,18 +18,8 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/epd"
 	"inkycal/internal/fetch"
+	"inkycal/internal/fetch/fetchtest"
 )
-
-// p2Rewrite sends every request (api.openweathermap.org, api.todoist.com, ...) to the test server.
-type p2Rewrite struct{ target *url.URL }
-
-func (t p2Rewrite) RoundTrip(r *http.Request) (*http.Response, error) {
-	r2 := r.Clone(r.Context())
-	r2.URL.Scheme = t.target.Scheme
-	r2.URL.Host = t.target.Host
-	r2.Host = t.target.Host
-	return http.DefaultTransport.RoundTrip(r2)
-}
 
 type p2System struct {
 	mu         sync.Mutex
@@ -127,7 +117,7 @@ func TestRunCycleAllModules(t *testing.T) {
 		t.Fatal(err)
 	}
 	fc := fetch.New(filepath.Join(dir, "http"))
-	fc.HTTP = &http.Client{Transport: p2Rewrite{target: target}, Timeout: 10 * time.Second}
+	fc.HTTP = &http.Client{Transport: fetchtest.Rewrite{Target: target}, Timeout: 10 * time.Second}
 	preview := filepath.Join(dir, "preview.png")
 	sys := &p2System{}
 

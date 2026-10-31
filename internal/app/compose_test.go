@@ -2,13 +2,16 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
+
+	"inkycal/internal/problem"
 )
 
 func TestComposeWithoutCycle(t *testing.T) {
 	o, d, p, _ := testOptions(t, "Dot", "Fail")
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,5 +27,19 @@ func TestComposeWithoutCycle(t *testing.T) {
 	}
 	if got.Took <= 0 || got.Took > time.Minute {
 		t.Errorf("took %v", got.Took)
+	}
+}
+
+// Compose takes settings leniently whoever built them: a broken style in settings made
+// in memory fails its tile, not the page.
+func TestComposeIsLenientForSettingsInMemory(t *testing.T) {
+	o, _, _, _ := testOptions(t, "Dot", "Dot")
+	o.Settings.Modules[1].Config = json.RawMessage(`{"size":[480,200],"padding_x":10,"padding_y":10,"style":{"scale":3}}`)
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Modules[0].Err != nil || problem.Classify(got.Modules[1].Err) != problem.Style {
+		t.Errorf("statuses %+v", got.Modules)
 	}
 }

@@ -18,32 +18,28 @@ import (
 	"inkycal/internal/modules/xkcd"
 )
 
-// Registry maps the module names used in settings.json to their factories.
-var Registry = map[string]modules.Factory{
-	"Agenda":        agenda.New,
-	"Calendar":      calendar.New,
-	"Feeds":         feeds.New,
-	"Fullweather":   fullweather.New,
-	"Greek":         greek.New,
-	"Inkyimage":     imagemod.NewImage,
-	"Inkyserver":    imagemod.NewServer,
-	"Jokes":         jokes.New,
-	"Slideshow":     imagemod.NewSlideshow,
-	"Stocks":        stocks.New,
-	"TextToDisplay": textfile.New,
-	"Todoist":       todoist.New,
-	"Weather":       weather.New,
-	"Xkcd":          xkcd.New,
+// Defs are the registered modules.
+var Defs = []modules.Def{
+	agenda.Def, calendar.Def, feeds.Def, fullweather.Def, greek.Def,
+	imagemod.ImageDef, imagemod.ServerDef, jokes.Def, imagemod.SlideshowDef,
+	stocks.Def, textfile.Def, todoist.Def, weather.Def, xkcd.Def,
 }
+
+// Registry maps the module names used in settings.json to their factories.
+var Registry = func() map[string]modules.Factory {
+	r := make(map[string]modules.Factory, len(Defs))
+	for _, d := range Defs {
+		r[d.Meta.Name] = d.New
+	}
+	return r
+}()
 
 // Catalog describes every registered module for the builder, sorted by title.
-var Catalog = sortedCatalog(
-	agenda.Meta, calendar.Meta, feeds.Meta, fullweather.Meta, greek.Meta,
-	imagemod.ImageMeta, imagemod.ServerMeta, jokes.Meta, imagemod.SlideshowMeta,
-	stocks.Meta, textfile.Meta, todoist.Meta, weather.Meta, xkcd.Meta,
-)
-
-func sortedCatalog(ms ...modules.Meta) []modules.Meta {
+var Catalog = func() []modules.Meta {
+	ms := make([]modules.Meta, len(Defs))
+	for i, d := range Defs {
+		ms[i] = d.Meta
+	}
 	sort.Slice(ms, func(i, j int) bool { return ms[i].Title < ms[j].Title })
 	return ms
-}
+}()

@@ -53,6 +53,16 @@ func common(t *testing.T, raw string) config.Common {
 	return c
 }
 
+// tileErr is the problem of tile i as the device sees it.
+func tileErr(t *testing.T, s *config.Settings, i int) error {
+	t.Helper()
+	_, tiles, err := s.Tiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tiles[i].Err
+}
+
 func load(t *testing.T, body string) *config.Settings {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "settings.json")
@@ -114,23 +124,23 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.NotCalendar},
 		{"Open-Meteo without a place", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"provider":"open-meteo"}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"provider":"open-meteo"}`))
 			return err
 		}, problem.Missing},
 		{"OpenWeatherMap without a location", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"api_key":"k"}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"api_key":"k"}`))
 			return err
 		}, problem.Missing},
 		{"Todoist without a key", func(t *testing.T) error {
-			_, err := todoist.New(small, json.RawMessage(`{}`))
+			_, err := todoist.Def.New(small, json.RawMessage(`{}`))
 			return err
 		}, problem.Missing},
 		{"setting of the wrong type", func(t *testing.T) error {
-			_, err := weather.New(small, json.RawMessage(`{"units":5}`))
+			_, err := weather.Def.New(small, json.RawMessage(`{"units":5}`))
 			return err
 		}, problem.BadSetting},
 		{"local file does not exist", func(t *testing.T) error {
-			m, err := textfile.New(small, json.RawMessage(`{"filepath":"/no/such/file.txt"}`))
+			m, err := textfile.Def.New(small, json.RawMessage(`{"filepath":"/no/such/file.txt"}`))
 			if err != nil {
 				return err
 			}
@@ -145,14 +155,14 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.Padding},
 		{"broken style (device)", func(t *testing.T) error {
-			return load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`).Modules[1].Err
+			return tileErr(t, load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`), 1)
 		}, problem.Style},
 		{"broken style (builder)", func(t *testing.T) error {
 			_, err := config.Parse([]byte(grid+`{"position":2,"name":"B","config":{"cell":[0,4,12,4],"style":{"scale":3}}}]}`), "settings")
 			return err
 		}, problem.Style},
 		{"overlapping cell (device)", func(t *testing.T) error {
-			return load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,2,12,4]}}]}`).Modules[1].Err
+			return tileErr(t, load(t, grid+`{"position":2,"name":"B","config":{"cell":[0,2,12,4]}}]}`), 1)
 		}, problem.Placement},
 		{"missing cell (builder)", func(t *testing.T) error {
 			_, err := config.Parse([]byte(grid+`{"position":2,"name":"B","config":{}}]}`), "settings")
@@ -172,7 +182,7 @@ func TestClassifyRealProducers(t *testing.T) {
 			return err
 		}, problem.BadResponse},
 		{"Fullweather without a place", func(t *testing.T) error {
-			_, err := fullweather.New(small, json.RawMessage(`{"api_key":"k"}`))
+			_, err := fullweather.Def.New(small, json.RawMessage(`{"api_key":"k"}`))
 			return err
 		}, problem.Missing},
 		{"setting of a flexible type with a wrong value", func(t *testing.T) error {

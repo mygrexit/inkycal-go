@@ -4,7 +4,6 @@ package feeds
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -20,7 +19,6 @@ import (
 	"inkycal/internal/config"
 	"inkycal/internal/fetch"
 	"inkycal/internal/modules"
-	"inkycal/internal/problem"
 	"inkycal/internal/render"
 )
 
@@ -42,16 +40,9 @@ var (
 	tagRe      = regexp.MustCompile(`<[^<]+?>`)
 )
 
-func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var rc rawConfig
-	if err := json.Unmarshal(raw, &rc); err != nil {
-		return nil, fmt.Errorf("feeds: config: %w", err)
-	}
+var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
 	if len(rc.FeedURLs) == 0 {
-		return nil, problem.Mark(problem.Missing, errors.New("feeds: feed_urls is missing"))
-	}
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
+		return nil, modules.Missing("feed_urls")
 	}
 	m := &Module{
 		common:  c,
@@ -63,7 +54,7 @@ func New(c config.Common, raw json.RawMessage) (modules.Module, error) {
 		m.shuffle = bool(*rc.ShuffleFeeds)
 	}
 	return m, nil
-}
+})
 
 // item is one feed entry as drawn: headline, summary and the feed it came from.
 type item struct {
@@ -129,7 +120,7 @@ func fetchEntries(ctx context.Context, fc *fetch.Client, urls []string) ([]item,
 		out = append(out, entriesFromFeed(feed)...)
 	}
 	if ok == 0 {
-		return nil, false, fmt.Errorf("feeds: no feed could be loaded: %w", errors.Join(errs...))
+		return nil, false, fmt.Errorf("no feed could be loaded: %w", errors.Join(errs...))
 	}
 	for _, err := range errs {
 		slog.Warn("feeds: skipping feed", "err", err)

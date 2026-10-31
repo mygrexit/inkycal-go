@@ -28,7 +28,7 @@ func gridOptions(t *testing.T, cells ...string) *Options {
 // fakeDisplay is 800×480 → page 480 wide, 800 high; info line 40 → grid area 480×760.
 func TestComposeGridPlacesModulesSideBySide(t *testing.T) {
 	o := gridOptions(t, "[0,0,1,2]", "[1,0,1,1]", "[1,1,1,1]")
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestComposeGridSizesModulesFromCells(t *testing.T) {
 		mu.Unlock()
 		return dotModule{c}, nil
 	}}
-	if _, err := Compose(context.Background(), o, o.Now()); err != nil {
+	if _, err := Compose(context.Background(), o.composeOptions(), o.Now()); err != nil {
 		t.Fatal(err)
 	}
 	sort.Slice(sizes, func(i, j int) bool { return sizes[i][1] > sizes[j][1] })
@@ -91,7 +91,7 @@ func TestComposeGridBrokenConfigShowsHint(t *testing.T) {
 	} {
 		o.Settings.Modules = append(o.Settings.Modules, config.ModuleEntry{Position: i + 1, Name: "Dot", Config: json.RawMessage(cfg)})
 	}
-	got, err := Compose(context.Background(), o, o.Now())
+	got, err := Compose(context.Background(), o.composeOptions(), o.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

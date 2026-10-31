@@ -34,10 +34,10 @@ type word struct {
 func loadWords() ([]word, error) {
 	var ws []word
 	if err := json.Unmarshal(wordsJSON, &ws); err != nil {
-		return nil, fmt.Errorf("greek: word list: %w", err)
+		return nil, fmt.Errorf("word list: %w", err)
 	}
 	if len(ws) == 0 {
-		return nil, fmt.Errorf("greek: word list is empty")
+		return nil, fmt.Errorf("word list is empty")
 	}
 	return ws, nil
 }
@@ -47,16 +47,14 @@ type Module struct {
 	words  []word
 }
 
-func New(c config.Common, _ json.RawMessage) (modules.Module, error) {
-	if err := modules.CheckMinSize(c, Meta); err != nil {
-		return nil, err
-	}
+// Def takes no module keys.
+var Def = modules.Define(Meta, func(c config.Common, _ struct{}) (modules.Module, error) {
 	ws, err := loadWords()
 	if err != nil {
 		return nil, err
 	}
 	return &Module{common: c, words: ws}, nil
-}
+})
 
 // pick returns the word of now's calendar day; consecutive days walk through the list.
 func pick(ws []word, now time.Time) word {

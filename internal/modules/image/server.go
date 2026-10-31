@@ -27,28 +27,23 @@ type Server struct {
 	look   look
 }
 
-// NewServer builds the module registered as "Inkyserver".
-func NewServer(c config.Common, raw json.RawMessage) (modules.Module, error) {
-	var cfg struct {
-		Path     string            `json:"path"`
-		PathBody config.StringList `json:"path_body"`
-		rawLook
-	}
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("server: %w", err)
-	}
+type serverConfig struct {
+	Path     string            `json:"path"`
+	PathBody config.StringList `json:"path_body"`
+	rawLook
+}
+
+// ServerDef is the module registered as "Inkyserver".
+var ServerDef = modules.Define(ServerMeta, func(c config.Common, cfg serverConfig) (modules.Module, error) {
 	if cfg.Path = strings.TrimSpace(cfg.Path); cfg.Path == "" {
-		return nil, problem.Mark(problem.Missing, fmt.Errorf("server: config is missing path"))
+		return nil, modules.Missing("path")
 	}
-	if err := modules.CheckMinSize(c, ServerMeta); err != nil {
-		return nil, err
-	}
-	l, err := cfg.rawLook.parse("server", false) // Python: "Dither … Default is False."
+	l, err := cfg.rawLook.parse(false) // Python: "Dither … Default is False."
 	if err != nil {
 		return nil, err
 	}
 	return &Server{common: c, path: cfg.Path, body: cfg.PathBody, look: l}, nil
-}
+})
 
 // serverURL fills in the module size like Python's str.format(width=…, height=…).
 func serverURL(path string, w, h int) string {
@@ -68,7 +63,7 @@ func (m *Server) Generate(ctx context.Context, env *modules.Env) (*render.Canvas
 	}
 	env.Stale = env.Stale || stale
 	if err != nil {
-		return nil, fmt.Errorf("server: %w", err)
+		return nil, err
 	}
 	return m.look.place(img, w, h, int(m.common.FontSize)), nil
 }

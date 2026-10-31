@@ -1,0 +1,5 @@
+{
+  "_": "modules.AutoFont and the builder's autoFont must give these sizes (inner w, h → px); go test and node --test both read this file",
+  "rule": {"h_div": 9, "w_div": 40, "min": 12, "max": 32},
+  "cases": [[904, 624, 22], [904, 250, 22], [300, 60, 12], [2000, 2000, 32], [480, 180, 12], [640, 300, 16], [-20, 100, 12]]
+}

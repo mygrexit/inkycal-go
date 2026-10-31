@@ -16,7 +16,7 @@ import (
 func TestShapes(t *testing.T) {
 	chartServer(t)
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, json.RawMessage(`{"tickers":"AAPL, TSLA, ^GDAXI, SAP.DE, EURUSD=X"}`))
+		m, err := Def.New(c, json.RawMessage(`{"tickers":"AAPL, TSLA, ^GDAXI, SAP.DE, EURUSD=X"}`))
 		if err != nil {
 			return nil, err
 		}

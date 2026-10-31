@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"inkycal/internal/modules/weather"
+	"inkycal/internal/forecast"
 	"inkycal/internal/render"
 	"inkycal/internal/timefmt"
 )
@@ -107,7 +107,7 @@ func drawHeader(c *render.Canvas, v view, y0 int, s float64) {
 		ink         render.Ink
 	}
 	rows := []row{
-		{weather.GlyphWind, v.Wind, inkIf(v.WindStrong)},
+		{forecast.GlyphWind, v.Wind, inkIf(v.WindStrong)},
 		{glyphRaindrop, v.Precip, render.InkBlack},
 		{glyphHumidity, v.Humidity, render.InkBlack},
 	}
@@ -123,7 +123,7 @@ func drawHeader(c *render.Canvas, v view, y0 int, s float64) {
 
 	// Current conditions.
 	x0 := u(300)
-	c.Icon(x0, y0, u(124), u(124), weather.IconGlyph(v.Icon), render.FontWeather, render.InkBlack, 0.95)
+	c.Icon(x0, y0, u(124), u(124), forecast.Glyph(v.Icon), render.FontWeather, render.InkBlack, 0.95)
 	xt := x0 + u(146)
 	big := capStyle(c, render.FontBold, u(50))
 	c.Text(xt, y0+u(62), v.Temp, big, render.InkBlack)
@@ -136,7 +136,7 @@ func drawHeader(c *render.Canvas, v view, y0 int, s float64) {
 		sun := capStyle(c, render.FontRegular, u(18))
 		base := y0 + u(222)
 		x := x0
-		for _, p := range [][2]string{{weather.GlyphSunrise, v.Sunrise}, {weather.GlyphSunset, v.Sunset}} {
+		for _, p := range [][2]string{{forecast.GlyphSunrise, v.Sunrise}, {forecast.GlyphSunset, v.Sunset}} {
 			c.Icon(x, base-u(28), u(36), u(34), p[0], render.FontWeather, render.InkBlack, 0.95)
 			x += u(44)
 			x += c.Text(x, base, p[1], sun, render.InkBlack) + u(26)
@@ -419,7 +419,7 @@ func drawDays(c *render.Canvas, v view, x, y, w, h int, s float64) {
 			c.TextCenter(cx, y+u(48), c.Fit(d.Date, date, colW-u(8)), date, render.InkBlack)
 		}
 		y := y - u(dateRowH-dateH)
-		c.Icon(cx-u(40), y+u(60), u(80), u(66), weather.IconGlyph(d.Icon), render.FontWeather, render.InkBlack, 0.92)
+		c.Icon(cx-u(40), y+u(60), u(80), u(66), forecast.Glyph(d.Icon), render.FontWeather, render.InkBlack, 0.92)
 		hw, gap, lw := c.Advance(d.Hi, hiSt), u(12), c.Advance(d.Lo, loSt)
 		hx := cx - (hw+gap+lw)/2
 		c.Text(hx, y+u(160), d.Hi, hiSt, render.InkBlack)

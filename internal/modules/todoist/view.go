@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"inkycal/internal/i18n"
+	"inkycal/internal/modules"
 	"inkycal/internal/render"
 	"inkycal/internal/timefmt"
 )
@@ -64,7 +65,7 @@ func buildRows(projects []project, tasks []task, filter []string, showPriority b
 		}
 	}
 	if len(filter) > 0 && len(keep) == 0 {
-		return nil, fmt.Errorf("todoist: no project matches project_filter %q", strings.Join(filter, ","))
+		return nil, modules.Bad("no project matches project_filter %q", strings.Join(filter, ","))
 	}
 	today := midnight(now)
 	type item struct {

@@ -13,7 +13,7 @@ import (
 
 func TestShapes(t *testing.T) {
 	modulestest.Shapes(t, Meta, func(c config.Common) (*render.Canvas, error) {
-		m, err := New(c, nil)
+		m, err := Def.New(c, nil)
 		if err != nil {
 			return nil, err
 		}
