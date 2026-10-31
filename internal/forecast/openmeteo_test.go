@@ -1,18 +1,17 @@
-package weather
+package forecast
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"inkycal/internal/config"
 	"inkycal/internal/fetch"
-	"inkycal/internal/modules"
-	"inkycal/internal/modules/modulestest"
+	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/problem"
 )
 
 // omFixture is an Open-Meteo answer (timeformat=unixtime) starting at 06:00 local time,
@@ -46,31 +45,31 @@ func omFixture(start time.Time) string {
 		day.Unix(), day.Add(7*time.Hour+40*time.Minute).Unix(), day.Add(18*time.Hour+30*time.Minute).Unix())
 }
 
-func serveOpenMeteo(t *testing.T, body string) *http.Request {
+func serveOpenMeteo(t *testing.T, body string) (*fetch.Client, *http.Request) {
 	t.Helper()
 	var seen http.Request
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = *r
 		w.Write([]byte(body))
 	}))
-	old := openMeteoURL
-	openMeteoURL = srv.URL + "/v1/forecast"
-	t.Cleanup(func() { openMeteoURL = old; srv.Close() })
-	return &seen
+	return fc, &seen
 }
 
 func TestOpenMeteoMapsToTheSameModel(t *testing.T) {
 	loc := berlin(t)
 	start := time.Date(2026, 10, 13, 6, 0, 0, 0, loc)
-	req := serveOpenMeteo(t, omFixture(start))
-	cur, points, stale, err := fetchOpenMeteo(context.Background(), fetch.New(""), 52.52, 13.41, "de", loc)
-	if err != nil || stale {
-		t.Fatalf("err %v stale %v", err, stale)
+	fc, req := serveOpenMeteo(t, omFixture(start))
+	r, err := openMeteo{lat: 52.52, lon: 13.41, lang: "de"}.fetch(context.Background(), fc, loc, Want{})
+	if err != nil || r.Stale || r.UV != nil {
+		t.Fatalf("err %v stale %v uv %v", err, r.Stale, r.UV)
 	}
-	if q := req.URL.Query(); q.Get("latitude") != "52.52" || q.Get("wind_speed_unit") != "ms" || q.Get("timeformat") != "unixtime" {
+	q := req.URL.Query()
+	if req.URL.Path != "/v1/forecast" || q.Get("latitude") != "52.52" || q.Get("wind_speed_unit") != "ms" || q.Get("timeformat") != "unixtime" ||
+		q.Get("forecast_days") != "3" || strings.Contains(q.Get("current"), "uv_index") {
 		t.Errorf("query %v", q)
 	}
-	want := current{Icon: "10d", Description: "Leichter Regen", Temp: 4.2, FeelsLike: 1.5, MaxTemp: 9.5, Humidity: 81,
+	cur, points := r.Now, r.Points
+	want := Current{Icon: "10d", Description: "Leichter Regen", Temp: 4.2, FeelsLike: 1.5, Humidity: 81,
 		WindMPS: 7.9, WindMean: 3.1, Sunrise: time.Date(2026, 10, 13, 7, 40, 0, 0, loc), Sunset: time.Date(2026, 10, 13, 18, 30, 0, 0, loc)}
 	if !cur.Sunrise.Equal(want.Sunrise) || !cur.Sunset.Equal(want.Sunset) {
 		t.Errorf("sun %v %v", cur.Sunrise, cur.Sunset)
@@ -88,6 +87,23 @@ func TestOpenMeteoMapsToTheSameModel(t *testing.T) {
 	}
 }
 
+// Fullweather asks for five days and the UV index, which Open-Meteo has for free.
+func TestOpenMeteoDaysAndUV(t *testing.T) {
+	loc := berlin(t)
+	body := strings.Replace(omFixture(time.Date(2026, 10, 13, 6, 0, 0, 0, loc)), `"wind_gusts_10m":7.9}`, `"wind_gusts_10m":7.9,"uv_index":3.4}`, 1)
+	fc, req := serveOpenMeteo(t, body)
+	r, err := openMeteo{lat: 52.52, lon: 13.41, lang: "en"}.fetch(context.Background(), fc, loc, Want{Days: 5, UV: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q := req.URL.Query(); q.Get("forecast_days") != "5" || !strings.HasSuffix(q.Get("current"), ",uv_index") {
+		t.Errorf("query %v", q)
+	}
+	if r.UV == nil || *r.UV != 3.4 {
+		t.Errorf("uv %v", r.UV)
+	}
+}
+
 func TestWMOIcons(t *testing.T) {
 	cases := map[int]string{0: "01", 1: "02", 2: "03", 3: "04", 45: "50", 53: "09", 63: "10", 66: "13", 73: "13", 81: "09", 86: "13", 95: "11", 99: "11"}
 	for code, want := range cases {
@@ -100,44 +116,34 @@ func TestWMOIcons(t *testing.T) {
 	}
 }
 
-func TestProviderChoice(t *testing.T) {
-	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+func ptr(v float64) *config.FlexFloat { f := config.FlexFloat(v); return &f }
+
+// Upstream settings keep their service; new ones without a key get Open-Meteo.
+func TestSourceChoosesTheService(t *testing.T) {
 	cases := []struct {
-		raw, provider, err string
+		s    Settings
+		want string // provider type, or the error kind's key
 	}{
-		{`{"api_key":"k","location":"Berlin"}`, "openweathermap", ""},                // existing settings stay
-		{`{"latitude":52.5,"longitude":13.4,"location":"Berlin"}`, "open-meteo", ""}, // no key: Open-Meteo
-		{`{"provider":"open-meteo","location":"Berlin"}`, "", "latitude"},
-		{`{"provider":"openweathermap","location":"Berlin"}`, "", "api_key"},
+		{Settings{APIKey: "k", Location: "Berlin"}, "owm"},
+		{Settings{APIKey: "k", Latitude: ptr(50.9), Longitude: ptr(6.9)}, "owm"}, // upstream Fullweather
+		{Settings{Latitude: ptr(52.5), Longitude: ptr(13.4), Location: "Berlin"}, "openMeteo"},
+		{Settings{Provider: "open-meteo", Location: "Berlin"}, "latitude and longitude are missing"},
+		{Settings{Provider: "openweathermap", Location: "Berlin"}, "api_key is missing"},
+		{Settings{Provider: "openweathermap", APIKey: "k"}, "location is missing"},
+		{Settings{Provider: "met.no"}, `provider "met.no"`},
+		{Settings{Latitude: ptr(91), Longitude: ptr(0)}, "out of range"},
 	}
 	for _, c := range cases {
-		m, err := Def.New(common, json.RawMessage(c.raw))
-		if c.err != "" {
-			if err == nil || !strings.Contains(err.Error(), c.err) {
-				t.Errorf("%s: err %v, want %q", c.raw, err, c.err)
+		src, err := c.s.Source("en", Want{})
+		got := fmt.Sprintf("%T", src.p)
+		if err != nil {
+			got = err.Error()
+			if k := problem.Classify(err); k != problem.Missing && k != problem.BadSetting {
+				t.Errorf("%+v: kind %v", c.s, k)
 			}
-			continue
 		}
-		if err != nil || m.(*Module).provider != c.provider {
-			t.Errorf("%s: err %v provider %q", c.raw, err, m.(*Module).provider)
+		if !strings.Contains(got, c.want) {
+			t.Errorf("%+v: %s, want %s", c.s, got, c.want)
 		}
-	}
-}
-
-func TestGenerateWithOpenMeteo(t *testing.T) {
-	loc := berlin(t)
-	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	serveOpenMeteo(t, omFixture(time.Date(2026, 10, 13, 6, 0, 0, 0, loc)))
-	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
-	m, err := Def.New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := m.Generate(context.Background(), &modules.Env{Now: now, Loc: loc, Fetch: fetch.New("")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
-		t.Error("date numeral missing")
 	}
 }

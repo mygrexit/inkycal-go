@@ -6,31 +6,19 @@ package fullweather
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 
 	"inkycal/internal/config"
-	"inkycal/internal/fetch"
+	"inkycal/internal/forecast"
 	"inkycal/internal/modules"
-	"inkycal/internal/modules/weather"
 	"inkycal/internal/render"
 )
 
-// Variables so tests can point them at an httptest server.
-var (
-	owmBaseURL     = weather.OWMBaseURL
-	oneCallBaseURL = "https://api.openweathermap.org/data/3.0/onecall"
-)
-
 type Module struct {
-	common   config.Common
-	apiKey   string
-	lat, lon float64
-	oneCall  bool // api_version 3.0: also fetch the UV index
-	set      settings
+	common config.Common
+	src    forecast.Source
+	set    settings
 }
 
 // rawConfig mirrors the upstream keys. orientation, keep_history, font, chart_title,
@@ -49,15 +37,8 @@ type rawConfig struct {
 }
 
 var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Module, error) {
-	if strings.TrimSpace(rc.APIKey) == "" {
-		return nil, modules.Missing("api_key")
-	}
 	if rc.Latitude == nil || rc.Longitude == nil {
 		return nil, modules.Missing("latitude", "longitude")
-	}
-	lat, lon := float64(*rc.Latitude), float64(*rc.Longitude)
-	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
-		return nil, modules.Bad("latitude/longitude %v/%v out of range", lat, lon)
 	}
 	lang := c.Language
 	// Upstream takes the language from the locale, e.g. "de_DE.UTF-8".
@@ -65,6 +46,11 @@ var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Modu
 		lang = strings.ToLower(parts[0])
 	}
 	v, _ := strconv.ParseFloat(strings.TrimSpace(string(rc.APIVersion)), 64)
+	place := forecast.Settings{Provider: "openweathermap", APIKey: rc.APIKey, Latitude: rc.Latitude, Longitude: rc.Longitude}
+	src, err := place.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: v == 3})
+	if err != nil {
+		return nil, err
+	}
 	s := settings{
 		Fahrenheit: strings.EqualFold(strings.TrimSpace(rc.TempUnit), "fahrenheit"),
 		Wind:       parseWindUnit(rc.WindUnit),
@@ -73,68 +59,21 @@ var Def = modules.Define(Meta, func(c config.Common, rc rawConfig) (modules.Modu
 		Hour12:     int(rc.HourFormat) == 12,
 		Lang:       lang,
 	}
-	return &Module{common: c, apiKey: rc.APIKey, lat: lat, lon: lon, oneCall: v == 3, set: s}, nil
+	return &Module{common: c, src: src, set: s}, nil
 })
 
 func (m *Module) Generate(ctx context.Context, env *modules.Env) (*render.Canvas, error) {
-	var (
-		wg             sync.WaitGroup
-		cur            weather.Current
-		points         []weather.ForecastPoint
-		uvi            *float64
-		staleC, staleF bool
-		errC, errF     error
-	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		u := weather.CoordsURL(owmBaseURL, "weather", m.apiKey, m.lat, m.lon, m.set.Lang)
-		cur, staleC, errC = weather.FetchCurrent(ctx, env.Fetch, u, env.Loc)
-	}()
-	go func() {
-		defer wg.Done()
-		u := weather.CoordsURL(owmBaseURL, "forecast", m.apiKey, m.lat, m.lon, m.set.Lang)
-		points, staleF, errF = weather.FetchForecast(ctx, env.Fetch, u, env.Loc)
-	}()
-	if m.oneCall {
-		wg.Go(func() {
-			uvi = fetchUVI(ctx, env.Fetch, m.apiKey, m.lat, m.lon)
-		})
-	}
-	wg.Wait()
-	if err := errors.Join(errC, errF); err != nil {
+	r, err := m.src.Fetch(ctx, env.Fetch, env.Loc)
+	if err != nil {
 		return nil, err
 	}
-	if len(points) == 0 {
+	if len(r.Points) == 0 {
 		return nil, errors.New("forecast is empty")
 	}
-	env.Stale = env.Stale || staleC || staleF
+	env.Stale = env.Stale || r.Stale
 
 	w, h := m.common.InnerSize()
 	c := env.Canvas(w, h, render.FontDefault, int(m.common.FontSize))
-	draw(c, buildView(m.set, cur, points, uvi, env.Now))
+	draw(c, buildView(m.set, r.Now, r.Points, r.UV, env.Now))
 	return c, nil
-}
-
-// fetchUVI reads the current UV index from the One Call 3.0 API. It is an extra the
-// view can do without, so a failure only drops the UV line.
-func fetchUVI(ctx context.Context, fc *fetch.Client, apiKey string, lat, lon float64) *float64 {
-	q := url.Values{}
-	q.Set("lat", strconv.FormatFloat(lat, 'f', -1, 64))
-	q.Set("lon", strconv.FormatFloat(lon, 'f', -1, 64))
-	q.Set("appid", apiKey)
-	q.Set("exclude", "minutely,hourly,daily,alerts")
-	q.Set("units", "metric")
-	var raw struct {
-		Current struct {
-			UVI *float64 `json:"uvi"`
-		} `json:"current"`
-	}
-	stale, err := fc.GetJSON(ctx, oneCallBaseURL+"?"+q.Encode(), nil, &raw)
-	if err != nil || stale {
-		// A cached UV index can be from yesterday noon: better none than a wrong one.
-		slog.Warn("fullweather: UV index unavailable", "stale", stale, "err", err)
-		return nil
-	}
-	return raw.Current.UVI
 }

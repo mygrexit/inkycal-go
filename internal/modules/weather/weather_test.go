@@ -4,10 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"inkycal/internal/fetch"
+	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/forecast"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
 	"inkycal/internal/render"
@@ -31,9 +36,6 @@ func TestNewValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	mod := m.(*Module)
-	if mod.location != "4893171" {
-		t.Errorf("numeric location = %q", mod.location)
-	}
 	want := settings{Fahrenheit: true, Hour12: true, Lang: "en"}
 	if mod.set != want {
 		t.Errorf("settings = %+v, want %+v", mod.set, want)
@@ -43,16 +45,16 @@ func TestNewValidation(t *testing.T) {
 func TestGenerate(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	forecast := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
+	list := fmt.Sprintf(`{"list":[{"dt":%d,"main":{"temp":3.0},"weather":[{"icon":"03d"}],"wind":{"speed":2}},{"dt":%d,"main":{"temp":4.3},"weather":[{"icon":"10d"}],"wind":{"speed":12}}]}`,
 		now.Add(3*time.Hour).Unix(), now.Add(6*time.Hour).Unix())
-	serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), forecast)
+	fc := serveOWM(t, currentFixture("04d", "7.9", now.Add(2*time.Hour), now.Add(12*time.Hour)), list)
 
 	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
 	m, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":4893171,"units":"metric","hour_format":24}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := &modules.Env{Now: now, Loc: loc, Fetch: fetch.New("")}
+	env := &modules.Env{Now: now, Loc: loc, Fetch: fc}
 
 	c, err := m.Generate(context.Background(), env)
 	if err != nil {
@@ -80,7 +82,7 @@ func TestGenerate(t *testing.T) {
 func TestDrawDayFitsOtherShapes(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	v := buildDay(settings{Lang: "de"}, current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
+	v := buildDay(settings{Lang: "de"}, forecast.Current{Icon: "04d", Temp: 8, Sunrise: now, Sunset: now}, nil, now)
 
 	narrow := render.NewCanvas(400, 200, render.FontDefault, 14) // width-limited: 400*250/904 ≈ 110 px tall
 	drawDay(narrow, v, "de")
@@ -94,5 +96,38 @@ func TestDrawDayFitsOtherShapes(t *testing.T) {
 	common := modulestest.Common(t, `{"size":[480,110],"padding_x":10,"padding_y":10,"fontsize":14,"language":"de"}`)
 	if _, err := Def.New(common, json.RawMessage(`{"api_key":"k","location":"Berlin"}`)); err != nil {
 		t.Errorf("7.5\" sized band rejected: %v", err)
+	}
+}
+
+// Without an API key a new tile gets Open-Meteo and draws its band.
+func TestGenerateWithOpenMeteo(t *testing.T) {
+	loc := berlin(t)
+	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
+	var times, temps, codes, zeros, ones []string
+	for h := range 12 {
+		times = append(times, strconv.FormatInt(now.Truncate(time.Hour).Add(time.Duration(h)*time.Hour).Unix(), 10))
+		temps, codes, zeros, ones = append(temps, "5.5"), append(codes, "61"), append(zeros, "0"), append(ones, "1")
+	}
+	j := func(s []string) string { return "[" + strings.Join(s, ",") + "]" }
+	body := `{"current":{"temperature_2m":4.2,"relative_humidity_2m":81,"apparent_temperature":1.5,"is_day":1,"weather_code":61,"wind_speed_10m":3.1,"wind_gusts_10m":7.9},` +
+		`"hourly":{"time":` + j(times) + `,"temperature_2m":` + j(temps) + `,"weather_code":` + j(codes) + `,"precipitation":` + j(zeros) +
+		`,"wind_speed_10m":` + j(ones) + `,"wind_gusts_10m":` + j(ones) + `,"is_day":` + j(ones) + `}}`
+	fc := fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/forecast" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		io.WriteString(w, body)
+	}))
+	common := modulestest.Common(t, `{"size":[984,290],"padding_x":40,"padding_y":20,"fontsize":20,"language":"de"}`)
+	m, err := Def.New(common, json.RawMessage(`{"latitude":52.52,"longitude":13.41,"location":"Berlin"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := m.Generate(context.Background(), &modules.Env{Now: now, Loc: loc, Fetch: fc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, colour := modulestest.InkIn(c, 0, 0, 280, 125); !colour {
+		t.Error("date numeral missing")
 	}
 }

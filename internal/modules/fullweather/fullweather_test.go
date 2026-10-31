@@ -10,19 +10,21 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 	_ "time/tzdata"
 
+	"inkycal/internal/config"
 	"inkycal/internal/fetch"
+	"inkycal/internal/fetch/fetchtest"
+	"inkycal/internal/forecast"
 	"inkycal/internal/modules"
 	"inkycal/internal/modules/modulestest"
-	"inkycal/internal/modules/weather"
 	"inkycal/internal/render"
 )
 
@@ -64,8 +66,8 @@ func TestNewUpstreamKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	mod := m.(*Module)
-	if mod.lat != 51.51 || mod.lon != -0.13 || !mod.oneCall {
-		t.Errorf("lat/lon/oneCall = %v/%v/%v", mod.lat, mod.lon, mod.oneCall)
+	if want := source(t, 51.51, -0.13, "de", true); !reflect.DeepEqual(mod.src, want) {
+		t.Errorf("source %+v, want %+v", mod.src, want)
 	}
 	want := settings{Fahrenheit: true, Wind: windKMH, Gusts: false, MinMax: true, Lang: "de"}
 	if mod.set != want {
@@ -78,12 +80,23 @@ func TestNewUpstreamKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	mod = m.(*Module)
-	if want := (settings{Wind: windMPS, Gusts: true, Lang: "en"}); mod.set != want || mod.oneCall {
-		t.Errorf("defaults = %+v oneCall=%v", mod.set, mod.oneCall)
+	if want := (settings{Wind: windMPS, Gusts: true, Lang: "en"}); mod.set != want || !reflect.DeepEqual(mod.src, source(t, 51.5, -0.13, "en", false)) {
+		t.Errorf("defaults = %+v source %+v", mod.set, mod.src)
 	}
-	if m, _ := Def.New(common, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1,"api_version":3}`)); !m.(*Module).oneCall {
+	if m, _ := Def.New(common, json.RawMessage(`{"api_key":"k","latitude":1,"longitude":1,"api_version":3}`)); !reflect.DeepEqual(m.(*Module).src, source(t, 1, 1, "en", true)) {
 		t.Error("numeric api_version 3 not recognised")
 	}
+}
+
+// source is the OpenWeatherMap source an upstream Fullweather tile resolves to.
+func source(t *testing.T, lat, lon float64, lang string, oneCall bool) forecast.Source {
+	t.Helper()
+	la, lo := config.FlexFloat(lat), config.FlexFloat(lon)
+	src, err := forecast.Settings{Provider: "openweathermap", APIKey: "k", Latitude: &la, Longitude: &lo}.Source(lang, forecast.Want{Days: 5, UV: true, OneCall: oneCall})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return src
 }
 
 func TestWindUnits(t *testing.T) {
@@ -143,9 +156,9 @@ func TestTempStepAndPrecipScale(t *testing.T) {
 }
 
 // sampleForecast is five days of plausible October weather in 3-hour slots.
-func sampleForecast(now time.Time) []weather.ForecastPoint {
+func sampleForecast(now time.Time) []forecast.Point {
 	start := now.UTC().Truncate(3 * time.Hour).Add(3 * time.Hour)
-	var pts []weather.ForecastPoint
+	var pts []forecast.Point
 	for i := range 40 {
 		t := start.Add(time.Duration(i*3) * time.Hour).In(now.Location())
 		hr := float64(t.Hour()) + float64(t.Minute())/60
@@ -167,7 +180,7 @@ func sampleForecast(now time.Time) []weather.ForecastPoint {
 		if hr < 6 || hr > 20 {
 			icon = icon[:2] + "n"
 		}
-		pts = append(pts, weather.ForecastPoint{Time: t, Temp: temp, Icon: icon, Wind: 3.5 + day, Gust: 7 + day, Precip: rain})
+		pts = append(pts, forecast.Point{Time: t, Temp: temp, Icon: icon, Wind: 3.5 + day, Gust: 7 + day, Precip: rain})
 	}
 	return pts
 }
@@ -175,7 +188,7 @@ func sampleForecast(now time.Time) []weather.ForecastPoint {
 func TestBuildView(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
-	cur := weather.Current{Icon: "10d", Description: "leichter Regen", Temp: 7.6, FeelsLike: 5.2, Humidity: 88,
+	cur := forecast.Current{Icon: "10d", Description: "leichter Regen", Temp: 7.6, FeelsLike: 5.2, Humidity: 88,
 		WindMean: 3, WindMPS: 6, Sunrise: now.Add(2 * time.Hour), Sunset: now.Add(12 * time.Hour)}
 	pts := sampleForecast(now)
 	uv := 6.4
@@ -223,7 +236,7 @@ func TestBuildView(t *testing.T) {
 }
 
 // serveOWM answers /weather, /forecast and the One Call endpoint like OpenWeatherMap.
-func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
+func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) *fetch.Client {
 	t.Helper()
 	var list []string
 	for _, p := range sampleForecast(now) {
@@ -231,12 +244,12 @@ func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
 			`"weather":[{"icon":%q,"description":"x"}],"wind":{"speed":%.1f,"gust":%.1f},"rain":{"3h":%.1f},"pop":0.4}`,
 			p.Time.Unix(), p.Temp, p.Icon, p.Wind, p.Gust, p.Precip))
 	}
-	forecast := `{"list":[` + strings.Join(list, ",") + `]}`
+	forecastBody := `{"list":[` + strings.Join(list, ",") + `]}`
 	current := fmt.Sprintf(`{"weather":[{"icon":"10d","description":"leichter Regen"}],"main":{"temp":7.6,"feels_like":5.2,"temp_min":6,"temp_max":9,"humidity":88},`+
 		`"wind":{"speed":3.2,"gust":6.4},"sys":{"sunrise":%d,"sunset":%d}}`,
 		time.Date(2026, 10, 13, 7, 54, 0, 0, now.Location()).Unix(), time.Date(2026, 10, 13, 18, 48, 0, 0, now.Location()).Unix())
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return fetchtest.Client(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		if q.Get("lat") != "50.94" || q.Get("lon") != "6.96" || q.Get("appid") != "k" {
 			t.Errorf("query = %v", q)
@@ -245,7 +258,7 @@ func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
 		case "/data/2.5/weather":
 			io.WriteString(w, current)
 		case "/data/2.5/forecast":
-			io.WriteString(w, forecast)
+			io.WriteString(w, forecastBody)
 		case "/data/3.0/onecall":
 			oneCallHits.Add(1)
 			io.WriteString(w, `{"current":{"uvi":2.3}}`)
@@ -253,21 +266,15 @@ func serveOWM(t *testing.T, now time.Time, oneCallHits *atomic.Int32) {
 			http.NotFound(w, r)
 		}
 	}))
-	oldOWM, oldOne := owmBaseURL, oneCallBaseURL
-	owmBaseURL, oneCallBaseURL = srv.URL+"/data/2.5", srv.URL+"/data/3.0/onecall"
-	t.Cleanup(func() {
-		owmBaseURL, oneCallBaseURL = oldOWM, oldOne
-		srv.Close()
-	})
 }
 
-func generate(t *testing.T, common, raw string, now time.Time) *render.Canvas {
+func generate(t *testing.T, fc *fetch.Client, common, raw string, now time.Time) *render.Canvas {
 	t.Helper()
 	m, err := Def.New(modulestest.Common(t, common), json.RawMessage(raw))
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := &modules.Env{Now: now, Loc: now.Location(), Fetch: fetch.New("")}
+	env := &modules.Env{Now: now, Loc: now.Location(), Fetch: fc}
 	c, err := m.Generate(context.Background(), env)
 	if err != nil {
 		t.Fatal(err)
@@ -282,9 +289,9 @@ func TestGenerate(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	var hits atomic.Int32
-	serveOWM(t, now, &hits)
+	fc := serveOWM(t, now, &hits)
 
-	c := generate(t, fullCommon, `{"api_key":"k","latitude":50.94,"longitude":6.96,"api_version":"3.0","locale":"de_DE.UTF-8"}`, now)
+	c := generate(t, fc, fullCommon, `{"api_key":"k","latitude":50.94,"longitude":6.96,"api_version":"3.0","locale":"de_DE.UTF-8"}`, now)
 	if c.W != 904 || c.H != 1264 {
 		t.Fatalf("canvas = %dx%d, want 904x1264", c.W, c.H)
 	}
@@ -306,7 +313,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	hits.Store(0)
-	half := generate(t, `{"size":[984,640],"padding_x":40,"padding_y":20,"fontsize":22,"language":"en"}`,
+	half := generate(t, fc, `{"size":[984,640],"padding_x":40,"padding_y":20,"fontsize":22,"language":"en"}`,
 		`{"api_key":"k","latitude":"50.94","longitude":"6.96"}`, now)
 	if half.W != 904 || half.H != 600 {
 		t.Fatalf("half canvas = %dx%d", half.W, half.H)
@@ -320,7 +327,7 @@ func TestGenerate(t *testing.T) {
 func TestDrawShapes(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 21, 40, 0, 0, loc) // late: today has few slots left
-	cur := weather.Current{Icon: "01n", Description: "clear sky", Temp: 4, FeelsLike: 1, Humidity: 70, WindMean: 15, WindMPS: 22}
+	cur := forecast.Current{Icon: "01n", Description: "clear sky", Temp: 4, FeelsLike: 1, Humidity: 70, WindMean: 15, WindMPS: 22}
 	v := buildView(settings{Wind: windMPS, Gusts: true, Lang: "en", MinMax: true}, cur, sampleForecast(now), nil, now)
 	for _, sz := range [][2]int{{904, 1264}, {904, 600}, {904, 400}, {904, 140}, {400, 600}, {640, 384}} {
 		c := render.NewCanvas(sz[0], sz[1], render.FontDefault, 14)
@@ -340,7 +347,7 @@ func TestPreview(t *testing.T) {
 	loc := berlin(t)
 	now := time.Date(2026, 10, 13, 6, 5, 0, 0, loc)
 	var hits atomic.Int32
-	serveOWM(t, now, &hits)
+	fc := serveOWM(t, now, &hits)
 	shots := []struct{ name, common, raw string }{
 		{"full", fullCommon, `{"api_key":"k","latitude":50.94,"longitude":6.96,"api_version":"3.0","locale":"de_DE.UTF-8","min_max_annotations":true}`},
 		{"half", `{"size":[984,640],"padding_x":40,"padding_y":20,"fontsize":22,"language":"de"}`, `{"api_key":"k","latitude":50.94,"longitude":6.96}`},
@@ -349,7 +356,7 @@ func TestPreview(t *testing.T) {
 		{"mid", `{"size":[984,440],"padding_x":40,"padding_y":20,"fontsize":22,"language":"en"}`, `{"api_key":"k","latitude":50.94,"longitude":6.96,"temp_unit":"fahrenheit","wind_unit":"beaufort"}`},
 	}
 	for _, s := range shots {
-		c := generate(t, s.common, s.raw, now)
+		c := generate(t, fc, s.common, s.raw, now)
 		writePNG(t, filepath.Join(dir, "fullweather-"+s.name+".png"), c)
 	}
 }
